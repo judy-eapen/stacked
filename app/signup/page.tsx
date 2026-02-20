@@ -17,14 +17,19 @@ export default function SignUpPage() {
     setError(null)
     setLoading(true)
     const supabase = createClient()
-    const { error: err } = await supabase.auth.signUp({ email, password })
+    const { data, error: err } = await supabase.auth.signUp({ email, password })
     setLoading(false)
     if (err) {
       setError(err.message)
       return
     }
-    router.push('/display-name')
-    router.refresh()
+    if (data.session) {
+      // Session exists (email confirmation off). Full redirect so cookies are sent on next request.
+      window.location.href = '/display-name'
+      return
+    }
+    // No session: Supabase has "Confirm email" on. Tell user to check inbox.
+    setError('Check your email to confirm your account, then log in.')
   }
 
   async function handleGoogle() {

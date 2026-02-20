@@ -3,7 +3,7 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'Stacked — Build habits that compound',
-  description: 'Auth demo with ghosted product preview',
+  description: 'The habit app that works. Scorecard, identities, stacking, streaks — one place. Built for the Atomic Habits method.',
   manifest: '/manifest.json',
   themeColor: '#e87722',
   appleWebApp: { capable: true, title: 'Stacked' },
