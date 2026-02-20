@@ -25,9 +25,6 @@ export default function LandingPage() {
           <span className="text-xl font-bold tracking-tight text-gray-900">Stacked</span>
         </Link>
         <nav className="flex items-center gap-3">
-          <Link href="/dashboard" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
-            See app
-          </Link>
           <Link href="/login" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
             Log in
           </Link>
