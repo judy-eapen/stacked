@@ -465,11 +465,11 @@ export default function ScorecardPage() {
                           <button
                             type="button"
                             onClick={() => setOpenMenuId(openMenuId === entry.id ? null : entry.id)}
-                            className="p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-[#e87722]/70 focus:ring-offset-2 transition-colors"
-                            aria-label="More actions"
+                            className="p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-transparent hover:border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#e87722]/70 focus:ring-offset-2 transition-colors"
+                            aria-label="Edit or delete"
                             aria-expanded={openMenuId === entry.id}
                           >
-                            <span className="sr-only">More actions</span>
+                            <span className="sr-only">Edit or delete</span>
                             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
                               <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
                             </svg>
@@ -481,7 +481,7 @@ export default function ScorecardPage() {
                                 aria-hidden
                                 onClick={() => setOpenMenuId(null)}
                               />
-                              <div className="absolute right-0 top-full mt-0.5 z-20 min-w-[120px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                              <div className="absolute right-0 bottom-full mb-0.5 z-20 min-w-[120px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
                                 <button
                                   type="button"
                                   className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
@@ -514,12 +514,6 @@ export default function ScorecardPage() {
               </div>
             )
           })}
-
-          <p className="text-xs text-gray-400">
-            <button type="button" onClick={() => setShowEmpty(true)} className="text-[#e87722] hover:underline">
-              View empty state
-            </button>
-          </p>
         </>
       ) : (
         /* Empty state */
