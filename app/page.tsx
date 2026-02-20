@@ -1,15 +1,21 @@
 import Link from 'next/link'
 
+const PILLARS = [
+  { label: 'Scorecard', line: 'Rate your day + / − / =', icon: '⊕' },
+  { label: 'Identities', line: '"I am a person who…"', icon: '◉' },
+  { label: 'Stacking', line: 'After [this], I will [that]', icon: '▸' },
+  { label: 'Streaks', line: 'Never miss twice', icon: '◐' },
+] as const
+
 export default function LandingPage() {
   return (
     <div
-      className="min-h-screen"
+      className="min-h-screen flex flex-col"
       style={{
-        background: 'linear-gradient(180deg, #faf8f5 0%, #f5f0e8 40%, #f0ebe0 100%)',
+        background: 'linear-gradient(180deg, #faf8f5 0%, #f5f0e8 50%, #f0ebe0 100%)',
       }}
     >
-      {/* Header: single place for Sign up + Log in, like most apps */}
-      <header className="flex items-center justify-between px-6 py-5 max-w-4xl mx-auto">
+      <header className="flex items-center justify-between px-6 py-5 max-w-5xl mx-auto w-full">
         <Link href="/" className="flex items-center gap-2">
           <div className="flex flex-col gap-0.5">
             <span className="h-0.5 w-3 rounded-full bg-[#e87722]" />
@@ -19,16 +25,10 @@ export default function LandingPage() {
           <span className="text-xl font-bold tracking-tight text-gray-900">Stacked</span>
         </Link>
         <nav className="flex items-center gap-3">
-          <Link
-            href="/dashboard"
-            className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-          >
+          <Link href="/dashboard" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
             See app
           </Link>
-          <Link
-            href="/login"
-            className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-          >
+          <Link href="/login" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
             Log in
           </Link>
           <Link
@@ -40,103 +40,94 @@ export default function LandingPage() {
         </nav>
       </header>
 
-      {/* Hero: on desktop, copy left + product mock right; on mobile, stacked with less top padding so mock is above fold */}
-      <section className="px-6 pt-8 pb-12 md:pt-16 md:pb-20 max-w-5xl mx-auto">
-        <div className="md:flex md:items-center md:gap-12 md:min-h-[420px]">
-          {/* Left: copy + CTA */}
-          <div className="md:flex-1 text-center md:text-left">
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-gray-900 mb-3">
-              The habit app
-              <br />
-              that works.
-            </h1>
-            <p className="text-lg md:text-xl text-gray-600 mb-4 leading-relaxed">
-              You know the method — scorecard, identities, stacking, streaks.
-              <br />
-              You want it in one place. No spreadsheets. No duct-taping tools.
-            </p>
-            <p className="text-sm font-medium text-gray-700 mb-6">
-              Built for the full method — not a generic tracker.
-            </p>
-            <div className="flex justify-center md:justify-start">
-              <Link
-                href="/signup"
-                className="inline-flex items-center justify-center h-12 px-8 rounded-lg bg-[#e87722] text-white font-semibold hover:bg-[#d96b1e] transition-colors"
+      <main className="flex-1 px-6 max-w-5xl mx-auto w-full">
+        {/* Hero: one idea, one CTA, one mock */}
+        <section className="pt-4 pb-16 md:pt-12 md:pb-24">
+          <div className="md:flex md:items-center md:gap-12 lg:gap-16">
+            <div className="md:flex-1 text-center md:text-left">
+              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-gray-900 mb-4">
+                The habit app that works.
+              </h1>
+              <p className="text-lg text-gray-600 mb-8 max-w-md md:max-w-none">
+                Scorecard, identities, stacking, streaks. One place. No duct tape.
+              </p>
+              <div className="flex justify-center md:justify-start">
+                <Link
+                  href="/signup"
+                  className="inline-flex items-center justify-center h-12 px-8 rounded-xl bg-[#e87722] text-white font-semibold hover:bg-[#d96b1e] transition-colors shadow-sm"
+                >
+                  Get started free
+                </Link>
+              </div>
+            </div>
+            <div className="mt-12 md:mt-0 md:flex-1 flex justify-center md:justify-end">
+              <div className="w-full max-w-[320px] rounded-2xl bg-white shadow-xl border border-gray-200/80 overflow-hidden transition-transform duration-300 hover:scale-[1.02]">
+                <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/80">
+                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Scorecard</span>
+                </div>
+                <ul className="divide-y divide-gray-100 p-4">
+                  {[
+                    { name: 'Morning journal', rating: '+' },
+                    { name: 'Check phone first thing', rating: '−' },
+                    { name: 'Read 10 pages', rating: '=' },
+                  ].map(({ name, rating }) => (
+                    <li key={name} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
+                      <span className="text-sm font-medium text-gray-800">{name}</span>
+                      <span className="text-sm font-semibold text-gray-600 w-6 text-center">{rating}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="px-4 py-3 bg-gray-50/50 border-t border-gray-100">
+                  <p className="text-xs text-gray-500 mb-1">Summary</p>
+                  <p className="text-xs text-gray-700">
+                    <span className="text-green-700 font-medium">1 helpful</span>
+                    <span className="mx-1.5 text-gray-300">·</span>
+                    <span className="text-red-600 font-medium">1 to cut</span>
+                    <span className="mx-1.5 text-gray-300">·</span>
+                    <span className="text-gray-600 font-medium">1 neutral</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* The method: four pillars, scannable */}
+        <section className="py-12 md:py-16 border-t border-gray-200/60">
+          <p className="text-sm font-medium text-gray-500 uppercase tracking-wider text-center mb-8">
+            The method in one place
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            {PILLARS.map(({ label, line, icon }) => (
+              <div
+                key={label}
+                className="rounded-xl bg-white/80 border border-gray-200/80 p-5 text-center md:text-left hover:border-[#e87722]/30 hover:shadow-md transition-all duration-200"
               >
-                Get started free
-              </Link>
-            </div>
-            <p className="text-sm text-gray-500 mt-4">Free to start.</p>
-            <p className="text-xs text-gray-400 mt-2">Start your scorecard in under a minute.</p>
-          </div>
-          {/* Right: product mock — subtle hover so it feels interactive */}
-          <div className="mt-8 md:mt-0 md:flex-1 flex justify-center md:justify-end">
-            <div className="w-full max-w-sm rounded-2xl bg-white shadow-lg border border-gray-200/80 overflow-hidden transition-all duration-300 hover:shadow-xl hover:scale-[1.02]">
-              <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/80">
-                <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Today</span>
-                <span className="ml-2 text-xs text-gray-400">3/3 done</span>
+                <span className="text-2xl text-[#e87722] mb-2 block" aria-hidden>
+                  {icon}
+                </span>
+                <h3 className="font-semibold text-gray-900 mb-1">{label}</h3>
+                <p className="text-sm text-gray-600">{line}</p>
               </div>
-              <ul className="divide-y divide-gray-100 p-4">
-                {[
-                  { name: 'Morning journal', streak: 12, done: true },
-                  { name: '10 min walk', streak: 7, done: true },
-                  { name: 'Read 10 pages', streak: 21, done: true },
-                ].map(({ name, streak, done }) => (
-                  <li key={name} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
-                    <span className="text-sm font-medium text-gray-800">{name}</span>
-                    <span className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500">{streak} day streak</span>
-                      {done && (
-                        <span className="w-5 h-5 rounded-full bg-[#e87722]/20 flex items-center justify-center">
-                          <span className="w-2 h-2 rounded-full bg-[#e87722]" />
-                        </span>
-                      )}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <div className="px-4 py-3 bg-gray-50/50 border-t border-gray-100 flex items-center justify-between">
-                <span className="text-xs text-gray-500">Scorecard</span>
-                <span className="text-xs font-medium text-[#e87722]">+2 −1 =1</span>
-              </div>
-            </div>
+            ))}
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Story: trimmed so page doesn't feel long */}
-      <section className="px-6 py-10 md:py-14 max-w-3xl mx-auto">
-        <h2 className="text-xl font-semibold text-gray-900 mb-3">Sound familiar?</h2>
-        <p className="text-gray-600 leading-relaxed">
-          You're juggling notes, reminders, and a generic habit tracker that doesn't get the methodology. <strong className="text-gray-800">Stacked</strong> is built for the full system — scorecard, identities, stacking, streaks — so you can focus on the work.
-        </p>
-      </section>
+        {/* Single closing line + CTA */}
+        <section className="py-12 md:py-16 text-center">
+          <p className="text-gray-600 mb-6 max-w-xl mx-auto">
+            Built for the full system. Not a generic tracker.
+          </p>
+          <Link
+            href="/signup"
+            className="inline-flex items-center justify-center h-11 px-6 rounded-xl bg-gray-900 text-white font-medium hover:bg-gray-800 transition-colors"
+          >
+            Get started free
+          </Link>
+        </section>
+      </main>
 
-      {/* What Stacked does */}
-      <section className="px-6 py-12 md:py-16 max-w-3xl mx-auto">
-        <h2 className="text-xl font-semibold text-gray-900 mb-6">What you get</h2>
-        <ul className="space-y-4 text-gray-600">
-          <li className="flex gap-3">
-            <span className="text-[#e87722] font-bold shrink-0">Scorecard</span>
-            <span>List your day, rate each habit + / − / =. See the full picture before you change it.</span>
-          </li>
-          <li className="flex gap-3">
-            <span className="text-[#e87722] font-bold shrink-0">Identities</span>
-            <span>“I am a person who…” — tie habits to who you want to become. Every completion is a vote.</span>
-          </li>
-          <li className="flex gap-3">
-            <span className="text-[#e87722] font-bold shrink-0">Stacking &amp; intentions</span>
-            <span>After [current habit], I will [new habit]. At [time] in [place]. No vague goals.</span>
-          </li>
-          <li className="flex gap-3">
-            <span className="text-[#e87722] font-bold shrink-0">Streaks that don’t punish</span>
-            <span>Never miss twice. One off day doesn’t reset you. We’ll nudge you back, not guilt you.</span>
-          </li>
-        </ul>
-      </section>
-
-      {/* Footer: branding only, no duplicate CTAs */}
-      <footer className="px-6 py-8 border-t border-gray-200/80 max-w-3xl mx-auto text-center text-sm text-gray-500">
+      <footer className="px-6 py-6 border-t border-gray-200/80 text-center text-sm text-gray-500">
         Stacked — Build habits that compound.
       </footer>
     </div>
