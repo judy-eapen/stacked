@@ -36,9 +36,10 @@ export default function SignUpPage() {
   async function handleGoogle() {
     setError(null)
     const supabase = createClient()
+    const origin = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_APP_URL || window.location.origin) : ''
     const { error: err } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent('/display-name')}` },
+      options: { redirectTo: `${origin}/auth/callback?next=${encodeURIComponent('/display-name')}` },
     })
     if (err) {
       setError(err.message)
