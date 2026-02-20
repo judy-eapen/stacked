@@ -111,3 +111,15 @@ export default function DisplayNamePage() {
     </div>
   )
 }
+
+export default function DisplayNamePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, #faf8f5 0%, #f5f0e8 50%, #f0ebe0 100%)' }}>
+        <p className="text-sm text-gray-500">Loading…</p>
+      </div>
+    }>
+      <DisplayNameForm />
+    </Suspense>
+  )
+}
