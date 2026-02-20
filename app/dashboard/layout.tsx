@@ -27,11 +27,6 @@ export default async function DashboardLayout({
   const displayName = (profile?.display_name ?? '').trim()
   const email = user.email ?? ''
 
-  // First-run: if display name not set, send to display-name page (they can skip)
-  if (!displayName) {
-    redirect('/display-name')
-  }
-
   return (
     <div
       className="min-h-screen flex"

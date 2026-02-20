@@ -11,27 +11,42 @@ export default function DisplayNamePage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError(null)
-    setLoading(true)
+  async function saveAndGo(name: string) {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       router.push('/login')
       return
     }
+    const toSave = (name || user.email?.split('@')[0] || 'User').trim().slice(0, 50) || 'User'
+    // Upsert: create profile if missing (e.g. trigger didn't run), then set display_name
     const { error: err } = await supabase
       .from('profiles')
-      .update({ display_name: displayName.trim().slice(0, 50) || '' })
-      .eq('id', user.id)
-    setLoading(false)
+      .upsert(
+        { id: user.id, email: user.email ?? '', display_name: toSave },
+        { onConflict: 'id' }
+      )
     if (err) {
       setError(err.message)
+      setLoading(false)
       return
     }
-    router.push('/dashboard')
-    router.refresh()
+    window.location.href = '/dashboard'
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
+    await saveAndGo(displayName.trim())
+    setLoading(false)
+  }
+
+  async function handleSkip() {
+    setError(null)
+    setLoading(true)
+    await saveAndGo('')
+    setLoading(false)
   }
 
   return (
@@ -80,8 +95,15 @@ export default function DisplayNamePage() {
           </button>
         </form>
         <p className="text-xs text-gray-400 text-center mt-4">
-          <Link href="/dashboard" className="text-[#e87722] hover:underline">Skip for now</Link>
-          {' '}(you&apos;ll be asked again until set)
+          <button
+            type="button"
+            onClick={handleSkip}
+            disabled={loading}
+            className="text-[#e87722] hover:underline disabled:opacity-60"
+          >
+            Skip for now
+          </button>
+          {' '}(we&apos;ll use your email name; change in settings)
         </p>
       </div>
     </div>
