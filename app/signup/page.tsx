@@ -17,14 +17,20 @@ export default function SignUpPage() {
     setError(null)
     setLoading(true)
     const supabase = createClient()
-    const { error: err } = await supabase.auth.signUp({ email, password })
-    setLoading(false)
+    const { data, error: err } = await supabase.auth.signUp({ email, password })
     if (err) {
+      setLoading(false)
       setError(err.message)
       return
     }
-    // Always go to display-name. Full redirect so auth cookies are sent on next request.
-    window.location.href = '/display-name'
+    if (data.session) {
+      // Give the client time to persist session cookies, then go to display name step.
+      await new Promise((r) => setTimeout(r, 300))
+      window.location.href = '/display-name'
+      return
+    }
+    setLoading(false)
+    setError('Email confirmation is enabled. Check your inbox to confirm, then log in.')
   }
 
   async function handleGoogle() {
