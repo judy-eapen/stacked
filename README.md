@@ -1,27 +1,55 @@
-# Stacked auth demo — ghosted preview
+# Stacked
 
-Minimal Next.js app that shows the sign-up screen **with the ghosted product preview visible** behind the auth card.
-
-## Run it
-
-```bash
-cd stacked-auth-demo
-npm install
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000). You should see:
-
-1. **Background:** Warm cream/beige gradient  
-2. **Behind the card:** A soft, blurred “Today” mock (habits list, 14 day streak, progress ring) at ~42% opacity — **that’s the ghosted preview**  
-3. **On top:** The white auth card (Stacked logo, form, CTA)
-
-The ghosted preview is the faint dashboard-shaped area in the center, behind the white card. If you don’t see it, the layer order and styles are in `app/page.tsx` (Layer 2).
+Atomic Habits companion app. Phase 1: sign up, Habit Scorecard, and Identity statements.
 
 ## Stack
 
 - Next.js 14 (App Router)
 - Tailwind CSS
 - TypeScript
+- Supabase (auth, Postgres, RLS)
 
-Presentational only; no auth logic.
+## Run locally
+
+```bash
+cd stacked-auth-demo
+npm install
+cp .env.local.example .env.local
+```
+
+Edit `.env.local` and set:
+
+- `NEXT_PUBLIC_SUPABASE_URL` — from Supabase Dashboard → Project settings → API
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` — anon/public key from the same page
+
+Then:
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+## Supabase setup (first time)
+
+1. Create a project at [supabase.com/dashboard](https://supabase.com/dashboard).
+2. Run the Phase 1 migration: Supabase Dashboard → SQL Editor → paste contents of `supabase/migrations/20260220100000_phase1_schema.sql` → Run.
+3. Authentication → Providers: enable Email; optionally enable Google and add Client ID/Secret from Google Cloud Console. In URL configuration, add redirect URL(s) (e.g. `http://localhost:3000/auth/callback`).
+
+## What’s in the app
+
+- **Auth:** Sign up / log in (email+password or Google), forgot password, display name after signup.
+- **Dashboard:** Scorecard (list habits, rate +/−=, add/edit/delete), Identities (create/edit/delete identity statements), Settings (display name, sign out).
+- **Guarded routes:** `/dashboard/*` and `/display-name` require auth; unauthenticated users are redirected to login.
+
+## Scripts
+
+| Command        | Description              |
+|----------------|--------------------------|
+| `npm run dev`  | Start dev server         |
+| `npm run build`| Production build         |
+| `npm run start`| Run production build     |
+
+## Keeping this README up to date
+
+When you add env vars, new scripts, or major features, update this file so new contributors and your future self can run and understand the project without guessing.
