@@ -199,7 +199,9 @@ export default function ScorecardPage() {
       setEntries([])
       return
     }
-    setEntries((data ?? []).map(mapRow))
+    const list = (data ?? []).map(mapRow)
+    setEntries(list)
+    if (list.length === 0) setShowEmpty(true)
     setError(null)
   }, [])
 
@@ -259,7 +261,7 @@ export default function ScorecardPage() {
         </p>
       )}
 
-      {hasEntries && !showEmpty ? (
+      {(hasEntries || !showEmpty) ? (
         <>
           <Summary entries={entries} />
           <TakeActionCallout entries={entries} />

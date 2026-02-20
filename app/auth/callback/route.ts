@@ -22,8 +22,8 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/login?error=auth_callback_error`)
   }
 
-  const response = NextResponse.redirect(redirectUrl)
   const requestCookies = getRequestCookies(request)
+  const response = NextResponse.redirect(redirectUrl)
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -35,7 +35,7 @@ export async function GET(request: Request) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) => {
-            const opts = { ...options }
+            const opts = { ...options, path: '/' }
             if (isProduction) {
               opts.secure = true
               if (opts.sameSite === undefined) opts.sameSite = 'lax'
@@ -50,6 +50,28 @@ export async function GET(request: Request) {
   const { error } = await supabase.auth.exchangeCodeForSession(code)
   if (error) {
     return NextResponse.redirect(`${origin}/login?error=auth_callback_error`)
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.redirect(`${origin}/login?error=auth_callback_error`)
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile) {
+    const displayNameUrl = `${origin}/display-name${next ? `?next=${encodeURIComponent(next)}` : ''}`
+    const newResponse = NextResponse.redirect(displayNameUrl)
+    response.headers.getSetCookie?.()?.forEach((cookie) => {
+      newResponse.headers.append('Set-Cookie', cookie)
+    })
+    return newResponse
   }
 
   return response

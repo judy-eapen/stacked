@@ -2,11 +2,13 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 export default function DisplayNamePage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const nextUrl = searchParams.get('next') || '/dashboard'
   const [displayName, setDisplayName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -31,7 +33,7 @@ export default function DisplayNamePage() {
       setLoading(false)
       return
     }
-    window.location.href = '/dashboard'
+    window.location.href = nextUrl.startsWith('/') ? nextUrl : '/dashboard'
   }
 
   async function handleSubmit(e: React.FormEvent) {

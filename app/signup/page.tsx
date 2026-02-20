@@ -30,7 +30,7 @@ export default function SignUpPage() {
       return
     }
     setLoading(false)
-    setError('Email confirmation is enabled. Check your inbox to confirm, then log in.')
+    setError('Account created. Check your email to sign in, or try logging in.')
   }
 
   async function handleGoogle() {

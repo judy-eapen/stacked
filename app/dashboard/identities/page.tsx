@@ -51,7 +51,7 @@ export default function IdentitiesPage() {
       setIdentities([])
       return
     }
-    setIdentities((data ?? []).map((row) => ({
+    const list = (data ?? []).map((row) => ({
       id: row.id,
       statement: row.statement,
       sort_order: row.sort_order,
@@ -59,7 +59,9 @@ export default function IdentitiesPage() {
       votes_delta_from_yesterday: 0,
       supported_by_habits: [],
       conflicted_by_habits: [],
-    })))
+    }))
+    setIdentities(list)
+    if (list.length === 0) setShowEmpty(true)
     setError(null)
   }, [])
 
@@ -111,7 +113,7 @@ export default function IdentitiesPage() {
         </p>
       )}
 
-      {hasIdentities && !showEmpty ? (
+      {(hasIdentities || !showEmpty) ? (
         <>
           <div className="flex items-center justify-between gap-4">
             <p className="text-sm font-medium text-gray-700">Your identities</p>
