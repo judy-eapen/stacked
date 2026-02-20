@@ -1,11 +1,10 @@
 'use client'
 
-import { useState } from 'react'
-import Link from 'next/link'
+import { Suspense, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
-export default function DisplayNamePage() {
+function DisplayNameForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const nextUrl = searchParams.get('next') || '/dashboard'
