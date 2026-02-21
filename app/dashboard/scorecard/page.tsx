@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import {
   DndContext,
   closestCenter,
@@ -70,6 +71,7 @@ function SortableScorecardRow({
   setEditingId,
   editingId,
   fetchEntries,
+  setError,
 }: {
   entry: ScorecardEntry
   setRating: (id: string, r: Rating) => void
@@ -79,6 +81,7 @@ function SortableScorecardRow({
   setEditingId: (id: string | null) => void
   editingId: string | null
   fetchEntries: () => void
+  setError: (msg: string | null) => void
 }) {
   const {
     attributes,
@@ -89,10 +92,73 @@ function SortableScorecardRow({
     isDragging,
   } = useSortable({ id: entry.id })
 
+  const [editName, setEditName] = useState(entry.habit_name)
+  const [editRating, setEditRating] = useState<Rating>(entry.rating)
+  const [editTime, setEditTime] = useState<TimeOfDay>(entry.time_of_day)
+  const [savingEdit, setSavingEdit] = useState(false)
+  const menuButtonRef = useRef<HTMLButtonElement>(null)
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 })
+
+  const isEditing = editingId === entry.id
+  useEffect(() => {
+    if (isEditing) {
+      setEditName(entry.habit_name)
+      setEditRating(entry.rating)
+      setEditTime(entry.time_of_day)
+    }
+  }, [isEditing, entry.habit_name, entry.rating, entry.time_of_day])
+
+  useLayoutEffect(() => {
+    if (openMenuId === entry.id && menuButtonRef.current && typeof window !== 'undefined') {
+      const r = menuButtonRef.current.getBoundingClientRect()
+      setMenuPos({
+        top: r.bottom + 4,
+        left: Math.min(r.right - 120, window.innerWidth - 128),
+      })
+    }
+  }, [openMenuId, entry.id])
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
   }
+
+  const menuContent = openMenuId === entry.id && typeof document !== 'undefined' ? createPortal(
+    <>
+      <div
+        className="fixed inset-0 z-10"
+        aria-hidden
+        onClick={() => setOpenMenuId(null)}
+      />
+      <div
+        className="fixed z-20 min-w-[120px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+        style={{ top: menuPos.top, left: menuPos.left }}
+      >
+        <button
+          type="button"
+          className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+          onClick={() => { setEditingId(entry.id); setOpenMenuId(null); }}
+        >
+          Edit
+        </button>
+        <button
+          type="button"
+          className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+          onClick={async () => {
+            const supabase = createClient()
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user) return
+            await supabase.from('scorecard_entries').delete().eq('id', entry.id).eq('user_id', user.id)
+            setOpenMenuId(null)
+            fetchEntries()
+          }}
+        >
+          Delete
+        </button>
+      </div>
+    </>,
+    document.body
+  ) : null
 
   return (
     <li
@@ -111,88 +177,136 @@ function SortableScorecardRow({
           <path d="M8 6h2v2H8V6zm0 5h2v2H8v-2zm0 5h2v2H8v-2zm5-10h2v2h-2V6zm0 5h2v2h-2v-2zm0 5h2v2h-2v-2z" />
         </svg>
       </button>
-      <div className="min-w-0 flex-1">
-        <span className="text-sm font-medium text-gray-900 block">{entry.habit_name}</span>
-        {entry.rating === '+' && entry.identity_name != null && (
-          <span className="text-xs text-gray-500 mt-0.5 block">
-            Votes for: &ldquo;{entry.identity_name}&rdquo;{entry.identity_votes != null ? ` (${entry.identity_votes})` : ''}
-          </span>
-        )}
-        {entry.rating === '-' && entry.conflict_identity != null && (
-          <span className="text-xs text-gray-500 mt-0.5 block">
-            Conflicts with: &ldquo;{entry.conflict_identity}&rdquo;
-          </span>
-        )}
-      </div>
-      <div className="flex items-center gap-2 shrink-0">
-        <div
-          className="inline-flex rounded-lg border border-gray-200/60 bg-gray-100/40 p-0.5"
-          role="group"
-          aria-label="Rate habit"
-        >
-          {(['+', '-', '='] as const).map((r) => (
-            <button
-              key={r}
-              type="button"
-              onClick={() => setRating(entry.id, r)}
-              disabled={savingId === entry.id}
-              className={`min-w-[2rem] px-2 py-1.5 rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[#e87722]/70 focus:ring-offset-2 disabled:opacity-60 ${
-                entry.rating === r
-                  ? 'bg-[#e87722] text-white shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {r}
-            </button>
-          ))}
-        </div>
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setOpenMenuId(openMenuId === entry.id ? null : entry.id)}
-            className="p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-transparent hover:border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#e87722]/70 focus:ring-offset-2 transition-colors"
-            aria-label="Edit or delete"
-            aria-expanded={openMenuId === entry.id}
+      {isEditing ? (
+        <div className="flex-1 min-w-0 flex flex-wrap items-center gap-2 py-1">
+          <input
+            type="text"
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            className="flex-1 min-w-[120px] h-9 px-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#e87722]/70 focus:ring-offset-2 text-sm"
+            placeholder="Habit name"
+          />
+          <div className="inline-flex rounded-lg border border-gray-200/60 bg-gray-100/40 p-0.5">
+            {(['+', '-', '='] as const).map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setEditRating(r)}
+                className={`min-w-[2rem] px-2 py-1 rounded-md text-sm font-medium ${
+                  editRating === r ? 'bg-[#e87722] text-white' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+          <select
+            value={editTime}
+            onChange={(e) => setEditTime(e.target.value as TimeOfDay)}
+            className="h-9 px-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#e87722]/70"
           >
-            <span className="sr-only">Edit or delete</span>
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
-              <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
-            </svg>
-          </button>
-          {openMenuId === entry.id && (
-            <>
-              <div
-                className="fixed inset-0 z-10"
-                aria-hidden
-                onClick={() => setOpenMenuId(null)}
-              />
-              <div className="absolute right-0 bottom-full mb-0.5 z-20 min-w-[120px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
-                <button
-                  type="button"
-                  className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
-                  onClick={() => { setEditingId(entry.id); setOpenMenuId(null); }}
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
-                  onClick={async () => {
-                    const supabase = createClient()
-                    const { data: { user } } = await supabase.auth.getUser()
-                    if (!user) return
-                    await supabase.from('scorecard_entries').delete().eq('id', entry.id).eq('user_id', user.id)
-                    setOpenMenuId(null)
-                    fetchEntries()
-                  }}
-                >
-                  Delete
-                </button>
-              </div>
-            </>
-          )}
+            <option value="morning">Morning</option>
+            <option value="afternoon">Afternoon</option>
+            <option value="evening">Evening</option>
+            <option value="anytime">Anytime</option>
+          </select>
+          <div className="flex gap-1">
+            <button
+              type="button"
+              disabled={savingEdit || !editName.trim()}
+              onClick={async () => {
+                setSavingEdit(true)
+                setError(null)
+                const supabase = createClient()
+                const { data: { user } } = await supabase.auth.getUser()
+                if (!user) { setSavingEdit(false); return }
+                const { error: err } = await supabase
+                  .from('scorecard_entries')
+                  .update({
+                    habit_name: editName.trim().slice(0, 200),
+                    rating: editRating,
+                    time_of_day: editTime,
+                  })
+                  .eq('id', entry.id)
+                  .eq('user_id', user.id)
+                setSavingEdit(false)
+                if (err) {
+                  setError(err.message)
+                  return
+                }
+                setEditingId(null)
+                fetchEntries()
+              }}
+              className="h-9 px-3 rounded-lg bg-[#e87722] text-white text-sm font-medium disabled:opacity-50"
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              disabled={savingEdit}
+              onClick={() => setEditingId(null)}
+              className="h-9 px-3 rounded-lg border border-gray-200 text-sm font-medium hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
-      </div>
+      ) : (
+        <>
+          <div className="min-w-0 flex-1">
+            <span className="text-sm font-medium text-gray-900 block">{entry.habit_name}</span>
+            {entry.rating === '+' && entry.identity_name != null && (
+              <span className="text-xs text-gray-500 mt-0.5 block">
+                Votes for: &ldquo;{entry.identity_name}&rdquo;{entry.identity_votes != null ? ` (${entry.identity_votes})` : ''}
+              </span>
+            )}
+            {entry.rating === '-' && entry.conflict_identity != null && (
+              <span className="text-xs text-gray-500 mt-0.5 block">
+                Conflicts with: &ldquo;{entry.conflict_identity}&rdquo;
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <div
+              className="inline-flex rounded-lg border border-gray-200/60 bg-gray-100/40 p-0.5"
+              role="group"
+              aria-label="Rate habit"
+            >
+              {(['+', '-', '='] as const).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setRating(entry.id, r)}
+                  disabled={savingId === entry.id}
+                  className={`min-w-[2rem] px-2 py-1.5 rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[#e87722]/70 focus:ring-offset-2 disabled:opacity-60 ${
+                    entry.rating === r
+                      ? 'bg-[#e87722] text-white shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+            <div className="relative">
+              <button
+                ref={menuButtonRef}
+                type="button"
+                onClick={() => setOpenMenuId(openMenuId === entry.id ? null : entry.id)}
+                className="p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-transparent hover:border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#e87722]/70 focus:ring-offset-2 transition-colors"
+                aria-label="Edit or delete"
+                aria-expanded={openMenuId === entry.id}
+              >
+                <span className="sr-only">Edit or delete</span>
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
+                  <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
+                </svg>
+              </button>
+              {menuContent}
+            </div>
+          </div>
+        </>
+      )}
     </li>
   )
 }
@@ -342,7 +456,11 @@ export default function ScorecardPage() {
   const [showAddForm, setShowAddForm] = useState(false)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [showFocusStep, setShowFocusStep] = useState(false)
-  const [focusHabitId, setFocusHabitId] = useState<string | null>(null)
+  const FOCUS_HABIT_KEY = 'stacked-scorecard-focus-habit-id'
+  const [focusHabitId, setFocusHabitId] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null
+    return window.localStorage.getItem(FOCUS_HABIT_KEY)
+  })
   const [newHabitName, setNewHabitName] = useState('')
   const [newHabitRating, setNewHabitRating] = useState<Rating>(DEFAULT_ADD_RATING)
   const [newHabitTime, setNewHabitTime] = useState<TimeOfDay>(DEFAULT_ADD_TIME)
@@ -372,6 +490,20 @@ export default function ScorecardPage() {
   useEffect(() => {
     fetchEntries().finally(() => setLoading(false))
   }, [fetchEntries])
+
+  useEffect(() => {
+    if (focusHabitId && typeof window !== 'undefined') {
+      window.localStorage.setItem(FOCUS_HABIT_KEY, focusHabitId)
+    } else if (focusHabitId === null && typeof window !== 'undefined') {
+      window.localStorage.removeItem(FOCUS_HABIT_KEY)
+    }
+  }, [focusHabitId])
+
+  useEffect(() => {
+    if (focusHabitId && entries.length > 0 && !entries.some((e) => e.id === focusHabitId)) {
+      setFocusHabitId(null)
+    }
+  }, [entries, focusHabitId])
 
   const grouped = (time: TimeOfDay) =>
     entries.filter((e) => e.time_of_day === time).sort((a, b) => a.sort_order - b.sort_order)
@@ -496,7 +628,10 @@ export default function ScorecardPage() {
             </button>
             {showFocusStep && (
               <div className="border-t border-gray-100 px-4 py-4 bg-gray-50/50">
-                <p className="text-sm font-medium text-gray-900 mb-3">Select one habit to improve.</p>
+                <p className="text-sm font-medium text-gray-900 mb-1">Select one habit to improve.</p>
+                <p className="text-xs text-gray-500 mb-3">
+                  Picking one positive habit helps you focus. Your choice is saved for the week.
+                </p>
                 {(() => {
                   const positiveEntries = entries.filter((e) => e.rating === '+')
                   if (positiveEntries.length === 0) {
@@ -506,24 +641,32 @@ export default function ScorecardPage() {
                       </p>
                     )
                   }
+                  const focusEntry = focusHabitId ? positiveEntries.find((e) => e.id === focusHabitId) : null
                   return (
-                    <ul className="space-y-1.5">
-                      {positiveEntries.map((entry) => (
-                        <li key={entry.id}>
-                          <button
-                            type="button"
-                            onClick={() => setFocusHabitId(focusHabitId === entry.id ? null : entry.id)}
-                            className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                              focusHabitId === entry.id
-                                ? 'bg-[#e87722] text-white font-medium'
-                                : 'text-gray-700 hover:bg-gray-100'
-                            }`}
-                          >
-                            {entry.habit_name}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
+                    <>
+                      {focusEntry && (
+                        <p className="text-xs font-medium text-[#e87722] mb-2">
+                          Focus this week: {focusEntry.habit_name}
+                        </p>
+                      )}
+                      <ul className="space-y-1.5">
+                        {positiveEntries.map((entry) => (
+                          <li key={entry.id}>
+                            <button
+                              type="button"
+                              onClick={() => setFocusHabitId(focusHabitId === entry.id ? null : entry.id)}
+                              className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                                focusHabitId === entry.id
+                                  ? 'bg-[#e87722] text-white font-medium'
+                                  : 'text-gray-700 hover:bg-gray-100'
+                              }`}
+                            >
+                              {entry.habit_name}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
                   )
                 })()}
               </div>
@@ -651,6 +794,7 @@ export default function ScorecardPage() {
                           setEditingId={setEditingId}
                           editingId={editingId}
                           fetchEntries={fetchEntries}
+                          setError={setError}
                         />
                       ))}
                     </ul>
