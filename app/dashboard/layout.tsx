@@ -7,6 +7,7 @@ import { UserBlock } from '@/components/user-block'
 const nav = [
   { label: 'Scorecard', href: '/dashboard/scorecard', badge: 'Next step' },
   { label: 'Identities', href: '/dashboard/identities' },
+  { label: 'Habits', href: '/dashboard/habits' },
 ]
 
 export default async function DashboardLayout({

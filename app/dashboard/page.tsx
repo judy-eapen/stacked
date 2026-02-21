@@ -44,6 +44,12 @@ export default function DashboardPage() {
             >
               Learn about Identities
             </Link>
+            <Link
+              href="/dashboard/habits"
+              className="inline-flex items-center justify-center h-12 px-6 rounded-lg border border-gray-200 bg-white text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+            >
+              Habits
+            </Link>
           </div>
         </div>
       </div>
