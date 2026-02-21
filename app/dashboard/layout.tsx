@@ -93,6 +93,12 @@ export default async function DashboardLayout({
           >
             Identities
           </Link>
+          <Link
+            href="/dashboard/habits"
+            className="text-sm font-medium text-gray-600 hover:text-gray-900 px-3 py-2"
+          >
+            Habits
+          </Link>
         </nav>
       </header>
 
