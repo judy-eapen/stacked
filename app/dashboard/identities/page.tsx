@@ -138,28 +138,7 @@ export default function IdentitiesPage() {
         </p>
       )}
 
-      {hasIdentities ? (
-        <>
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-sm font-medium text-gray-700">Your identities</p>
-            <button
-              type="button"
-              onClick={() => {
-                if (!showAddForm) {
-                  setCreateStep(1)
-                  setDraftStatement('')
-                  setDraftLinkedEntryIds([])
-                  setDraftNewHabitNames([])
-                }
-                setShowAddForm((v) => !v)
-              }}
-              className="text-sm font-medium text-[#e87722] hover:underline"
-            >
-              + Create identity
-            </button>
-          </div>
-
-          {showAddForm && (
+      {showAddForm ? (
             <div className="rounded-xl bg-white border border-gray-200 p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-medium text-gray-900">
@@ -353,7 +332,24 @@ export default function IdentitiesPage() {
                 </>
               )}
             </div>
-          )}
+      ) : hasIdentities ? (
+        <>
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-sm font-medium text-gray-700">Your identities</p>
+            <button
+              type="button"
+              onClick={() => {
+                setCreateStep(1)
+                setDraftStatement('')
+                setDraftLinkedEntryIds([])
+                setDraftNewHabitNames([])
+                setShowAddForm(true)
+              }}
+              className="text-sm font-medium text-[#e87722] hover:underline"
+            >
+              + Create identity
+            </button>
+          </div>
 
           <ul className="space-y-3">
             {identities.map((idn) => {
