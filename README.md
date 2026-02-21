@@ -33,7 +33,9 @@ Open [http://localhost:3000](http://localhost:3000).
 ## Supabase setup (first time)
 
 1. Create a project at [supabase.com/dashboard](https://supabase.com/dashboard).
-2. Run the Phase 1 migration: Supabase Dashboard → SQL Editor → paste contents of `supabase/migrations/20260220100000_phase1_schema.sql` → Run.
+2. Run migrations in order (Supabase Dashboard → SQL Editor → paste each file’s contents → Run):
+   - `supabase/migrations/20260220100000_phase1_schema.sql`
+   - `supabase/migrations/20260220120000_scorecard_identity_id.sql` (adds `identity_id` to scorecard entries so identities can link habits)
 3. Authentication → Providers: enable Email; optionally enable Google and add Client ID/Secret from Google Cloud Console. In URL configuration, add redirect URL(s) (e.g. `http://localhost:3000/auth/callback`).
 
 ## Production (deployed) auth

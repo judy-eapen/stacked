@@ -23,45 +23,57 @@ function consistencyPct(idn: Identity): number {
 const IDENTITY_PREFIX = 'I am a person who '
 const DRAFT_MIN_LENGTH = 3
 
-// Phase 1: no habits table yet; step 2 shows empty list
-const MOCK_HABITS_FOR_LINKING: string[] = []
+interface ScorecardEntryForLink {
+  id: string
+  habit_name: string
+  identity_id: string | null
+}
 
 export default function IdentitiesPage() {
   const [identities, setIdentities] = useState<Identity[]>([])
+  const [scorecardEntries, setScorecardEntries] = useState<ScorecardEntryForLink[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [showEmpty, setShowEmpty] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [createStep, setCreateStep] = useState<1 | 2 | 3>(1)
   const [draftStatement, setDraftStatement] = useState('')
-  const [draftSupportedHabits, setDraftSupportedHabits] = useState<string[]>([])
+  const [draftLinkedEntryIds, setDraftLinkedEntryIds] = useState<string[]>([])
+  const [draftNewHabitNames, setDraftNewHabitNames] = useState<string[]>([])
+  const [newHabitNameInput, setNewHabitNameInput] = useState('')
 
   const fetchIdentities = useCallback(async () => {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const { data, error: err } = await supabase
-      .from('identities')
-      .select('id, statement, sort_order')
-      .eq('user_id', user.id)
-      .order('sort_order', { ascending: true })
-    if (err) {
-      setError(err.message)
+    const [identitiesRes, scorecardRes] = await Promise.all([
+      supabase.from('identities').select('id, statement, sort_order').eq('user_id', user.id).order('sort_order', { ascending: true }),
+      supabase.from('scorecard_entries').select('id, habit_name, identity_id').eq('user_id', user.id),
+    ])
+    if (identitiesRes.error) {
+      setError(identitiesRes.error.message)
       setIdentities([])
       return
     }
-    const list = (data ?? []).map((row) => ({
+    const entries = (scorecardRes.data ?? []).map((row) => ({
       id: row.id,
-      statement: row.statement,
-      sort_order: row.sort_order,
-      votes_this_week: 0,
-      votes_delta_from_yesterday: 0,
-      supported_by_habits: [],
-      conflicted_by_habits: [],
+      habit_name: row.habit_name,
+      identity_id: row.identity_id ?? null,
     }))
+    setScorecardEntries(entries)
+    const list = (identitiesRes.data ?? []).map((row) => {
+      const supported = entries.filter((e) => e.identity_id === row.id).map((e) => e.habit_name)
+      return {
+        id: row.id,
+        statement: row.statement,
+        sort_order: row.sort_order,
+        votes_this_week: 0,
+        votes_delta_from_yesterday: 0,
+        supported_by_habits: supported,
+        conflicted_by_habits: [],
+      }
+    })
     setIdentities(list)
-    if (list.length === 0) setShowEmpty(true)
     setError(null)
   }, [])
 
@@ -75,13 +87,26 @@ export default function IdentitiesPage() {
     setShowAddForm(false)
     setCreateStep(1)
     setDraftStatement('')
-    setDraftSupportedHabits([])
+    setDraftLinkedEntryIds([])
+    setDraftNewHabitNames([])
+    setNewHabitNameInput('')
   }
 
-  const toggleDraftHabit = (habit: string) => {
-    setDraftSupportedHabits((prev) =>
-      prev.includes(habit) ? prev.filter((h) => h !== habit) : [...prev, habit]
+  const toggleLinkedEntry = (entryId: string) => {
+    setDraftLinkedEntryIds((prev) =>
+      prev.includes(entryId) ? prev.filter((id) => id !== entryId) : [...prev, entryId]
     )
+  }
+
+  const addNewHabit = () => {
+    const name = newHabitNameInput.trim().slice(0, 200)
+    if (!name) return
+    setDraftNewHabitNames((prev) => (prev.includes(name) ? prev : [...prev, name]))
+    setNewHabitNameInput('')
+  }
+
+  const removeNewHabit = (name: string) => {
+    setDraftNewHabitNames((prev) => prev.filter((n) => n !== name))
   }
 
   if (loading) {
@@ -113,7 +138,7 @@ export default function IdentitiesPage() {
         </p>
       )}
 
-      {(hasIdentities || !showEmpty) ? (
+      {hasIdentities ? (
         <>
           <div className="flex items-center justify-between gap-4">
             <p className="text-sm font-medium text-gray-700">Your identities</p>
@@ -123,7 +148,8 @@ export default function IdentitiesPage() {
                 if (!showAddForm) {
                   setCreateStep(1)
                   setDraftStatement('')
-                  setDraftSupportedHabits([])
+                  setDraftLinkedEntryIds([])
+                  setDraftNewHabitNames([])
                 }
                 setShowAddForm((v) => !v)
               }}
@@ -177,23 +203,58 @@ export default function IdentitiesPage() {
 
               {createStep === 2 && (
                 <>
-                  <p className="text-xs text-gray-500">Link habits that support this identity.</p>
-                  <ul className="space-y-2">
-                    {MOCK_HABITS_FOR_LINKING.map((habit) => (
-                      <li key={habit}>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={draftSupportedHabits.includes(habit)}
-                            onChange={() => toggleDraftHabit(habit)}
-                            className="rounded border-gray-300 text-[#e87722] focus:ring-[#e87722]"
-                          />
-                          <span className="text-sm text-gray-800">{habit}</span>
-                        </label>
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="flex gap-2">
+                  <p className="text-xs text-gray-500 mb-2">Link habits that support this identity. You can pick from your scorecard or add a new habit.</p>
+                  {scorecardEntries.length > 0 ? (
+                    <ul className="space-y-2 mb-4">
+                      {scorecardEntries.map((entry) => (
+                        <li key={entry.id}>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={draftLinkedEntryIds.includes(entry.id)}
+                              onChange={() => toggleLinkedEntry(entry.id)}
+                              className="rounded border-gray-300 text-[#e87722] focus:ring-[#e87722]"
+                            />
+                            <span className="text-sm text-gray-800">{entry.habit_name}</span>
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-gray-500 mb-4">No habits on your scorecard yet. Add one below.</p>
+                  )}
+                  <div className="border-t border-gray-100 pt-4 space-y-2">
+                    <p className="text-xs font-medium text-gray-700">Create a new habit and link it</p>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="e.g. Walk 10 minutes after lunch"
+                        value={newHabitNameInput}
+                        onChange={(e) => setNewHabitNameInput(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addNewHabit())}
+                        className="flex-1 min-w-0 h-10 px-3 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#e87722]/70 focus:ring-offset-2"
+                      />
+                      <button
+                        type="button"
+                        onClick={addNewHabit}
+                        disabled={!newHabitNameInput.trim()}
+                        className="h-10 px-4 rounded-lg bg-[#e87722] text-white text-sm font-medium hover:bg-[#d96b1e] disabled:opacity-50"
+                      >
+                        Add
+                      </button>
+                    </div>
+                    {draftNewHabitNames.length > 0 && (
+                      <ul className="mt-2 space-y-1">
+                        {draftNewHabitNames.map((name) => (
+                          <li key={name} className="flex items-center justify-between gap-2 text-sm text-gray-800 bg-gray-50 rounded-lg px-3 py-2">
+                            <span>{name}</span>
+                            <button type="button" onClick={() => removeNewHabit(name)} className="text-gray-500 hover:text-red-600 text-xs">Remove</button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <div className="flex gap-2 pt-2">
                     <button
                       type="button"
                       onClick={() => setCreateStep(1)}
@@ -219,13 +280,17 @@ export default function IdentitiesPage() {
                     <p className="font-medium text-gray-900">
                       &ldquo;{IDENTITY_PREFIX}{draftStatement.trim()}{draftStatement.trim().endsWith('.') ? '' : '.'}&rdquo;
                     </p>
-                    {draftSupportedHabits.length > 0 ? (
-                      <p className="text-gray-600">
-                        Supported by: {draftSupportedHabits.join(', ')}
-                      </p>
-                    ) : (
-                      <p className="text-gray-500">No habits linked yet.</p>
-                    )}
+                    {(() => {
+                      const linkedNames = draftLinkedEntryIds
+                        .map((id) => scorecardEntries.find((e) => e.id === id)?.habit_name)
+                        .filter(Boolean) as string[]
+                      const allNames = [...linkedNames, ...draftNewHabitNames]
+                      return allNames.length > 0 ? (
+                        <p className="text-gray-600">Supported by: {allNames.join(', ')}</p>
+                      ) : (
+                        <p className="text-gray-500">No habits linked yet.</p>
+                      )
+                    })()}
                   </div>
                   <div className="flex gap-2">
                     <button
@@ -243,14 +308,39 @@ export default function IdentitiesPage() {
                         const supabase = createClient()
                         const { data: { user } } = await supabase.auth.getUser()
                         if (!user) return
-                        const { error: err } = await supabase.from('identities').insert({
-                          user_id: user.id,
-                          statement,
-                          sort_order: identities.length,
-                        })
-                        if (err) {
-                          setError(err.message)
+                        const { data: newIdentity, error: insertErr } = await supabase
+                          .from('identities')
+                          .insert({
+                            user_id: user.id,
+                            statement,
+                            sort_order: identities.length,
+                          })
+                          .select('id')
+                          .single()
+                        if (insertErr) {
+                          setError(insertErr.message)
                           return
+                        }
+                        const identityId = newIdentity.id
+                        if (draftLinkedEntryIds.length > 0) {
+                          await supabase
+                            .from('scorecard_entries')
+                            .update({ identity_id: identityId })
+                            .in('id', draftLinkedEntryIds)
+                            .eq('user_id', user.id)
+                        }
+                        if (draftNewHabitNames.length > 0) {
+                          const maxOrder = scorecardEntries.length + draftNewHabitNames.length
+                          for (let i = 0; i < draftNewHabitNames.length; i++) {
+                            await supabase.from('scorecard_entries').insert({
+                              user_id: user.id,
+                              habit_name: draftNewHabitNames[i].trim().slice(0, 200),
+                              rating: '=',
+                              time_of_day: 'anytime',
+                              sort_order: maxOrder + i,
+                              identity_id: identityId,
+                            })
+                          }
                         }
                         resetCreateFlow()
                         fetchIdentities()
@@ -398,15 +488,8 @@ export default function IdentitiesPage() {
               );
             })}
           </ul>
-
-          <p className="text-xs text-gray-400">
-            <button type="button" onClick={() => setShowEmpty(true)} className="text-[#e87722] hover:underline">
-              View empty state
-            </button>
-          </p>
         </>
       ) : (
-        /* Empty state */
         <>
           <div className="rounded-[20px] bg-white shadow-xl border border-black/6 p-8 text-center">
             <p className="text-gray-600 mb-6">
@@ -414,23 +497,12 @@ export default function IdentitiesPage() {
             </p>
             <button
               type="button"
-              onClick={() => { setShowEmpty(false); setShowAddForm(true); }}
+              onClick={() => setShowAddForm(true)}
               className="inline-flex items-center justify-center h-12 px-6 rounded-lg bg-[#e87722] text-white font-semibold hover:bg-[#d96b1e] transition-colors"
             >
               Create your first identity
             </button>
           </div>
-          {process.env.NODE_ENV === 'development' && (
-            <p className="text-xs text-gray-400 text-center mt-4">
-              <button
-                type="button"
-                onClick={() => { setShowEmpty(false); fetchIdentities(); }}
-                className="text-[#e87722] hover:underline"
-              >
-                View with sample data
-              </button>
-            </p>
-          )}
         </>
       )}
     </div>

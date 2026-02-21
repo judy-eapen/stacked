@@ -452,7 +452,6 @@ export default function ScorecardPage() {
   const [entries, setEntries] = useState<ScorecardEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [showEmpty, setShowEmpty] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [showFocusStep, setShowFocusStep] = useState(false)
@@ -483,7 +482,6 @@ export default function ScorecardPage() {
     }
     const list = (data ?? []).map(mapRow)
     setEntries(list)
-    if (list.length === 0) setShowEmpty(true)
     setError(null)
   }, [])
 
@@ -606,7 +604,7 @@ export default function ScorecardPage() {
         </p>
       )}
 
-      {(hasEntries || !showEmpty) ? (
+      {hasEntries ? (
         <>
           <Summary entries={entries} />
           <TakeActionCallout entries={entries} />
@@ -805,7 +803,6 @@ export default function ScorecardPage() {
           </DndContext>
         </>
       ) : (
-        /* Empty state */
         <>
           <div className="rounded-[20px] bg-white shadow-xl border border-black/6 p-8 text-center">
             <p className="text-gray-600 mb-6">
@@ -813,29 +810,12 @@ export default function ScorecardPage() {
             </p>
             <button
               type="button"
-              onClick={() => { setShowEmpty(false); setShowAddForm(true); }}
+              onClick={() => setShowAddForm(true)}
               className="inline-flex items-center justify-center h-12 px-6 rounded-lg bg-[#e87722] text-white font-semibold hover:bg-[#d96b1e] transition-colors"
             >
               Add your first habit
             </button>
           </div>
-          {process.env.NODE_ENV === 'development' && (
-            <p className="text-xs text-gray-400 text-center mt-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowEmpty(false)
-                  setEntries([
-                    { id: 'demo-1', habit_name: 'Morning journal', rating: '+', time_of_day: 'morning', sort_order: 0 },
-                    { id: 'demo-2', habit_name: 'Check phone first thing', rating: '-', time_of_day: 'morning', sort_order: 1 },
-                  ])
-                }}
-                className="text-[#e87722] hover:underline"
-              >
-                View with sample data
-              </button>
-            </p>
-          )}
         </>
       )}
     </div>
