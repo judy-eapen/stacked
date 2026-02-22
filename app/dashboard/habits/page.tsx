@@ -31,6 +31,7 @@ interface Habit {
   custom_days: number[] | null
   is_active: boolean
   is_shared: boolean
+  push_notification_enabled: boolean
   sort_order: number
   current_streak: number
   last_completed_date: string | null
@@ -747,6 +748,15 @@ function HabitCard({
             />
             <span className="text-xs font-medium text-gray-700">Share with partners</span>
           </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={habit.push_notification_enabled ?? false}
+              onChange={(e) => onUpdate({ push_notification_enabled: e.target.checked })}
+              className="rounded border-gray-300 text-[#e87722] focus:ring-[#e87722]"
+            />
+            <span className="text-xs font-medium text-gray-700">Push reminders</span>
+          </label>
           <div>
             <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">4 laws: build this habit</p>
             <DesignBuildForm value={editDesignBuild} onChange={setEditDesignBuild} />
@@ -780,6 +790,13 @@ function HabitCard({
               className={`text-xs font-medium ${habit.is_shared ? 'text-[#e87722]' : 'text-gray-500 hover:text-gray-700'}`}
             >
               {habit.is_shared ? '✓ Shared with partners' : 'Share with partners'}
+            </button>
+            <button
+              type="button"
+              onClick={() => onUpdate({ push_notification_enabled: !(habit.push_notification_enabled ?? false) })}
+              className={`text-xs font-medium ${habit.push_notification_enabled ? 'text-[#e87722]' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              {(habit.push_notification_enabled ?? false) ? '✓ Push reminders' : 'Push reminders'}
             </button>
             <Link
               href={`/dashboard/habits/${habit.id}/contract`}
