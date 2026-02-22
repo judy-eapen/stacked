@@ -666,6 +666,72 @@ The following entities use Supabase client SDK directly (no custom API route nee
 
 ---
 
+### Scorecard Strategy: Diagnostic + Reset (Not Daily Tracker)
+
+The scorecard in the app is a **diagnostic and reset tool**, not a daily tracker. It must not compete with daily check-ins.
+
+**Purpose:**
+- Help users notice patterns
+- Recalibrate habits
+- Restart when stuck
+
+**Where the scorecard lives:** Three entry points only. No permanent tab. No daily prompt.
+
+| Entry point | When |
+|-------------|------|
+| **A. First-time setup (onboarding)** | Day 0, before creating habits |
+| **B. Weekly review** | Once per week (opt-in reminder) |
+| **C. "I'm stuck" / Reset mode** | When user misses 3+ days, opens app but doesn't log, or loses streak twice |
+
+**UI placement:** Scorecard lives under **Profile / Review**, not on the main screen. Example nav: Home | Habits | Progress | **Review** ← Scorecard lives here. If the scorecard is on the main screen, retention drops.
+
+---
+
+#### Workflow A — Onboarding Scorecard (Day 0)
+
+**When:** Right after signup, before creating habits.
+
+**Flow:**
+1. **Step 1: Map your day** — App shows Morning / Day / Evening / Night. User adds quick items (e.g. Wake up, Phone, Homework, Exercise, Sleep). Tap + / = / −. No typing required (suggestions).
+2. **Step 2: Pattern detection (auto)** — App highlights patterns, e.g. "Most '−' are in evenings", "Phone shows up 3 times".
+3. **Step 3: Focus pick** — App asks: "Which one should we fix first?" User picks **one**. That becomes Habit #1.
+
+**Why:** Prevents random habit creation. Forces focus.
+
+---
+
+#### Workflow B — Weekly Review Scorecard (Core loop)
+
+**When:** Once per week (opt-in reminder).
+
+**Flow:**
+1. **Step 1: Quick rating** — For each active habit: "This week: = / −" (one tap).
+2. **Step 2: Friction question** — For "−" habits: "What got in the way?" Options: Forgot | Too tired | Too busy | Phone | Boring | Hard.
+3. **Step 3: Auto-advice** — System maps friction to 4 Laws and suggests one action:
+
+| Issue | Suggestion (4 Laws) |
+|-------|---------------------|
+| Forgot | Add cue |
+| Hard | Shrink habit |
+| Boring | Add reward |
+| Busy | Move time |
+
+4. **Step 4: Apply fix** — One-tap apply. Example: "Change to 2-minute version?" → **Yes** / **Later**. This step is the retention engine; most apps skip it.
+
+---
+
+#### Workflow C — Reset Mode (Churn prevention)
+
+**Trigger:** User misses 3+ days, opens app but doesn't log, or loses streak twice.
+
+**Flow:** App shows: "Let's reset. 60 seconds." Mini-scorecard: **Last week:** Sleep −, Exercise −, Focus −. **Pick one. Shrink it. Restart.**
+
+**Why:** Prevents abandonment.
+
+**Scorecard strategy implementation (done):** Nav shows Review (not Scorecard) as main item; Scorecard is only reachable via Review. Review hub at `/dashboard/review` offers: Weekly review, Map your day (scorecard), I'm stuck — reset. Workflow B at `/dashboard/review/weekly`: Step 1 rate habits =/−, Step 2 friction (Forgot / Too tired / Too busy / Phone / Boring / Hard), Step 3 auto-advice table and per-habit suggestion, Step 4 Apply fix (Yes/Later) with `weekly_review_ratings` table. Workflow C at `/dashboard/review/reset`: "Let's reset. 60 seconds." Mini-scorecard of active habits, pick one, shrink it (set 2-min version, streak reset), Done. Dashboard home and onboarding CTA point to Review (or Habits). Scorecard page has "← Review" and diagnostic+reset explainer.
+
+---
+
 ### Phase 1 — Foundation: Auth + Scorecard + Identities
 
 **Design catalog:** docs/design/stacked-phase-1-designs.md
@@ -1184,7 +1250,7 @@ These guidelines apply across all phases. They are cross-cutting UX patterns, no
 
 | Term | Inline Explainer |
 |------|-----------------|
-| Habit Scorecard | "List your current habits. Rate each one: positive (+), negative (-), or neutral (=)." |
+| Habit Scorecard | "A diagnostic + reset tool. Rate habits +/−= to notice patterns, recalibrate, and restart when stuck. Not for daily tracking." |
 | Identity Statement | "Who do you want to become? Example: 'I am a person who moves every day.'" |
 | Implementation Intention | "Be specific: I will [behavior] at [time] in [location]." |
 | Habit Stacking | "Attach a new habit to something you already do. After [current habit], I will [new habit]." |
@@ -1263,6 +1329,7 @@ These guidelines apply across all phases. They are cross-cutting UX patterns, no
 | D39 | Habit design: 4 laws (build) | design_build jsonb on habits | Every habit that reinforces an identity can be designed with the full 4 laws (obvious, attractive, easy, satisfying), 3 sub-points each. User enters something per point. Replaces/supplements previous intention/stack/bundle/2-min with structured 4-laws form. Legacy fields (implementation_intention, temptation_bundle, two_minute_version) kept and synced for backward compatibility. | 2026-02-20 |
 | D40 | Identity ↔ habit to break | habits_to_break table, one per identity | Every identity can have one contradicting/negating habit to break. User enters the habit name and a "how to break it" design using the 4 laws inversion (invisible, unattractive, difficult, unsatisfying), 3 sub-points each. Stored in habits_to_break.design_break. UI: inline on identity card (Add/Edit habit to break). | 2026-02-20 |
 | D41 | MVP (4–6 weeks) scope | Identity + focus, 4 Laws habit builder, daily 3–7 habits, streaks/votes, weekly review | Narrow MVP for 4–6 week ship: 1–2 identities, one habit per identity at start (2-min required), 4 Laws guided flow, Today 3–7 habits with tiny/full + optional note, identity votes primary, never miss twice, 3-min weekly review. Build in 5 chunks; PRD Section 7 MVP defines order. | 2026-02-20 |
+| D42 | Scorecard strategy | Diagnostic + reset only; 3 entry points; Review placement; Workflows A/B/C | Scorecard is not a daily tracker. Purpose: notice patterns, recalibrate, restart when stuck. Entry points only: (A) Onboarding, (B) Weekly review, (C) Reset mode. No permanent tab, no daily prompt. Lives under Review (Home | Habits | Progress | Review). Workflow A: Map day → pattern detection → focus pick (one habit). Workflow B: Quick rating → friction question → auto-advice (Forgot→Add cue, Hard→Shrink habit, Boring→Add reward, Busy→Move time) → Apply fix (Yes/Later). Workflow C: "Let's reset" mini-scorecard when 3+ days missed or streak lost twice. | 2026-02-20 |
 
 ---
 

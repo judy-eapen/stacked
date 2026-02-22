@@ -420,7 +420,7 @@ export default function ScorecardPage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-1">Habit Scorecard</h1>
-          <p className="text-sm text-gray-500">List your current habits. Rate each one: positive (+), negative (-), or neutral (=).</p>
+          <p className="text-sm text-gray-500">A diagnostic + reset tool. Rate habits +/−= to notice patterns, recalibrate, and restart when stuck. Not for daily tracking.</p>
         </div>
         <p className="text-sm text-gray-500">Loading…</p>
       </div>
@@ -429,13 +429,16 @@ export default function ScorecardPage() {
 
   return (
     <div className="space-y-6">
+      <Link href="/dashboard/review" className="text-sm text-gray-500 hover:text-gray-900 mb-2 inline-block">
+        ← Review
+      </Link>
       {/* Concept explainer */}
       <div>
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-1">
           Habit Scorecard
         </h1>
         <p className="text-sm text-gray-500">
-          List your current habits. Rate each one: positive (+), negative (-), or neutral (=).
+          A diagnostic + reset tool. Rate habits +/−= to notice patterns, recalibrate, and restart when stuck. Not for daily tracking.
         </p>
       </div>
       {error && (

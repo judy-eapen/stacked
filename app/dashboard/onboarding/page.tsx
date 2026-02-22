@@ -308,13 +308,13 @@ export default function OnboardingPage() {
         <div className="rounded-xl bg-white border border-gray-200 p-6 text-center space-y-4">
           <p className="text-lg font-medium text-gray-900">You&rsquo;re all set</p>
           <p className="text-sm text-gray-500">
-            You have {identities.length} identity{identities.length === 1 ? '' : 'ies'} and one habit to start for each. Next: add more habits or rate your current ones on the Scorecard.
+            You have {identities.length} identity{identities.length === 1 ? '' : 'ies'} and one habit to start for each. Next: add more habits or use Review to recalibrate.
           </p>
           <Link
-            href="/dashboard/scorecard"
+            href="/dashboard/review"
             className="inline-flex items-center justify-center h-12 px-6 rounded-lg bg-[#e87722] text-white font-semibold hover:bg-[#d96b1e] transition-colors gap-2"
           >
-            Go to Scorecard
+            Go to Review
             <span aria-hidden>→</span>
           </Link>
           <Link

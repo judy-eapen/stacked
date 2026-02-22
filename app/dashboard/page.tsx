@@ -22,33 +22,31 @@ export default function DashboardPage() {
           </div>
           <div>
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-2">
-              Start with your Scorecard
+              Your habits, your focus
             </h1>
             <p className="text-base text-gray-600 leading-relaxed">
-              Understand where you are before you change anything.
-              <br />
-              List your habits. Rate them + / − / =.
+              Track daily habits. Use Review when you need to recalibrate or reset.
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto pt-1">
             <Link
-              href="/dashboard/scorecard"
+              href="/dashboard/habits"
               className="inline-flex items-center justify-center h-12 px-6 rounded-lg bg-[#e87722] text-white font-semibold hover:bg-[#d96b1e] transition-colors gap-2"
             >
-              Go to Scorecard
+              Habits
               <span aria-hidden>→</span>
+            </Link>
+            <Link
+              href="/dashboard/review"
+              className="inline-flex items-center justify-center h-12 px-6 rounded-lg border border-gray-200 bg-white text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+            >
+              Review
             </Link>
             <Link
               href="/dashboard/identities"
               className="inline-flex items-center justify-center h-12 px-6 rounded-lg border border-gray-200 bg-white text-gray-700 font-medium hover:bg-gray-50 transition-colors"
             >
-              Learn about Identities
-            </Link>
-            <Link
-              href="/dashboard/habits"
-              className="inline-flex items-center justify-center h-12 px-6 rounded-lg border border-gray-200 bg-white text-gray-700 font-medium hover:bg-gray-50 transition-colors"
-            >
-              Habits
+              Identities
             </Link>
           </div>
         </div>

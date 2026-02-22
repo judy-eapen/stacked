@@ -6,9 +6,9 @@ import { UserBlock } from '@/components/user-block'
 import { RedirectToOnboardingWhenEmpty } from '@/components/redirect-to-onboarding'
 
 const nav = [
-  { label: 'Scorecard', href: '/dashboard/scorecard', badge: 'Next step' },
-  { label: 'Identities', href: '/dashboard/identities' },
   { label: 'Habits', href: '/dashboard/habits' },
+  { label: 'Identities', href: '/dashboard/identities' },
+  { label: 'Review', href: '/dashboard/review' },
 ]
 
 export default async function DashboardLayout({
@@ -80,26 +80,14 @@ export default async function DashboardLayout({
           <span className="font-bold tracking-tight text-gray-900">Stacked</span>
         </Link>
         <nav className="flex gap-2">
-          <Link
-            href="/dashboard/scorecard"
-            className="flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 px-3 py-2"
-          >
-            Scorecard
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-[#e87722] bg-[#e87722]/10 px-1.5 py-0.5 rounded">
-              Next step
-            </span>
+          <Link href="/dashboard/habits" className="text-sm font-medium text-gray-600 hover:text-gray-900 px-3 py-2">
+            Habits
           </Link>
-          <Link
-            href="/dashboard/identities"
-            className="text-sm font-medium text-gray-600 hover:text-gray-900 px-3 py-2"
-          >
+          <Link href="/dashboard/identities" className="text-sm font-medium text-gray-600 hover:text-gray-900 px-3 py-2">
             Identities
           </Link>
-          <Link
-            href="/dashboard/habits"
-            className="text-sm font-medium text-gray-600 hover:text-gray-900 px-3 py-2"
-          >
-            Habits
+          <Link href="/dashboard/review" className="text-sm font-medium text-gray-600 hover:text-gray-900 px-3 py-2">
+            Review
           </Link>
         </nav>
       </header>
