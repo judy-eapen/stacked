@@ -8,6 +8,13 @@ import { createClient } from '@/lib/supabase/client'
 const IDENTITY_PREFIX = 'I am a person who '
 const MIN_STATEMENT_LENGTH = 3
 
+const REWARD_OPTIONS = [
+  { value: 'check', label: 'Check it off' },
+  { value: 'music', label: 'Music' },
+  { value: 'sticker', label: 'Sticker' },
+  { value: 'other', label: 'Other' },
+] as const
+
 interface Identity {
   id: string
   statement: string
@@ -19,15 +26,21 @@ export default function OnboardingPage() {
   const [identities, setIdentities] = useState<Identity[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [step, setStep] = useState<1 | 2 | 3>(1)
+  const [step, setStep] = useState<0 | 1 | 2 | 3 | 4>(0)
 
-  const [statement1, setStatement1] = useState('')
-  const [statement2, setStatement2] = useState('')
-  const [showSecondIdentity, setShowSecondIdentity] = useState(false)
+  const [identityStatement, setIdentityStatement] = useState('')
+  const [habitName, setHabitName] = useState('')
+  const [habitTwoMin, setHabitTwoMin] = useState('')
+  const [cueType, setCueType] = useState<'time' | 'after' | 'location'>('time')
+  const [cueValue, setCueValue] = useState('')
+  const [reward, setReward] = useState<string>('check')
+  const [rewardOther, setRewardOther] = useState('')
+  const [bundleWith, setBundleWith] = useState('')
 
-  const [habitNames, setHabitNames] = useState<Record<string, string>>({})
-  const [habitTwoMin, setHabitTwoMin] = useState<Record<string, string>>({})
+  const [createdIdentityId, setCreatedIdentityId] = useState<string | null>(null)
+  const [createdHabitId, setCreatedHabitId] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [firstDone, setFirstDone] = useState(false)
 
   const fetchIdentities = useCallback(async () => {
     const supabase = createClient()
@@ -52,41 +65,10 @@ export default function OnboardingPage() {
   }, [fetchIdentities])
 
   useEffect(() => {
-    if (loading || identities.length === 0) return
-    const check = async () => {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-      const { data: habits } = await supabase
-        .from('habits')
-        .select('identity_id')
-        .eq('user_id', user.id)
-        .not('identity_id', 'is', null)
-      const identityIdsWithHabits = new Set((habits ?? []).map((h) => h.identity_id).filter(Boolean))
-      const everyIdentityHasHabit = identities.every((idn) => identityIdsWithHabits.has(idn.id))
-      if (everyIdentityHasHabit) router.replace('/dashboard')
+    if (!loading && identities.length > 0 && step === 0) {
+      router.replace('/dashboard')
     }
-    check()
-  }, [loading, identities, router])
-
-  useEffect(() => {
-    if (!loading && step === 2 && identities.length > 0) {
-      setHabitNames((prev) => {
-        const next = { ...prev }
-        identities.forEach((idn) => {
-          if (!(idn.id in next)) next[idn.id] = ''
-        })
-        return next
-      })
-      setHabitTwoMin((prev) => {
-        const next = { ...prev }
-        identities.forEach((idn) => {
-          if (!(idn.id in next)) next[idn.id] = ''
-        })
-        return next
-      })
-    }
-  }, [loading, step, identities])
+  }, [loading, identities.length, step, router])
 
   if (loading) {
     return (
@@ -97,12 +79,11 @@ export default function OnboardingPage() {
     )
   }
 
-  const completion1 = statement1.trim()
-  const completion2 = statement2.trim()
-  const canSubmitStep1 = completion1.length >= MIN_STATEMENT_LENGTH && (!showSecondIdentity || completion2.length >= MIN_STATEMENT_LENGTH)
+  const canSubmitStep0 = identityStatement.trim().length >= MIN_STATEMENT_LENGTH
+  const canSubmitStep1 = habitName.trim().length >= 1 && habitTwoMin.trim().length >= 1
 
-  const submitStep1 = async () => {
-    if (!canSubmitStep1) return
+  const submitStep0 = async () => {
+    if (!canSubmitStep0) return
     setError(null)
     setSubmitting(true)
     const supabase = createClient()
@@ -111,43 +92,26 @@ export default function OnboardingPage() {
       setSubmitting(false)
       return
     }
-    const statements: string[] = []
-    const s1 = (IDENTITY_PREFIX + completion1 + (completion1.endsWith('.') ? '' : '.')).slice(0, 500)
-    statements.push(s1)
-    if (showSecondIdentity && completion2) {
-      const s2 = (IDENTITY_PREFIX + completion2 + (completion2.endsWith('.') ? '' : '.')).slice(0, 500)
-      statements.push(s2)
+    const completion = identityStatement.trim()
+    const statement = (IDENTITY_PREFIX + completion + (completion.endsWith('.') ? '' : '.')).slice(0, 500)
+    const { data: row, error: insertErr } = await supabase
+      .from('identities')
+      .insert({ user_id: user.id, statement, sort_order: 0 })
+      .select('id')
+      .single()
+    if (insertErr) {
+      setError(insertErr.message)
+      setSubmitting(false)
+      return
     }
-    for (let i = 0; i < statements.length; i++) {
-      const { error: insertErr } = await supabase.from('identities').insert({
-        user_id: user.id,
-        statement: statements[i],
-        sort_order: identities.length + i,
-      })
-      if (insertErr) {
-        setError(insertErr.message)
-        setSubmitting(false)
-        return
-      }
-    }
+    setCreatedIdentityId(row.id)
     await fetchIdentities()
-    setStep(2)
-    setStatement1('')
-    setHabitNames({})
-    setHabitTwoMin({})
-    setStatement2('')
-    setShowSecondIdentity(false)
+    setStep(1)
     setSubmitting(false)
   }
 
-  const allHabitsValid = identities.length > 0 && identities.every((idn) => {
-    const name = (habitNames[idn.id] ?? '').trim().slice(0, 200)
-    const twoMin = (habitTwoMin[idn.id] ?? '').trim().slice(0, 200)
-    return name.length >= 1 && twoMin.length >= 1
-  })
-
-  const submitStep2 = async () => {
-    if (!allHabitsValid) return
+  const submitStep1 = async () => {
+    if (!canSubmitStep1 || !createdIdentityId) return
     setError(null)
     setSubmitting(true)
     const supabase = createClient()
@@ -156,36 +120,107 @@ export default function OnboardingPage() {
       setSubmitting(false)
       return
     }
-    for (let i = 0; i < identities.length; i++) {
-      const idn = identities[i]
-      const name = (habitNames[idn.id] ?? '').trim().slice(0, 200)
-      const twoMin = (habitTwoMin[idn.id] ?? '').trim().slice(0, 200)
-      const { error: insertErr } = await supabase.from('habits').insert({
+    const name = habitName.trim().slice(0, 200)
+    const twoMin = habitTwoMin.trim().slice(0, 200)
+    const { data: habitRow, error: insertErr } = await supabase
+      .from('habits')
+      .insert({
         user_id: user.id,
-        identity_id: idn.id,
+        identity_id: createdIdentityId,
         name,
         two_minute_version: twoMin,
         frequency: 'daily',
-        sort_order: i,
+        sort_order: 0,
       })
-      if (insertErr) {
-        setError(insertErr.message)
-        setSubmitting(false)
-        return
-      }
+      .select('id')
+      .single()
+    if (insertErr) {
+      setError(insertErr.message)
+      setSubmitting(false)
+      return
     }
+    setCreatedHabitId(habitRow.id)
+    setStep(2)
     setSubmitting(false)
-    setStep(3)
   }
+
+  const submitStep2 = async () => {
+    if (!createdHabitId) return
+    setError(null)
+    setSubmitting(true)
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      setSubmitting(false)
+      return
+    }
+    const intention =
+      cueType === 'time'
+        ? { behavior: habitName.trim().slice(0, 200), time: cueValue.trim().slice(0, 100) || undefined, location: undefined }
+        : cueType === 'after'
+          ? { behavior: cueValue.trim().slice(0, 200), time: undefined, location: undefined }
+          : { behavior: habitName.trim().slice(0, 200), time: undefined, location: cueValue.trim().slice(0, 100) || undefined }
+    const designBuild = {
+      obvious: { implementation_intention: cueValue.trim().slice(0, 200) || undefined },
+      easy: { two_minute_rule: habitTwoMin.trim().slice(0, 200) },
+      satisfying: { immediate_reward: reward === 'other' ? rewardOther.trim().slice(0, 200) : REWARD_OPTIONS.find((r) => r.value === reward)?.label ?? 'Check it off' },
+      attractive: bundleWith.trim() ? { temptation_bundling: bundleWith.trim().slice(0, 500) } : undefined,
+    }
+    await supabase
+      .from('habits')
+      .update({
+        implementation_intention: intention.behavior || intention.time || intention.location ? intention : null,
+        design_build: designBuild,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', createdHabitId)
+      .eq('user_id', user.id)
+    setStep(3)
+    setSubmitting(false)
+  }
+
+  const completeStep3 = async () => {
+    if (!createdHabitId) return
+    setError(null)
+    setSubmitting(true)
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      setSubmitting(false)
+      return
+    }
+    const today = new Date().toISOString().slice(0, 10)
+    await supabase
+      .from('habits')
+      .update({
+        last_completed_date: today,
+        current_streak: 1,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', createdHabitId)
+      .eq('user_id', user.id)
+    setFirstDone(true)
+    setSubmitting(false)
+  }
+
+  const identityStatementDisplay = identities.find((i) => i.id === createdIdentityId)?.statement ?? (IDENTITY_PREFIX + identityStatement.trim())
 
   return (
     <div className="max-w-lg mx-auto space-y-8">
       <div>
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-1">
-          Set your focus
+          {step === 0 && 'Who do you want to become?'}
+          {step === 1 && "What's one habit that proves this identity?"}
+          {step === 2 && 'Configure the 4 Laws (quick)'}
+          {step === 3 && 'Do the tiny version now'}
+          {step === 4 && 'You cast 1 vote for your identity'}
         </h1>
         <p className="text-sm text-gray-500">
-          Choose 1–2 identities and one habit to start for each. Every habit needs a 2-minute version.
+          {step === 0 && 'Start with one identity. You can add more later.'}
+          {step === 1 && 'Name the habit and its 2-minute version (required).'}
+          {step === 2 && 'Cue, tiny version, reward. About 60 seconds.'}
+          {step === 3 && 'Tap Done when you do it. This is your first win.'}
+          {step === 4 && 'Want to add another identity? Or go to your dashboard.'}
         </p>
       </div>
 
@@ -195,58 +230,57 @@ export default function OnboardingPage() {
         </p>
       )}
 
-      {step === 1 && (
+      {step === 0 && (
         <div className="rounded-xl bg-white border border-gray-200 p-5 space-y-4">
-          <p className="text-sm font-medium text-gray-900">Step 1 of 2: Add 1 or 2 identities</p>
-          <p className="text-xs text-gray-500">Complete the sentence. At least {MIN_STATEMENT_LENGTH} characters.</p>
           <div className="flex flex-wrap items-baseline gap-1 rounded-lg border border-gray-200 bg-gray-50/50 px-3 py-2">
             <span className="text-sm text-gray-500">{IDENTITY_PREFIX}</span>
             <input
               type="text"
               placeholder="e.g. move every day"
-              value={statement1}
-              onChange={(e) => setStatement1(e.target.value)}
+              value={identityStatement}
+              onChange={(e) => setIdentityStatement(e.target.value)}
               className="flex-1 min-w-[120px] bg-transparent py-1.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
             />
           </div>
-          {statement1.trim().length > 0 && statement1.trim().length < MIN_STATEMENT_LENGTH && (
-            <p className="text-xs text-amber-600">Add at least {MIN_STATEMENT_LENGTH} characters.</p>
+          {identityStatement.trim().length > 0 && identityStatement.trim().length < MIN_STATEMENT_LENGTH && (
+            <p className="text-xs text-amber-600">At least {MIN_STATEMENT_LENGTH} characters.</p>
           )}
+          <p className="text-xs text-gray-500">You can add another identity later from Identities.</p>
+          <button
+            type="button"
+            onClick={submitStep0}
+            disabled={!canSubmitStep0 || submitting}
+            className="h-10 px-4 rounded-lg bg-[#e87722] text-white text-sm font-medium hover:bg-[#d96b1e] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {submitting ? 'Saving…' : 'Next'}
+          </button>
+        </div>
+      )}
 
-          {!showSecondIdentity ? (
-            <button
-              type="button"
-              onClick={() => setShowSecondIdentity(true)}
-              className="text-sm text-gray-600 hover:text-gray-900 underline"
-            >
-              + Add a second identity
+      {step === 1 && createdIdentityId && (
+        <div className="rounded-xl bg-white border border-gray-200 p-5 space-y-4">
+          <p className="text-xs text-gray-600">&ldquo;{identities.find((i) => i.id === createdIdentityId)?.statement}&rdquo;</p>
+          <input
+            type="text"
+            placeholder="Habit name"
+            value={habitName}
+            onChange={(e) => setHabitName(e.target.value)}
+            className="w-full h-10 px-3 rounded-lg border border-gray-200 text-sm"
+          />
+          <input
+            type="text"
+            placeholder="2-minute version (required)"
+            value={habitTwoMin}
+            onChange={(e) => setHabitTwoMin(e.target.value)}
+            className="w-full h-10 px-3 rounded-lg border border-gray-200 text-sm"
+          />
+          {habitName.trim() && !habitTwoMin.trim() && (
+            <p className="text-xs text-amber-600">Add a 2-minute version to continue.</p>
+          )}
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setStep(0)} className="h-10 px-4 rounded-lg border border-gray-200 text-sm font-medium hover:bg-gray-50">
+              Back
             </button>
-          ) : (
-            <>
-              <div className="flex flex-wrap items-baseline gap-1 rounded-lg border border-gray-200 bg-gray-50/50 px-3 py-2">
-                <span className="text-sm text-gray-500">{IDENTITY_PREFIX}</span>
-                <input
-                  type="text"
-                  placeholder="e.g. read before bed"
-                  value={statement2}
-                  onChange={(e) => setStatement2(e.target.value)}
-                  className="flex-1 min-w-[120px] bg-transparent py-1.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
-                />
-              </div>
-              {statement2.trim().length > 0 && statement2.trim().length < MIN_STATEMENT_LENGTH && (
-                <p className="text-xs text-amber-600">Add at least {MIN_STATEMENT_LENGTH} characters.</p>
-              )}
-              <button
-                type="button"
-                onClick={() => setShowSecondIdentity(false)}
-                className="text-sm text-gray-500 hover:underline"
-              >
-                Remove second identity
-              </button>
-            </>
-          )}
-
-          <div className="flex gap-2 pt-2">
             <button
               type="button"
               onClick={submitStep1}
@@ -259,73 +293,123 @@ export default function OnboardingPage() {
         </div>
       )}
 
-      {step === 2 && identities.length > 0 && (
-        <div className="space-y-6">
-          <p className="text-sm font-medium text-gray-900">Step 2 of 2: One habit per identity (2-minute version required)</p>
-          {identities.map((idn) => (
-            <div key={idn.id} className="rounded-xl bg-white border border-gray-200 p-5 space-y-3">
-              <p className="text-xs font-medium text-gray-600">Habit for: &ldquo;{idn.statement}&rdquo;</p>
-              <input
-                type="text"
-                placeholder="Habit name"
-                value={habitNames[idn.id] ?? ''}
-                onChange={(e) => setHabitNames((prev) => ({ ...prev, [idn.id]: e.target.value }))}
-                className="w-full h-10 px-3 rounded-lg border border-gray-200 text-sm"
-              />
-              <input
-                type="text"
-                placeholder="2-minute version (required)"
-                value={habitTwoMin[idn.id] ?? ''}
-                onChange={(e) => setHabitTwoMin((prev) => ({ ...prev, [idn.id]: e.target.value }))}
-                className="w-full h-10 px-3 rounded-lg border border-gray-200 text-sm"
-              />
-              {(habitNames[idn.id] ?? '').trim() && !(habitTwoMin[idn.id] ?? '').trim() && (
-                <p className="text-xs text-amber-600">Add a 2-minute version to continue.</p>
-              )}
-            </div>
-          ))}
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setStep(1)}
-              className="h-10 px-4 rounded-lg border border-gray-200 text-sm font-medium hover:bg-gray-50"
-            >
+      {step === 2 && (
+        <div className="rounded-xl bg-white border border-gray-200 p-5 space-y-4">
+          <p className="text-xs font-medium text-gray-700">Obvious: when will you do it?</p>
+          <select
+            value={cueType}
+            onChange={(e) => setCueType(e.target.value as 'time' | 'after' | 'location')}
+            className="w-full h-10 px-3 rounded-lg border border-gray-200 text-sm"
+          >
+            <option value="time">At a specific time</option>
+            <option value="after">After something else</option>
+            <option value="location">In a specific place</option>
+          </select>
+          <input
+            type="text"
+            placeholder={cueType === 'time' ? 'e.g. 7:00 AM' : cueType === 'after' ? 'e.g. After I pour coffee' : 'e.g. In my home office'}
+            value={cueValue}
+            onChange={(e) => setCueValue(e.target.value)}
+            className="w-full h-10 px-3 rounded-lg border border-gray-200 text-sm"
+          />
+
+          <p className="text-xs font-medium text-gray-700 mt-4">Easy: your tiny version</p>
+          <p className="text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-lg">{habitTwoMin || '—'}</p>
+
+          <p className="text-xs font-medium text-gray-700 mt-4">Satisfying: pick a reward</p>
+          <select
+            value={reward}
+            onChange={(e) => setReward(e.target.value)}
+            className="w-full h-10 px-3 rounded-lg border border-gray-200 text-sm"
+          >
+            {REWARD_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+          {reward === 'other' && (
+            <input
+              type="text"
+              placeholder="Your reward"
+              value={rewardOther}
+              onChange={(e) => setRewardOther(e.target.value)}
+              className="w-full h-10 px-3 rounded-lg border border-gray-200 text-sm mt-1"
+            />
+          )}
+
+          <p className="text-xs font-medium text-gray-700 mt-4">Attractive: bundle with something you enjoy? (optional)</p>
+          <input
+            type="text"
+            placeholder="e.g. Only while listening to my podcast"
+            value={bundleWith}
+            onChange={(e) => setBundleWith(e.target.value)}
+            className="w-full h-10 px-3 rounded-lg border border-gray-200 text-sm"
+          />
+
+          <div className="flex gap-2 pt-2">
+            <button type="button" onClick={() => setStep(1)} className="h-10 px-4 rounded-lg border border-gray-200 text-sm font-medium hover:bg-gray-50">
               Back
             </button>
             <button
               type="button"
               onClick={submitStep2}
-              disabled={!allHabitsValid || submitting}
-              className="h-10 px-4 rounded-lg bg-[#e87722] text-white text-sm font-medium hover:bg-[#d96b1e] disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={submitting}
+              className="h-10 px-4 rounded-lg bg-[#e87722] text-white text-sm font-medium disabled:opacity-50"
             >
-              {submitting ? 'Saving…' : 'Finish'}
+              {submitting ? 'Saving…' : 'Next'}
             </button>
           </div>
         </div>
       )}
 
       {step === 3 && (
-        <div className="rounded-xl bg-white border border-gray-200 p-6 text-center space-y-4">
-          <p className="text-lg font-medium text-gray-900">You&rsquo;re all set</p>
-          <p className="text-sm text-gray-500">
-            You have {identities.length} identity{identities.length === 1 ? '' : 'ies'} and one habit to start for each. Next: add more habits or use Review to recalibrate.
-          </p>
-          <Link
-            href="/dashboard/review"
-            className="inline-flex items-center justify-center h-12 px-6 rounded-lg bg-[#e87722] text-white font-semibold hover:bg-[#d96b1e] transition-colors gap-2"
-          >
-            Go to Review
-            <span aria-hidden>→</span>
-          </Link>
-          <Link
-            href="/dashboard"
-            className="block text-sm text-gray-600 hover:text-gray-900"
-          >
-            Dashboard home
-          </Link>
+        <div className="rounded-xl bg-white border border-gray-200 p-6 space-y-4">
+          {!firstDone ? (
+            <>
+              <p className="text-sm text-gray-700">Do the tiny version now: &ldquo;{habitTwoMin}&rdquo;</p>
+              <button
+                type="button"
+                onClick={completeStep3}
+                disabled={submitting}
+                className="w-full h-12 rounded-lg bg-[#e87722] text-white font-semibold hover:bg-[#d96b1e] disabled:opacity-50"
+              >
+                {submitting ? '…' : 'Done'}
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-lg font-medium text-gray-900">You cast 1 vote for {identityStatementDisplay}</p>
+              <button
+                type="button"
+                onClick={() => setStep(4)}
+                className="w-full h-10 rounded-lg bg-[#e87722] text-white text-sm font-medium hover:bg-[#d96b1e]"
+              >
+                Next
+              </button>
+            </>
+          )}
         </div>
       )}
 
+      {step === 4 && (
+        <div className="rounded-xl bg-white border border-gray-200 p-6 space-y-4">
+          <p className="text-sm text-gray-500">Want to add another identity? You can do it anytime from Identities.</p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center justify-center h-12 px-6 rounded-lg bg-[#e87722] text-white font-semibold hover:bg-[#d96b1e] transition-colors gap-2"
+            >
+              Go to dashboard
+              <span aria-hidden>→</span>
+            </Link>
+            <Link
+              href="/dashboard/identities?add=1"
+              className="inline-flex items-center justify-center h-12 px-6 rounded-lg border border-gray-200 bg-white text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+            >
+              Add another identity
+            </Link>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

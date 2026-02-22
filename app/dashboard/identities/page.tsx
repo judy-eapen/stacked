@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { DesignBreak } from '@/lib/db-types'
 
@@ -105,6 +106,7 @@ interface HabitToBreak {
 }
 
 export default function IdentitiesPage() {
+  const searchParams = useSearchParams()
   const [identities, setIdentities] = useState<Identity[]>([])
   const [scorecardEntries, setScorecardEntries] = useState<ScorecardEntryForLink[]>([])
   const [habitsToBreak, setHabitsToBreak] = useState<HabitToBreak[]>([])
@@ -161,6 +163,13 @@ export default function IdentitiesPage() {
   useEffect(() => {
     fetchIdentities().finally(() => setLoading(false))
   }, [fetchIdentities])
+
+  useEffect(() => {
+    if (searchParams.get('add') === '1') {
+      setShowAddForm(true)
+      setCreateStep(1)
+    }
+  }, [searchParams])
 
   const hasIdentities = identities.length > 0
 
