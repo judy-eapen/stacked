@@ -2,6 +2,71 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import type { DesignBreak } from '@/lib/db-types'
+
+const EMPTY_DESIGN_BREAK: DesignBreak = {
+  invisible: { remove_cues: '', change_environment: '', avoid_triggers: '' },
+  unattractive: { reframe_cost: '', highlight_downside: '', negative_identity: '' },
+  difficult: { increase_friction: '', add_steps: '', add_accountability: '' },
+  unsatisfying: { immediate_consequence: '', accountability_partner: '', loss_based: '' },
+}
+
+function trimDesignBreak(d: DesignBreak | null | undefined): DesignBreak | null {
+  if (!d) return null
+  const out: DesignBreak = {}
+  const keys = ['invisible', 'unattractive', 'difficult', 'unsatisfying'] as const
+  for (const law of keys) {
+    const section = d[law]
+    if (section && typeof section === 'object') {
+      const trimmed: Record<string, string> = {}
+      for (const [k, v] of Object.entries(section)) {
+        if (typeof v === 'string') trimmed[k] = v.trim()
+      }
+      if (Object.keys(trimmed).length) (out as Record<string, unknown>)[law] = trimmed
+    }
+  }
+  return Object.keys(out).length ? out : null
+}
+
+function DesignBreakForm({ value, onChange }: { value: DesignBreak; onChange: (v: DesignBreak) => void }) {
+  const d = {
+    invisible: { ...EMPTY_DESIGN_BREAK.invisible, ...value?.invisible },
+    unattractive: { ...EMPTY_DESIGN_BREAK.unattractive, ...value?.unattractive },
+    difficult: { ...EMPTY_DESIGN_BREAK.difficult, ...value?.difficult },
+    unsatisfying: { ...EMPTY_DESIGN_BREAK.unsatisfying, ...value?.unsatisfying },
+  }
+  const set = (law: keyof DesignBreak, field: string, val: string) => {
+    onChange({ ...value, [law]: { ...d[law], [field]: val } })
+  }
+  return (
+    <div className="space-y-4">
+      <div>
+        <p className="text-xs font-medium text-gray-700 mb-1">1. Make it invisible</p>
+        <input placeholder="Remove cues" value={d.invisible?.remove_cues ?? ''} onChange={(e) => set('invisible', 'remove_cues', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm mb-1" />
+        <input placeholder="Change environment" value={d.invisible?.change_environment ?? ''} onChange={(e) => set('invisible', 'change_environment', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm mb-1" />
+        <input placeholder="Avoid trigger situations" value={d.invisible?.avoid_triggers ?? ''} onChange={(e) => set('invisible', 'avoid_triggers', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm" />
+      </div>
+      <div>
+        <p className="text-xs font-medium text-gray-700 mb-1">2. Make it unattractive</p>
+        <input placeholder="Reframe the cost" value={d.unattractive?.reframe_cost ?? ''} onChange={(e) => set('unattractive', 'reframe_cost', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm mb-1" />
+        <input placeholder="Highlight long-term downside" value={d.unattractive?.highlight_downside ?? ''} onChange={(e) => set('unattractive', 'highlight_downside', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm mb-1" />
+        <input placeholder="Associate with negative identity" value={d.unattractive?.negative_identity ?? ''} onChange={(e) => set('unattractive', 'negative_identity', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm" />
+      </div>
+      <div>
+        <p className="text-xs font-medium text-gray-700 mb-1">3. Make it difficult</p>
+        <input placeholder="Increase friction" value={d.difficult?.increase_friction ?? ''} onChange={(e) => set('difficult', 'increase_friction', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm mb-1" />
+        <input placeholder="Add steps" value={d.difficult?.add_steps ?? ''} onChange={(e) => set('difficult', 'add_steps', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm mb-1" />
+        <input placeholder="Add accountability" value={d.difficult?.add_accountability ?? ''} onChange={(e) => set('difficult', 'add_accountability', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm" />
+      </div>
+      <div>
+        <p className="text-xs font-medium text-gray-700 mb-1">4. Make it unsatisfying</p>
+        <input placeholder="Immediate consequence" value={d.unsatisfying?.immediate_consequence ?? ''} onChange={(e) => set('unsatisfying', 'immediate_consequence', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm mb-1" />
+        <input placeholder="Accountability partner" value={d.unsatisfying?.accountability_partner ?? ''} onChange={(e) => set('unsatisfying', 'accountability_partner', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm mb-1" />
+        <input placeholder="Loss-based mechanism" value={d.unsatisfying?.loss_based ?? ''} onChange={(e) => set('unsatisfying', 'loss_based', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm" />
+      </div>
+    </div>
+  )
+}
 
 interface Identity {
   id: string
@@ -29,13 +94,27 @@ interface ScorecardEntryForLink {
   identity_id: string | null
 }
 
+interface HabitToBreak {
+  id: string
+  user_id: string
+  identity_id: string
+  name: string
+  design_break: DesignBreak | null
+  created_at: string
+  updated_at: string
+}
+
 export default function IdentitiesPage() {
   const [identities, setIdentities] = useState<Identity[]>([])
   const [scorecardEntries, setScorecardEntries] = useState<ScorecardEntryForLink[]>([])
+  const [habitsToBreak, setHabitsToBreak] = useState<HabitToBreak[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingHabitToBreakForIdentityId, setEditingHabitToBreakForIdentityId] = useState<string | null>(null)
+  const [habitToBreakDraftName, setHabitToBreakDraftName] = useState('')
+  const [habitToBreakDraftDesign, setHabitToBreakDraftDesign] = useState<DesignBreak>(() => ({ ...EMPTY_DESIGN_BREAK }))
   const [createStep, setCreateStep] = useState<1 | 2 | 3>(1)
   const [draftStatement, setDraftStatement] = useState('')
   const [draftLinkedEntryIds, setDraftLinkedEntryIds] = useState<string[]>([])
@@ -46,9 +125,10 @@ export default function IdentitiesPage() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const [identitiesRes, scorecardRes] = await Promise.all([
+    const [identitiesRes, scorecardRes, habitsToBreakRes] = await Promise.all([
       supabase.from('identities').select('id, statement, sort_order').eq('user_id', user.id).order('sort_order', { ascending: true }),
       supabase.from('scorecard_entries').select('id, habit_name, identity_id').eq('user_id', user.id),
+      supabase.from('habits_to_break').select('*').eq('user_id', user.id),
     ])
     if (identitiesRes.error) {
       setError(identitiesRes.error.message)
@@ -61,6 +141,7 @@ export default function IdentitiesPage() {
       identity_id: row.identity_id ?? null,
     }))
     setScorecardEntries(entries)
+    if (habitsToBreakRes.data) setHabitsToBreak(habitsToBreakRes.data as HabitToBreak[])
     const list = (identitiesRes.data ?? []).map((row) => {
       const supported = entries.filter((e) => e.identity_id === row.id).map((e) => e.habit_name)
       return {
@@ -453,6 +534,121 @@ export default function IdentitiesPage() {
                           )}
                         </div>
                       )}
+                      {(() => {
+                        const htb = habitsToBreak.find((h) => h.identity_id === idn.id)
+                        const isEditingHtb = editingHabitToBreakForIdentityId === idn.id
+                        if (isEditingHtb) {
+                          const matchingScorecardName = scorecardEntries.some((e) => e.habit_name === habitToBreakDraftName) ? habitToBreakDraftName : ''
+                          return (
+                            <div className="mt-4 pt-4 border-t border-gray-100">
+                              <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Habit to break (contradicts this identity)</p>
+                              {scorecardEntries.length > 0 && (
+                                <div className="mb-2">
+                                  <label className="block text-xs text-gray-500 mb-1">Select from scorecard</label>
+                                  <select
+                                    value={matchingScorecardName}
+                                    onChange={(e) => setHabitToBreakDraftName(e.target.value)}
+                                    className="w-full h-10 px-3 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#e87722]/70"
+                                  >
+                                    <option value="">— Or type a new habit below —</option>
+                                    {scorecardEntries.map((e) => (
+                                      <option key={e.id} value={e.habit_name}>{e.habit_name}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                              )}
+                              <label className="block text-xs text-gray-500 mb-1">{scorecardEntries.length > 0 ? 'Habit name (edit or type new)' : 'Habit name'}</label>
+                              <input
+                                type="text"
+                                placeholder="e.g. Scrolling after dinner"
+                                value={habitToBreakDraftName}
+                                onChange={(e) => setHabitToBreakDraftName(e.target.value)}
+                                className="w-full h-10 px-3 rounded-lg border border-gray-200 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-[#e87722]/70"
+                              />
+                              <p className="text-xs font-medium text-gray-600 mb-2">How to break it (4 laws)</p>
+                              <DesignBreakForm value={habitToBreakDraftDesign} onChange={setHabitToBreakDraftDesign} />
+                              <div className="flex gap-2 mt-3">
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    const name = habitToBreakDraftName.trim().slice(0, 200)
+                                    if (!name) return
+                                    const supabase = createClient()
+                                    const { data: { user } } = await supabase.auth.getUser()
+                                    if (!user) return
+                                    const db = trimDesignBreak(habitToBreakDraftDesign)
+                                    if (htb) {
+                                      const { error: err } = await supabase.from('habits_to_break').update({ name, design_break: db }).eq('id', htb.id).eq('user_id', user.id)
+                                      if (err) setError(err.message)
+                                    } else {
+                                      const { error: err } = await supabase.from('habits_to_break').insert({ user_id: user.id, identity_id: idn.id, name, design_break: db })
+                                      if (err) setError(err.message)
+                                    }
+                                    setEditingHabitToBreakForIdentityId(null)
+                                    fetchIdentities()
+                                  }}
+                                  disabled={!habitToBreakDraftName.trim()}
+                                  className="h-9 px-3 rounded-lg bg-[#e87722] text-white text-sm font-medium disabled:opacity-50"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingHabitToBreakForIdentityId(null)
+                                    setHabitToBreakDraftName('')
+                                    setHabitToBreakDraftDesign({ ...EMPTY_DESIGN_BREAK })
+                                  }}
+                                  className="h-9 px-3 rounded-lg border border-gray-200 text-sm"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          )
+                        }
+                        if (htb) {
+                          return (
+                            <div className="mt-4 pt-4 border-t border-gray-100">
+                              <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">Habit to break</p>
+                              <p className="text-sm font-medium text-gray-900">{htb.name}</p>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingHabitToBreakForIdentityId(idn.id)
+                                  setHabitToBreakDraftName(htb.name)
+                                  setHabitToBreakDraftDesign({
+                                    ...EMPTY_DESIGN_BREAK,
+                                    ...htb.design_break,
+                                    invisible: { ...EMPTY_DESIGN_BREAK.invisible, ...htb.design_break?.invisible },
+                                    unattractive: { ...EMPTY_DESIGN_BREAK.unattractive, ...htb.design_break?.unattractive },
+                                    difficult: { ...EMPTY_DESIGN_BREAK.difficult, ...htb.design_break?.difficult },
+                                    unsatisfying: { ...EMPTY_DESIGN_BREAK.unsatisfying, ...htb.design_break?.unsatisfying },
+                                  })
+                                }}
+                                className="mt-1 text-xs text-[#e87722] hover:underline"
+                              >
+                                Edit how to break it
+                              </button>
+                            </div>
+                          )
+                        }
+                        return (
+                          <div className="mt-4 pt-4 border-t border-gray-100">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingHabitToBreakForIdentityId(idn.id)
+                                setHabitToBreakDraftName('')
+                                setHabitToBreakDraftDesign({ ...EMPTY_DESIGN_BREAK })
+                              }}
+                              className="text-sm text-[#e87722] hover:underline"
+                            >
+                              + Add habit to break (contradicts this identity)
+                            </button>
+                          </div>
+                        )
+                      })()}
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       <button

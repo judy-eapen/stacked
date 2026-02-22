@@ -1,7 +1,10 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import type { DesignBuild } from '@/lib/db-types'
 
 type HabitFrequency = 'daily' | 'weekdays' | 'weekends' | 'custom'
 
@@ -21,6 +24,7 @@ interface Habit {
   stack_anchor_scorecard_id: string | null
   stack_anchor_habit_id: string | null
   temptation_bundle: string | null
+  design_build: DesignBuild | null
   frequency: HabitFrequency
   custom_days: number[] | null
   is_active: boolean
@@ -44,7 +48,89 @@ interface ScorecardAnchor {
   habit_name: string
 }
 
+const EMPTY_DESIGN_BUILD: DesignBuild = {
+  obvious: { clear_cue: '', visible_trigger: '', implementation_intention: '' },
+  attractive: { pair_with_enjoyment: '', identity_reframe: '', temptation_bundling: '' },
+  easy: { reduce_friction: '', two_minute_rule: '', environment_design: '' },
+  satisfying: { immediate_reward: '', track_streak: '', celebrate_completion: '' },
+}
+
+function isEmptyDesignBuild(d: DesignBuild | null | undefined): boolean {
+  if (!d) return true
+  const keys = ['obvious', 'attractive', 'easy', 'satisfying'] as const
+  for (const law of keys) {
+    const section = d[law]
+    if (section && typeof section === 'object') {
+      for (const v of Object.values(section)) {
+        if (typeof v === 'string' && v.trim()) return false
+      }
+    }
+  }
+  return true
+}
+
+function trimDesignBuild(d: DesignBuild | null | undefined): DesignBuild | null {
+  if (!d) return null
+  const out: DesignBuild = {}
+  const keys = ['obvious', 'attractive', 'easy', 'satisfying'] as const
+  for (const law of keys) {
+    const section = d[law]
+    if (section && typeof section === 'object') {
+      const trimmed: Record<string, string> = {}
+      for (const [k, v] of Object.entries(section)) {
+        if (typeof v === 'string') trimmed[k] = v.trim()
+      }
+      if (Object.keys(trimmed).length) (out as Record<string, unknown>)[law] = trimmed
+    }
+  }
+  return Object.keys(out).length ? out : null
+}
+
+function DesignBuildForm({ value, onChange }: { value: DesignBuild; onChange: (v: DesignBuild) => void }) {
+  const d = {
+    obvious: { ...EMPTY_DESIGN_BUILD.obvious, ...value?.obvious },
+    attractive: { ...EMPTY_DESIGN_BUILD.attractive, ...value?.attractive },
+    easy: { ...EMPTY_DESIGN_BUILD.easy, ...value?.easy },
+    satisfying: { ...EMPTY_DESIGN_BUILD.satisfying, ...value?.satisfying },
+  }
+  const set = (law: keyof DesignBuild, field: string, val: string) => {
+    onChange({
+      ...value,
+      [law]: { ...d[law], [field]: val },
+    })
+  }
+  return (
+    <div className="space-y-4">
+      <div>
+        <p className="text-xs font-medium text-gray-700 mb-1">1. Make it obvious</p>
+        <input placeholder="Clear cue" value={d.obvious?.clear_cue ?? ''} onChange={(e) => set('obvious', 'clear_cue', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm mb-1" />
+        <input placeholder="Visible trigger" value={d.obvious?.visible_trigger ?? ''} onChange={(e) => set('obvious', 'visible_trigger', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm mb-1" />
+        <input placeholder="Implementation intention (e.g. After I pour coffee, I journal.)" value={d.obvious?.implementation_intention ?? ''} onChange={(e) => set('obvious', 'implementation_intention', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm" />
+      </div>
+      <div>
+        <p className="text-xs font-medium text-gray-700 mb-1">2. Make it attractive</p>
+        <input placeholder="Pair with something you enjoy" value={d.attractive?.pair_with_enjoyment ?? ''} onChange={(e) => set('attractive', 'pair_with_enjoyment', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm mb-1" />
+        <input placeholder="Reframe as identity-driven" value={d.attractive?.identity_reframe ?? ''} onChange={(e) => set('attractive', 'identity_reframe', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm mb-1" />
+        <input placeholder="Temptation bundling" value={d.attractive?.temptation_bundling ?? ''} onChange={(e) => set('attractive', 'temptation_bundling', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm" />
+      </div>
+      <div>
+        <p className="text-xs font-medium text-gray-700 mb-1">3. Make it easy</p>
+        <input placeholder="Reduce friction" value={d.easy?.reduce_friction ?? ''} onChange={(e) => set('easy', 'reduce_friction', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm mb-1" />
+        <input placeholder="2-minute rule" value={d.easy?.two_minute_rule ?? ''} onChange={(e) => set('easy', 'two_minute_rule', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm mb-1" />
+        <input placeholder="Environment design" value={d.easy?.environment_design ?? ''} onChange={(e) => set('easy', 'environment_design', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm" />
+      </div>
+      <div>
+        <p className="text-xs font-medium text-gray-700 mb-1">4. Make it satisfying</p>
+        <input placeholder="Immediate reward" value={d.satisfying?.immediate_reward ?? ''} onChange={(e) => set('satisfying', 'immediate_reward', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm mb-1" />
+        <input placeholder="Track streak" value={d.satisfying?.track_streak ?? ''} onChange={(e) => set('satisfying', 'track_streak', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm mb-1" />
+        <input placeholder="Celebrate completion" value={d.satisfying?.celebrate_completion ?? ''} onChange={(e) => set('satisfying', 'celebrate_completion', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm" />
+      </div>
+    </div>
+  )
+}
+
 function hasDesignFields(h: Habit): boolean {
+  if (!isEmptyDesignBuild(h.design_build ?? null)) return true
   const hasIntention = h.implementation_intention && (
     (h.implementation_intention.behavior ?? '').trim() ||
     (h.implementation_intention.time ?? '').trim() ||
@@ -66,6 +152,7 @@ export default function HabitsPage() {
   const [scorecardEntries, setScorecardEntries] = useState<ScorecardAnchor[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const searchParams = useSearchParams()
   const [showAddForm, setShowAddForm] = useState(false)
   const [showDesignSection, setShowDesignSection] = useState(false)
   const [archivedOpen, setArchivedOpen] = useState(false)
@@ -73,13 +160,9 @@ export default function HabitsPage() {
 
   const [draftName, setDraftName] = useState('')
   const [draftIdentityId, setDraftIdentityId] = useState<string | null>(null)
-  const [draftBehavior, setDraftBehavior] = useState('')
-  const [draftTime, setDraftTime] = useState('')
-  const [draftLocation, setDraftLocation] = useState('')
   const [draftStackScorecardId, setDraftStackScorecardId] = useState<string | null>(null)
   const [draftStackHabitId, setDraftStackHabitId] = useState<string | null>(null)
-  const [draftTemptationBundle, setDraftTemptationBundle] = useState('')
-  const [draftTwoMinute, setDraftTwoMinute] = useState('')
+  const [draftDesignBuild, setDraftDesignBuild] = useState<DesignBuild>(() => ({ ...EMPTY_DESIGN_BUILD }))
 
   const fetchAll = useCallback(async () => {
     const supabase = createClient()
@@ -110,6 +193,10 @@ export default function HabitsPage() {
     fetchAll().finally(() => setLoading(false))
   }, [fetchAll])
 
+  useEffect(() => {
+    if (searchParams.get('add') === '1') setShowAddForm(true)
+  }, [searchParams])
+
   const activeHabits = habits.filter((h) => h.is_active)
   const habitsByIdentity = new Map<string | null, Habit[]>()
   habitsByIdentity.set(null, [])
@@ -124,13 +211,9 @@ export default function HabitsPage() {
   const resetCreateForm = () => {
     setDraftName('')
     setDraftIdentityId(null)
-    setDraftBehavior('')
-    setDraftTime('')
-    setDraftLocation('')
     setDraftStackScorecardId(null)
     setDraftStackHabitId(null)
-    setDraftTemptationBundle('')
-    setDraftTwoMinute('')
+    setDraftDesignBuild({ ...EMPTY_DESIGN_BUILD })
     setShowDesignSection(false)
     setShowAddForm(false)
   }
@@ -141,22 +224,22 @@ export default function HabitsPage() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const intention =
-      (draftBehavior.trim() || draftTime.trim() || draftLocation.trim())
-        ? {
-            behavior: draftBehavior.trim().slice(0, 200) || undefined,
-            time: draftTime.trim().slice(0, 100) || undefined,
-            location: draftLocation.trim().slice(0, 200) || undefined,
-          }
-        : null
+    const db = trimDesignBuild(draftDesignBuild)
+    const intentionFromBuild = db?.obvious?.implementation_intention?.trim()
+    const intention = intentionFromBuild
+      ? { behavior: intentionFromBuild.slice(0, 200), time: undefined, location: undefined }
+      : null
+    const twoMinFromBuild = db?.easy?.two_minute_rule?.trim()
+    const temptationFromBuild = db?.attractive?.temptation_bundling?.trim()
     const onlyOneStack = draftStackScorecardId ? { stack_anchor_scorecard_id: draftStackScorecardId, stack_anchor_habit_id: null } : draftStackHabitId ? { stack_anchor_scorecard_id: null, stack_anchor_habit_id: draftStackHabitId } : {}
     const { error: err } = await supabase.from('habits').insert({
       user_id: user.id,
       identity_id: draftIdentityId || null,
       name,
-      two_minute_version: draftTwoMinute.trim().slice(0, 200) || null,
+      two_minute_version: twoMinFromBuild?.slice(0, 200) || null,
       implementation_intention: intention,
-      temptation_bundle: draftTemptationBundle.trim().slice(0, 500) || null,
+      temptation_bundle: temptationFromBuild?.slice(0, 500) || null,
+      design_build: isEmptyDesignBuild(db ?? null) ? null : db,
       frequency: 'daily',
       sort_order: habits.length,
       ...onlyOneStack,
@@ -286,28 +369,25 @@ export default function HabitsPage() {
               {showDesignSection ? 'Hide design' : 'Design this habit'}
             </button>
             {showDesignSection && (
-              <div className="mt-3 p-4 rounded-lg border border-gray-200 bg-gray-50/50 space-y-3">
-                <p className="text-xs font-medium text-gray-700">Implementation intention</p>
-                <input type="text" placeholder="Behavior (e.g. read 10 pages)" value={draftBehavior} onChange={(e) => setDraftBehavior(e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm" />
-                <input type="text" placeholder="Time (e.g. 7pm)" value={draftTime} onChange={(e) => setDraftTime(e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm" />
-                <input type="text" placeholder="Location (e.g. in bed)" value={draftLocation} onChange={(e) => setDraftLocation(e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm" />
-                <p className="text-xs font-medium text-gray-700 mt-2">Stack after (optional)</p>
+              <div className="mt-3 p-4 rounded-lg border border-gray-200 bg-gray-50/50 space-y-4">
+                <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">4 laws: build this habit</p>
+                <DesignBuildForm
+                  value={draftDesignBuild}
+                  onChange={setDraftDesignBuild}
+                />
+                <p className="text-xs font-medium text-gray-700 mt-2 pt-2 border-t border-gray-200">Stack after (optional)</p>
                 <select value={draftStackScorecardId ?? ''} onChange={(e) => { setDraftStackScorecardId(e.target.value || null); setDraftStackHabitId(null); }} className="w-full h-9 px-3 rounded border border-gray-200 text-sm">
                   <option value="">No scorecard anchor</option>
                   {scorecardEntries.map((e) => (
                     <option key={e.id} value={e.id}>{e.habit_name}</option>
                   ))}
                 </select>
-                <select value={draftStackHabitId ?? ''} onChange={(e) => { setDraftStackHabitId(e.target.value || null); setDraftStackScorecardId(null); }} className="w-full h-9 px-3 rounded border border-gray-200 text-sm">
+                <select value={draftStackHabitId ?? ''} onChange={(e) => { setDraftStackHabitId(e.target.value || null); setDraftStackScorecardId(null); }} className="w-full h-9 px-3 rounded border border-gray-200 text-sm mt-1">
                   <option value="">No habit anchor</option>
                   {activeHabits.filter((h) => h.id !== editingId).map((h) => (
                     <option key={h.id} value={h.id}>{h.name}</option>
                   ))}
                 </select>
-                <p className="text-xs font-medium text-gray-700">Temptation bundle (optional)</p>
-                <input type="text" placeholder="After this habit, I get to…" value={draftTemptationBundle} onChange={(e) => setDraftTemptationBundle(e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm" />
-                <p className="text-xs font-medium text-gray-700">Two-minute version (optional)</p>
-                <input type="text" placeholder="e.g. Read one page" value={draftTwoMinute} onChange={(e) => setDraftTwoMinute(e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm" />
               </div>
             )}
           </div>
@@ -335,13 +415,12 @@ export default function HabitsPage() {
           <p className="text-gray-600 mb-6">
             Add habits to track. Start with a name and optional identity; you can add implementation intentions and stacking later.
           </p>
-          <button
-            type="button"
-            onClick={() => setShowAddForm(true)}
+          <Link
+            href="/dashboard/habits?add=1"
             className="inline-flex items-center justify-center h-12 px-6 rounded-lg bg-[#e87722] text-white font-semibold hover:bg-[#d96b1e] transition-colors"
           >
             Add your first habit
-          </button>
+          </Link>
         </div>
       ) : (
         <div className="space-y-6">
@@ -454,22 +533,25 @@ function HabitCard({
   onDelete,
 }: HabitCardProps) {
   const [editName, setEditName] = useState(habit.name)
-  const [editIntentionBehavior, setEditIntentionBehavior] = useState(habit.implementation_intention?.behavior ?? '')
-  const [editIntentionTime, setEditIntentionTime] = useState(habit.implementation_intention?.time ?? '')
-  const [editIntentionLocation, setEditIntentionLocation] = useState(habit.implementation_intention?.location ?? '')
-  const [editTwoMinute, setEditTwoMinute] = useState(habit.two_minute_version ?? '')
-  const [editTemptation, setEditTemptation] = useState(habit.temptation_bundle ?? '')
+  const [editDesignBuild, setEditDesignBuild] = useState<DesignBuild>(() => ({
+    ...EMPTY_DESIGN_BUILD,
+    ...habit.design_build,
+    obvious: { ...EMPTY_DESIGN_BUILD.obvious, ...habit.design_build?.obvious },
+    attractive: { ...EMPTY_DESIGN_BUILD.attractive, ...habit.design_build?.attractive },
+    easy: { ...EMPTY_DESIGN_BUILD.easy, ...habit.design_build?.easy },
+    satisfying: { ...EMPTY_DESIGN_BUILD.satisfying, ...habit.design_build?.satisfying },
+  }))
   const isEditing = editingId === habit.id
 
   const saveEdit = () => {
-    const intention = (editIntentionBehavior.trim() || editIntentionTime.trim() || editIntentionLocation.trim())
-      ? { behavior: editIntentionBehavior.trim().slice(0, 200) || undefined, time: editIntentionTime.trim().slice(0, 100) || undefined, location: editIntentionLocation.trim().slice(0, 200) || undefined }
-      : null
+    const db = trimDesignBuild(editDesignBuild)
+    const intentionFromBuild = db?.obvious?.implementation_intention?.trim()
     onUpdate({
       name: editName.trim().slice(0, 200) || habit.name,
-      implementation_intention: intention,
-      two_minute_version: editTwoMinute.trim().slice(0, 200) || null,
-      temptation_bundle: editTemptation.trim().slice(0, 500) || null,
+      design_build: isEmptyDesignBuild(db ?? null) ? null : db,
+      implementation_intention: intentionFromBuild ? { behavior: intentionFromBuild.slice(0, 200), time: undefined, location: undefined } : habit.implementation_intention,
+      two_minute_version: (db?.easy?.two_minute_rule?.trim()?.slice(0, 200)) ?? habit.two_minute_version,
+      temptation_bundle: (db?.attractive?.temptation_bundling?.trim()?.slice(0, 500)) ?? habit.temptation_bundle,
     })
   }
 
@@ -480,16 +562,13 @@ function HabitCard({
     <li className="rounded-xl bg-white border border-gray-200/80 p-4">
       {isEditing ? (
         <div className="space-y-3">
+          <label className="block text-xs font-medium text-gray-700">Habit name</label>
           <input value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-gray-200 text-sm" />
           <div>
-            <p className="text-xs font-medium text-gray-700 mb-1">Implementation intention</p>
-            <input placeholder="Behavior" value={editIntentionBehavior} onChange={(e) => setEditIntentionBehavior(e.target.value)} className="w-full h-9 px-3 rounded border text-sm mb-1" />
-            <input placeholder="Time" value={editIntentionTime} onChange={(e) => setEditIntentionTime(e.target.value)} className="w-full h-9 px-3 rounded border text-sm mb-1" />
-            <input placeholder="Location" value={editIntentionLocation} onChange={(e) => setEditIntentionLocation(e.target.value)} className="w-full h-9 px-3 rounded border text-sm" />
+            <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">4 laws: build this habit</p>
+            <DesignBuildForm value={editDesignBuild} onChange={setEditDesignBuild} />
           </div>
-          <input placeholder="Two-minute version" value={editTwoMinute} onChange={(e) => setEditTwoMinute(e.target.value)} className="w-full h-9 px-3 rounded border text-sm" />
-          <input placeholder="Temptation bundle" value={editTemptation} onChange={(e) => setEditTemptation(e.target.value)} className="w-full h-9 px-3 rounded border text-sm" />
-          <div className="flex gap-2">
+          <div className="flex gap-2 pt-2">
             <button type="button" onClick={saveEdit} className="h-9 px-3 rounded-lg bg-[#e87722] text-white text-sm font-medium">Save</button>
             <button type="button" onClick={() => setEditingId(null)} className="h-9 px-3 rounded-lg border text-sm">Cancel</button>
           </div>

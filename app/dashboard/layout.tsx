@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { AddToHomeBanner } from '@/components/add-to-home-banner'
 import { UserBlock } from '@/components/user-block'
+import { RedirectToOnboardingWhenEmpty } from '@/components/redirect-to-onboarding'
 
 const nav = [
   { label: 'Scorecard', href: '/dashboard/scorecard', badge: 'Next step' },
@@ -105,6 +106,7 @@ export default async function DashboardLayout({
 
       {/* Main content */}
       <main className="flex-1 md:pl-60 min-h-screen">
+        <RedirectToOnboardingWhenEmpty />
         <div className="p-4 md:p-6 lg:p-8 max-w-3xl mx-auto">{children}</div>
       </main>
 

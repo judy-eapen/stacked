@@ -35,9 +35,9 @@ People read Atomic Habits and want to implement its system (habit scorecard, ide
 ### In Scope
 
 - User registration and authentication (email + social login)
-- Habit Scorecard: list current habits, tag each as +, -, or =
-- Identity Design: create identity statements, link habits to identities
-- Habit Design: implementation intentions, habit stacking, temptation bundling, two-minute rule
+- Habit Scorecard: list current habits, tag each as +, -, or =, with time of day (first pass: current state only; summary and take-action deferred)
+- Identity Design: create identity statements, link habits to identities; optionally define one habit to break (contradicting habit) per identity with 4-laws (break) design
+- Habit Design: 4 laws for building (obvious, attractive, easy, satisfying) and 4 laws for breaking (inversion) per identity; implementation intentions, habit stacking, temptation bundling, two-minute rule
 - Daily Tracker: today view, one-tap completion, "never miss twice" streak logic
 - Review & Reflect: weekly review prompts, monthly identity check, habit graduation
 - Accountability Partner: invite via link, read-only shared view, habit contract
@@ -157,8 +157,28 @@ A single person can be both a User (for their own data) and an Accountability Pa
 
 **Table:** `identities`
 **Indexes:** `(user_id, sort_order)`, primary key on `id`
-**Relationships:** Belongs to User. 1:many with Habits.
+**Relationships:** Belongs to User. 1:many with Habits. At most one HabitToBreak per identity (contradicting/negating habit).
 **RLS:** User can CRUD own rows only.
+
+---
+
+### Entity: Habit To Break
+
+| Field | Type | Required | Default | Validation |
+|-------|------|----------|---------|------------|
+| id | uuid | Yes | gen_random_uuid() | — |
+| user_id | uuid | Yes | — | FK to profiles.id |
+| identity_id | uuid | Yes | — | FK to identities.id, UNIQUE (one per identity) |
+| name | string | Yes | — | 1-200 chars, habit to break |
+| design_break | jsonb | No | null | 4 laws (inversion): invisible, unattractive, difficult, unsatisfying, each with 3 sub-points |
+| created_at | timestamptz | Yes | now() | Auto-set |
+| updated_at | timestamptz | Yes | now() | Auto-set on update |
+
+**Table:** `habits_to_break`
+**Indexes:** `(user_id)`, `(identity_id)`, primary key on `id`, UNIQUE on `identity_id`
+**Relationships:** Belongs to User. Belongs to Identity (one-to-one: each identity has at most one habit to break).
+**RLS:** User can CRUD own rows only.
+**Notes:** Captures the negative habit that contradicts the identity and how to break it (4 laws inversion: make it invisible, unattractive, difficult, unsatisfying).
 
 ---
 
@@ -175,6 +195,7 @@ A single person can be both a User (for their own data) and an Accountability Pa
 | stack_anchor_scorecard_id | uuid | No | null | FK to scorecard_entries.id ON DELETE SET NULL |
 | stack_anchor_habit_id | uuid | No | null | FK to habits.id ON DELETE SET NULL |
 | temptation_bundle | string | No | null | 1-500 chars, description of the reward habit |
+| design_build | jsonb | No | null | 4 laws for building: obvious (clear_cue, visible_trigger, implementation_intention), attractive (pair_with_enjoyment, identity_reframe, temptation_bundling), easy (reduce_friction, two_minute_rule, environment_design), satisfying (immediate_reward, track_streak, celebrate_completion) |
 | frequency | enum | Yes | 'daily' | 'daily', 'weekdays', 'weekends', 'custom' |
 | custom_days | jsonb | No | null | Array of day numbers [0-6] when frequency='custom' |
 | is_active | boolean | Yes | true | — |
@@ -602,6 +623,49 @@ The following entities use Supabase client SDK directly (no custom API route nee
 
 ## 7. Phased Plan
 
+### MVP (4–6 Weeks) — Active Execution Plan
+
+**Goal:** Ship a narrow, Atomic-Habits-aligned MVP in 4–6 weeks. Build in small chunks; PRD is the single source of truth. Existing Phases 1–6 below remain the full roadmap; this MVP defines what we build first.
+
+**MVP Scope:**
+
+1. **Identity + focus area (onboarding)**  
+   Choose 1–2 identities (e.g. "I'm a healthy person", "I'm a calm parent"). For each identity, pick one habit to start. Force "start small" (2-minute version). Why: Atomic Habits works when it's narrow and specific.
+
+2. **Habit builder using the 4 Laws (core differentiator)**  
+   When creating a habit, guide the user through: Make it obvious (cue: time, location, existing habit); Make it attractive (temptation bundle); Make it easy (2-minute rule, reduce steps, prep checklist); Make it satisfying (immediate reward, visual progress). Same for "break a bad habit" with inverse laws (invisible, unattractive, hard, unsatisfying). Every habit has metadata for cue, friction, reward, and a "minimum viable version."
+
+3. **Daily habit plan (simple checklist)**  
+   Today view: 3–7 habits max. Each habit has "Do tiny version" and "Do full version". One-tap completion. Optional note: "What made this easy/hard?"
+
+4. **Streaks + "evidence" (not punitive)**  
+   Streaks exist; primary metric is "votes for identity" (e.g. "You cast 4 votes for 'Healthy Person' this week."). "Never miss twice" logic: if you miss, prompt "What's the tiny version you can do today?"
+
+5. **Weekly review (retention)**  
+   ~3-minute flow: What worked? What failed? Which friction to remove/add? Adjust cues, reduce habit size, or swap habit.
+
+**UX Flows (design first):**
+
+- **Flow A — Create habit (~2 min):** Identity → pick habit → choose cue → tiny version → friction removal checklist → reward → schedule.
+- **Flow B — Daily check-in (~30 s):** Tap → done → optional note → done.
+- **Flow C — Weekly review (~3 min):** Auto-summary → 1 recommendation → apply changes.
+
+**Build Chunks (execute in order):**
+
+| Chunk | Scope | Outcome |
+|-------|--------|--------|
+| **Chunk 1** | Identity + focus onboarding | User picks 1–2 identities; for each, picks one habit to start; 2-minute version required. Onboarding flow only; no full Today view yet. |
+| **Chunk 2** | Habit builder (Flow A) | Guided create-habit flow: cue → tiny version → friction/reward → schedule. Uses existing design_build / habits_to_break; refine UI to match Flow A. |
+
+**Chunk 1 implementation (done):** `/dashboard/onboarding` multi-step flow: Step 1 add 1–2 identities (statement with "I am a person who …"); Step 2 one habit per identity with required 2-minute version; Step 3 "You're all set" → link to Scorecard. `RedirectToOnboardingWhenEmpty` in dashboard layout sends users with zero identities to onboarding. Users who already have identities and at least one habit per identity are redirected from onboarding to dashboard.
+| **Chunk 3** | Daily plan (Flow B) | Today view with 3–7 habits max, "Do tiny" / "Do full", one-tap completion, optional note. |
+| **Chunk 4** | Streaks + identity votes | Lead with "votes for identity"; "never miss twice" and "What's the tiny version?" on miss. |
+| **Chunk 5** | Weekly review (Flow C) | 3-min review flow: worked/failed/friction → 1 recommendation → apply changes. |
+
+**Deferred for post-MVP:** Scorecard-as-audit (optional), accountability partner, email/push/calendar, full habit list beyond focus set. Existing scorecard and identity/habit data model remain; MVP adds constraints and flows on top.
+
+---
+
 ### Phase 1 — Foundation: Auth + Scorecard + Identities
 
 **Design catalog:** docs/design/stacked-phase-1-designs.md
@@ -619,11 +683,11 @@ The following entities use Supabase client SDK directly (no custom API route nee
 - US-1.3: As a user, I want to group scorecard entries by time of day (morning/afternoon/evening) so my scorecard mirrors my actual routine.
   - AC: Entries can be tagged with time_of_day. View groups by time.
 - US-1.4: As a user, I want to write identity statements ("I am a person who...") so I can define who I want to become.
-  - AC: User can create, edit, delete, and reorder identity statements.
-- US-1.5: As a user, I want to see a summary of my scorecard (count of +, -, =) so I can assess my current habits at a glance.
-  - AC: Summary shows counts and percentages.
-- US-1.6: As a user, after completing my scorecard, I want the app to highlight my (-) habits and prompt me to take action so I can turn awareness into behavior change.
-  - AC: After adding 3+ scorecard entries, the summary page shows a "Take Action" callout listing (-) rated habits. Each (-) habit has a "Work on this" action that navigates to habit creation with the scorecard entry pre-filled as the stack anchor. Callout is dismissible and reappears when new (-) entries are added.
+  - AC: User can create, edit, delete, and reorder identity statements. Optionally, per identity, user can add one "habit to break" (contradicting habit) with a name and a "how to break it" design using the 4 laws (inversion): make it invisible, unattractive, difficult, unsatisfying, each with 3 sub-points.
+- US-1.5: (Deferred, first pass) As a user, I want to see a summary of my scorecard (count of +, -, =) so I can assess my current habits at a glance.
+  - AC: Summary shows counts and percentages. **First pass:** Scorecard shows current state only (habits, +/−=, timing). Summary and take-action deferred to a later pass.
+- US-1.6: (Deferred, first pass) As a user, after completing my scorecard, I want the app to highlight my (-) habits and prompt me to take action so I can turn awareness into behavior change.
+  - AC: After adding 3+ scorecard entries, the summary page shows a "Take Action" callout listing (-) rated habits. **First pass:** Not implemented; deferred to a later pass.
 
 **Backend Tasks:**
 - Set up Supabase project (database, auth, RLS)
@@ -636,9 +700,8 @@ The following entities use Supabase client SDK directly (no custom API route nee
 - Set up Next.js project with Tailwind CSS + shadcn/ui
 - Auth pages (sign up, login, forgot password)
 - Layout: sidebar nav + main content area
-- Scorecard page: list, add, edit, delete, reorder, rating toggle
-- Identities page: list, add, edit, delete, reorder
-- Scorecard summary component with "Take Action" callout for (-) habits
+- Scorecard page: list, add, edit, delete, reorder, rating toggle, grouped by time of day (first pass: no summary, no Take Action callout)
+- Identities page: list, add, edit, delete, reorder; optional habit to break per identity with 4-laws (break) form
 - First-run guided flow: after display name is set, direct user to Scorecard with a welcome message explaining the first step. Sidebar highlights the recommended next page (Scorecard -> Identities -> Habits). Flow is suggestive, not blocking.
 - Empty states for all Phase 1 pages (see UX Design Guidelines in Section 8)
 - Concept explainer subtitles on all methodology terms (see UX Design Guidelines in Section 8)
@@ -672,16 +735,18 @@ The following entities use Supabase client SDK directly (no custom API route nee
 
 ---
 
-### Phase 2 — Habit Design: Implementation Intentions, Stacking, Bundling
+### Phase 2 — Habit Design: 4 Laws (Build), Implementation Intentions, Stacking, Bundling
 
-**Goal:** User can create habits under identities with full Atomic Habits methodology: implementation intention, habit stacking, temptation bundling, and two-minute rule. This is the "design your habits" step.
+**Goal:** User can create habits under identities with full Atomic Habits methodology: 4 laws for building (obvious, attractive, easy, satisfying) with user-entered sub-points per law; implementation intention, habit stacking, temptation bundling, and two-minute rule. This is the "design your habits" step.
 
 **User Stories:**
 
 - US-2.1: As a user, I want to quickly add a new habit so I can start tracking it without friction, and optionally design it with the full methodology later.
-  - AC: **Quick-add mode (default):** Only habit name is required. Identity selector is optional. One screen, one tap to create. **Full design mode:** Expandable "Design this habit" section reveals all methodology fields (intention, stack, bundle, two-minute version). Available during creation or later via a "Design this habit" action on any habit card. Habit appears under the chosen identity (or in an "Unlinked" group if no identity is selected).
+  - AC: **Quick-add mode (default):** Only habit name is required. Identity selector is optional. One screen, one tap to create. **Full design mode:** Expandable "Design this habit" section reveals the 4 laws (build) form and stack anchor. Each law has 3 sub-points (user can enter something in each). Available during creation or later via a "Design this habit" action on any habit card. Habit appears under the chosen identity (or in an "Unlinked" group if no identity is selected).
+- US-2.1b: As a user, I want to design each habit using the 4 laws for building a positive habit so I implement the full Atomic Habits framework.
+  - AC: "Design this habit" includes: 1) Make it obvious (clear cue, visible trigger, implementation intention); 2) Make it attractive (pair with enjoyment, identity reframe, temptation bundling); 3) Make it easy (reduce friction, 2-minute rule, environment design); 4) Make it satisfying (immediate reward, track streak, celebrate completion). User can enter text for each sub-point. Stored in `design_build` (and legacy fields synced where applicable).
 - US-2.2: As a user, I want to set an implementation intention ("I will [X] at [time] in [location]") for each habit so I have a concrete plan.
-  - AC: Structured form with behavior, time, location fields. Stored and displayed on the habit card.
+  - AC: Implementation intention is captured in the 4-laws form (obvious.implementation_intention) and/or legacy behavior/time/location. Stored and displayed on the habit card.
 - US-2.3: As a user, I want to stack a new habit on an existing habit or scorecard entry ("After [X], I will [Y]") so I can leverage existing routines.
   - AC: Habit creation shows existing habits/scorecard entries as anchor options. Stack chain is visible.
 - US-2.4: As a user, I want to set a temptation bundle ("After [new habit], I get to [reward]") so the habit is more attractive.
@@ -695,7 +760,9 @@ The following entities use Supabase client SDK directly (no custom API route nee
 
 **Backend Tasks:**
 - Create `habits` table with RLS policies
-- Support JSONB field for implementation_intention
+- Add `design_build` jsonb to habits (4 laws for building)
+- Create `habits_to_break` table with RLS (one per identity, 4 laws for breaking)
+- Support JSONB field for implementation_intention and design_build
 - Polymorphic reference for stack_anchor (scorecard_entry or habit)
 
 **Frontend Tasks:**
@@ -710,12 +777,14 @@ The following entities use Supabase client SDK directly (no custom API route nee
 
 **Acceptance Criteria:**
 - Quick-add habit creation works with just a name (one screen, one tap)
-- Full methodology fields are accessible via expandable section during creation or via "Design this habit" on existing habits
-- All methodology fields are stored and displayed correctly
+- Full 4-laws (build) form is accessible via expandable section during creation or via "Design this habit" on existing habits
+- User can enter text for each of the 12 sub-points (4 laws × 3); design_build is stored and displayed
+- All methodology fields (including legacy intention, bundle, 2-min) are stored and displayed correctly
 - Habits can be stacked on scorecard entries or other habits
 - Habits can be edited, deleted, archived, and restored
 - Habits page shows organized view by identity with "Unlinked Habits" group
 - Archived habits section shows archived habits and supports restore
+- Per identity: user can add/edit one "habit to break" with name and 4-laws (break) design; habits_to_break is stored and shown on identity card
 
 **Definition of Done:**
 - All user stories pass
@@ -1190,6 +1259,10 @@ These guidelines apply across all phases. They are cross-cutting UX patterns, no
 | D35 | CSV data export | Include in Phase 4 | Simple CSV export of habit completions. Builds user trust ("my data is mine"). Low effort, significant signal. Data import deferred. | 2026-02-19 |
 | D36 | Manual review creation | Available anytime, prompted weekly | Users can write a review whenever they want, not only when the weekly prompt appears. Prompted cadence is suggestive, not enforced. Don't gate reflection to a schedule. | 2026-02-19 |
 | D37 | Phase 1 design | Finalized; design catalog docs/design/stacked-phase-1-designs.md | PRD updated to match. Add to Home Screen = instructional banner + "Got it"; Scorecard add defaults = and Anytime; Settings "Saved" feedback; identity edit = statement only, re-link = delete/recreate; mobile "Next step" badge; loading/error in execution. | 2026-02-20 |
+| D38 | Scorecard first pass | Current state only (habits, +/−=, timing) | Strip scorecard to list + rating + time of day. No summary, Take Action callout, Commit section, or pattern-by-time grid in first pass. Reduces scope; summary and bridge to action can be added later. | 2026-02-20 |
+| D39 | Habit design: 4 laws (build) | design_build jsonb on habits | Every habit that reinforces an identity can be designed with the full 4 laws (obvious, attractive, easy, satisfying), 3 sub-points each. User enters something per point. Replaces/supplements previous intention/stack/bundle/2-min with structured 4-laws form. Legacy fields (implementation_intention, temptation_bundle, two_minute_version) kept and synced for backward compatibility. | 2026-02-20 |
+| D40 | Identity ↔ habit to break | habits_to_break table, one per identity | Every identity can have one contradicting/negating habit to break. User enters the habit name and a "how to break it" design using the 4 laws inversion (invisible, unattractive, difficult, unsatisfying), 3 sub-points each. Stored in habits_to_break.design_break. UI: inline on identity card (Add/Edit habit to break). | 2026-02-20 |
+| D41 | MVP (4–6 weeks) scope | Identity + focus, 4 Laws habit builder, daily 3–7 habits, streaks/votes, weekly review | Narrow MVP for 4–6 week ship: 1–2 identities, one habit per identity at start (2-min required), 4 Laws guided flow, Today 3–7 habits with tiny/full + optional note, identity votes primary, never miss twice, 3-min weekly review. Build in 5 chunks; PRD Section 7 MVP defines order. | 2026-02-20 |
 
 ---
 
