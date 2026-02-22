@@ -34,6 +34,7 @@ export default function TodayPage() {
   const [showCelebration, setShowCelebration] = useState(false)
   const [dismissedWelcome, setDismissedWelcome] = useState(false)
   const [identityVoteSummary, setIdentityVoteSummary] = useState<Record<string, number> | null>(null)
+  const [shareCopied, setShareCopied] = useState(false)
 
   const fetchToday = useCallback(async () => {
     const res = await fetch('/api/habits/today', { credentials: 'include' })
@@ -170,6 +171,35 @@ export default function TodayPage() {
   const habits = data?.habits ?? []
   const remaining = habits.filter((h) => !h.completed_today).length
 
+  function shareCheckIn() {
+    if (!data) return
+    const completed = habits.filter((h) => h.completed_today)
+    const lines: string[] = [
+      `Stacked check-in · ${data.date}`,
+      '',
+      ...completed.map((h) => `✓ ${h.name} (streak ${h.current_streak})`),
+    ]
+    const voteSummary: Record<string, number> = identityVoteSummary ?? {}
+    if (Object.keys(voteSummary).length === 0 && completed.length > 0) {
+      for (const h of completed) {
+        if (h.identity) voteSummary[h.identity] = (voteSummary[h.identity] ?? 0) + 1
+      }
+    }
+    if (Object.keys(voteSummary).length > 0) {
+      const votes = Object.entries(voteSummary)
+        .filter(([, n]) => n > 0)
+        .map(([id, n]) => `${n} vote${n !== 1 ? 's' : ''} for "${id}"`)
+      if (votes.length) lines.push('', votes.join('. '))
+    }
+    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    if (origin) lines.push('', origin)
+    const text = lines.join('\n')
+    navigator.clipboard.writeText(text).then(() => {
+      setShareCopied(true)
+      setTimeout(() => setShareCopied(false), 2000)
+    })
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -181,6 +211,15 @@ export default function TodayPage() {
             ? 'All done for today.'
             : `${remaining} of ${habits.length} remaining.`}
         </p>
+        {habits.length > 0 && (
+          <button
+            type="button"
+            onClick={shareCheckIn}
+            className="mt-2 text-sm font-medium text-[#e87722] hover:underline"
+          >
+            {shareCopied ? 'Copied' : 'Share check-in'}
+          </button>
+        )}
       </div>
 
       {showWelcome && (

@@ -10,6 +10,7 @@ const nav = [
   { label: 'Identities', href: '/dashboard/identities' },
   { label: 'Habits', href: '/dashboard/habits' },
   { label: 'Review', href: '/dashboard/review' },
+  { label: 'Partners', href: '/dashboard/partners' },
 ]
 
 export default async function DashboardLayout({
@@ -87,6 +88,9 @@ export default async function DashboardLayout({
           </Link>
           <Link href="/dashboard/review" className="text-sm font-medium text-gray-600 hover:text-gray-900 px-3 py-2">
             Review
+          </Link>
+          <Link href="/dashboard/partners" className="text-sm font-medium text-gray-600 hover:text-gray-900 px-3 py-2">
+            Partners
           </Link>
         </nav>
       </header>

@@ -116,6 +116,30 @@ export default function SettingsPage() {
       </div>
 
       <div className="rounded-xl bg-white border border-gray-200/80 p-5">
+        <h2 className="text-sm font-semibold text-gray-900 mb-3">Data</h2>
+        <p className="text-sm text-gray-600 mb-3">Export all your habit completions as a CSV file.</p>
+        <button
+          type="button"
+          onClick={async () => {
+            const res = await fetch('/api/export', { credentials: 'include' })
+            if (!res.ok) return
+            const blob = await res.blob()
+            const disposition = res.headers.get('Content-Disposition')
+            const match = disposition?.match(/filename="([^"]+)"/)
+            const name = match?.[1] ?? `stacked-export-${new Date().toISOString().slice(0, 10)}.csv`
+            const a = document.createElement('a')
+            a.href = URL.createObjectURL(blob)
+            a.download = name
+            a.click()
+            URL.revokeObjectURL(a.href)
+          }}
+          className="inline-block h-10 px-4 rounded-lg bg-[#e87722] text-white text-sm font-medium hover:bg-[#d96b1e] focus:outline-none focus:ring-2 focus:ring-[#e87722]/70 focus:ring-offset-2"
+        >
+          Export my data
+        </button>
+      </div>
+
+      <div className="rounded-xl bg-white border border-gray-200/80 p-5">
         <h2 className="text-sm font-semibold text-gray-900 mb-3">Account</h2>
         <p className="text-sm text-gray-600 mb-3">Sign out of Stacked on this device.</p>
         <button

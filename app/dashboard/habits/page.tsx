@@ -738,6 +738,15 @@ function HabitCard({
               ))}
             </select>
           </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={habit.is_shared}
+              onChange={(e) => onUpdate({ is_shared: e.target.checked })}
+              className="rounded border-gray-300 text-[#e87722] focus:ring-[#e87722]"
+            />
+            <span className="text-xs font-medium text-gray-700">Share with partners</span>
+          </label>
           <div>
             <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">4 laws: build this habit</p>
             <DesignBuildForm value={editDesignBuild} onChange={setEditDesignBuild} />
@@ -763,6 +772,21 @@ function HabitCard({
               <button type="button" onClick={onArchive} className="text-gray-400 hover:text-amber-600 p-1 text-sm" aria-label="Archive">Archive</button>
               <button type="button" onClick={onDelete} className="text-gray-400 hover:text-red-600 p-1 text-sm" aria-label="Delete">×</button>
             </div>
+          </div>
+          <div className="mt-2 flex items-center gap-3 flex-wrap">
+            <button
+              type="button"
+              onClick={() => onUpdate({ is_shared: !habit.is_shared })}
+              className={`text-xs font-medium ${habit.is_shared ? 'text-[#e87722]' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              {habit.is_shared ? '✓ Shared with partners' : 'Share with partners'}
+            </button>
+            <Link
+              href={`/dashboard/habits/${habit.id}/contract`}
+              className="text-xs font-medium text-gray-500 hover:text-[#e87722]"
+            >
+              Contract
+            </Link>
           </div>
           {linkToIdentityId && linkToIdentityStatement && (
             <button
