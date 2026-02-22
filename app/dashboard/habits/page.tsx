@@ -185,11 +185,12 @@ export default function HabitsPage() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const [habitsRes, archivedRes, identitiesRes, scorecardRes] = await Promise.all([
+    const [habitsRes, archivedRes, identitiesRes, scorecardRes, habitsToBreakRes] = await Promise.all([
       supabase.from('habits').select('*').eq('user_id', user.id).is('archived_at', null).order('sort_order', { ascending: true }),
       supabase.from('habits').select('*').eq('user_id', user.id).not('archived_at', 'is', null).order('updated_at', { ascending: false }),
       supabase.from('identities').select('id, statement, sort_order').eq('user_id', user.id).order('sort_order', { ascending: true }),
       supabase.from('scorecard_entries').select('id, habit_name').eq('user_id', user.id).order('sort_order', { ascending: true }),
+      supabase.from('habits_to_break').select('*').eq('user_id', user.id),
     ])
     if (habitsRes.error) {
       setError(habitsRes.error.message)
