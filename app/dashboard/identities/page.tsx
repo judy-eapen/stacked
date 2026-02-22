@@ -127,10 +127,11 @@ export default function IdentitiesPage() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const [identitiesRes, scorecardRes, habitsToBreakRes] = await Promise.all([
+    const [identitiesRes, scorecardRes, habitsToBreakRes, habitsRes] = await Promise.all([
       supabase.from('identities').select('id, statement, sort_order').eq('user_id', user.id).order('sort_order', { ascending: true }),
       supabase.from('scorecard_entries').select('id, habit_name, identity_id').eq('user_id', user.id),
       supabase.from('habits_to_break').select('*').eq('user_id', user.id),
+      supabase.from('habits').select('id, identity_id, last_completed_date').eq('user_id', user.id).is('archived_at', null),
     ])
     if (identitiesRes.error) {
       setError(identitiesRes.error.message)
@@ -144,14 +145,33 @@ export default function IdentitiesPage() {
     }))
     setScorecardEntries(entries)
     if (habitsToBreakRes.data) setHabitsToBreak(habitsToBreakRes.data as HabitToBreak[])
-    const list = (identitiesRes.data ?? []).map((row) => {
+
+    const habits = (habitsRes.data ?? []) as { id: string; identity_id: string | null; last_completed_date: string | null }[]
+    const now = new Date()
+    const today = now.toISOString().slice(0, 10)
+    const day = now.getDay()
+    const mondayOffset = day === 0 ? -6 : 1 - day
+    const monday = new Date(now)
+    monday.setDate(now.getDate() + mondayOffset)
+    const weekStart = monday.toISOString().slice(0, 10)
+    const weekEnd = new Date(monday)
+    weekEnd.setDate(monday.getDate() + 6)
+    const weekEndStr = weekEnd.toISOString().slice(0, 10)
+    const yesterday = new Date(now)
+    yesterday.setDate(now.getDate() - 1)
+    const yesterdayStr = yesterday.toISOString().slice(0, 10)
+
+    const list = (identitiesRes.data ?? []).map((row: { id: string; statement: string; sort_order: number }) => {
       const supported = entries.filter((e) => e.identity_id === row.id).map((e) => e.habit_name)
+      const identityHabits = habits.filter((h) => h.identity_id === row.id && h.last_completed_date)
+      const votes_this_week = identityHabits.filter((h) => h.last_completed_date && h.last_completed_date >= weekStart && h.last_completed_date <= weekEndStr).length
+      const votes_delta_from_yesterday = identityHabits.filter((h) => h.last_completed_date === yesterdayStr).length
       return {
         id: row.id,
         statement: row.statement,
         sort_order: row.sort_order,
-        votes_this_week: 0,
-        votes_delta_from_yesterday: 0,
+        votes_this_week,
+        votes_delta_from_yesterday: votes_delta_from_yesterday,
         supported_by_habits: supported,
         conflicted_by_habits: [],
       }
