@@ -1,6 +1,24 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    redirect('/login')
+  }
+  const { data: habits } = await supabase
+    .from('habits')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('is_active', true)
+    .is('archived_at', null)
+    .limit(1)
+  if (habits && habits.length > 0) {
+    redirect('/dashboard/today')
+  }
+
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] md:min-h-[calc(100vh-2rem)]">
       <div className="w-full max-w-lg rounded-[20px] bg-white shadow-xl border border-black/6 p-8">

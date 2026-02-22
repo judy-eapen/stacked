@@ -659,7 +659,7 @@ The following entities use Supabase client SDK directly (no custom API route nee
 | **Chunk 2** | Habit builder (Flow A) | Guided create-habit flow: cue → tiny version → friction/reward → schedule. Uses existing design_build / habits_to_break; refine UI to match Flow A. |
 
 **Chunk 1 implementation (done):** `/dashboard/onboarding` wizard: Step 0 — One identity ("Who do you want to become?"); optional "Add another identity later." Step 1 — One habit for that identity with required 2-minute version. Step 2 — Lightweight 4 Laws (~60–90 sec): Obvious (cue: time/after X/location), Easy (confirm tiny), Satisfying (reward: check off, music, sticker, other), Attractive optional (bundle with). Step 3 — "Do the tiny version now" → Done → record completion → "You cast 1 vote for [Identity]." Step 4 — "Want to add another identity?" Skip → dashboard; Add another → Identities (?add=1). Redirect: zero identities → onboarding; already have identities → dashboard. Identities unlimited everywhere; onboarding nudges to 1.
-| **Chunk 3** | Daily plan (Flow B) | Today view with 3–7 habits max, "Do tiny" / "Do full", one-tap completion, optional note. |
+| **Chunk 3** | Daily plan (Flow B) | Today view with 3–7 habits max, "Do tiny" / "Do full", one-tap completion, optional note. After Today view exists: Today becomes default post-login landing when user has habits, and first item in dashboard nav. |
 | **Chunk 4** | Streaks + identity votes | Lead with "votes for identity"; "never miss twice" and "What's the tiny version?" on miss. |
 | **Chunk 5** | Weekly review (Flow C) | 3-min review flow: worked/failed/friction → 1 recommendation → apply changes. |
 
@@ -867,7 +867,7 @@ The scorecard in the app is a **diagnostic and reset tool**, not a daily tracker
 
 ### Phase 3 — Daily Tracker: Completion, Streaks, Today View
 
-**Goal:** User has a daily "Today" view where they check off habits, see streaks with "never miss twice" logic, and have a fast daily check-in experience.
+**Goal:** User has a daily "Today" view where they check off habits, see streaks with "never miss twice" logic, and have a fast daily check-in experience. Today is the default post-login destination when the user has at least one active habit, and Today is the first item in dashboard nav.
 
 **User Stories:**
 
@@ -898,6 +898,7 @@ The scorecard in the app is a **diagnostic and reset tool**, not a daily tracker
 
 **Frontend Tasks:**
 - Today page with habit list and completion toggles
+- Today as default landing: post-login redirect to Today when user has at least one active habit; otherwise dashboard home. Today as first item in dashboard nav (sidebar and mobile).
 - Identity vote inline feedback on habit completion ("1 vote for [identity]")
 - Daily completion celebration with identity vote summary
 - Streak badge per habit with contextual missed-day messaging (3 states)
@@ -911,6 +912,7 @@ The scorecard in the app is a **diagnostic and reset tool**, not a daily tracker
 - Empty state for Today view (no habits yet)
 
 **Acceptance Criteria:**
+- Logged-in users with at least one active habit land on Today by default; users with no habits land on dashboard home. Today is the first nav item.
 - Today view loads in under 1 second
 - Completion toggle responds instantly (optimistic update)
 - Identity vote feedback appears on each completion for identity-linked habits
@@ -1341,6 +1343,7 @@ These guidelines apply across all phases. They are cross-cutting UX patterns, no
 | D43 | Nav and dashboard: identity first | Identities, then Habits, then Review | Main nav order and dashboard home CTAs put Identities first, then Habits, then Review. Reflects methodology: define who you want to become, then link habits to identity. | 2026-02-20 |
 | D44 | Onboarding ends with a win | One identity → one habit → 4 Laws (lightweight) → first completion → optional add identity | Onboarding is a wizard that creates one identity, one habit (2-min required), configures cue/reward (4 Laws in ~60–90 sec), then "Do the tiny version now" with single Done. App records first completion and shows "You cast 1 vote for [Identity]." Step 4 offers "Add another identity?" (skip or link to Identities). No "max 2 identities" in onboarding; one identity by default, add more later. | 2026-02-20 |
 | D45 | One identity rule everywhere | Unlimited identities; onboarding nudges to 1 | Identities are unlimited on both onboarding and Identities page. Onboarding strongly guides to one identity first; "Add another identity later" and step 4 offer adding more. No structural cap. | 2026-02-20 |
+| D49 | Today as default landing (Phase 3) | After daily view exists: Today first in nav; post-login land on Today when user has habits | Once Phase 3 (Today view) is built, Today becomes the first dashboard nav item and the default post-login destination when the user has at least one active habit. Users with no habits land on dashboard home. Supports daily check-in as the primary action. | 2026-02-22 |
 
 ---
 

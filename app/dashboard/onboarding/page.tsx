@@ -190,6 +190,15 @@ export default function OnboardingPage() {
       return
     }
     const today = new Date().toISOString().slice(0, 10)
+    await supabase.from('habit_completions').upsert(
+      {
+        habit_id: createdHabitId,
+        user_id: user.id,
+        completed_date: today,
+        completed: true,
+      },
+      { onConflict: 'habit_id,completed_date' }
+    )
     await supabase
       .from('habits')
       .update({

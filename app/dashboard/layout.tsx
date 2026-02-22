@@ -6,6 +6,7 @@ import { UserBlock } from '@/components/user-block'
 import { RedirectToOnboardingWhenEmpty } from '@/components/redirect-to-onboarding'
 
 const nav = [
+  { label: 'Today', href: '/dashboard/today' },
   { label: 'Identities', href: '/dashboard/identities' },
   { label: 'Habits', href: '/dashboard/habits' },
   { label: 'Review', href: '/dashboard/review' },
@@ -75,6 +76,9 @@ export default async function DashboardLayout({
           <span className="font-bold tracking-tight text-gray-900">Stacked</span>
         </Link>
         <nav className="flex gap-2">
+          <Link href="/dashboard/today" className="text-sm font-medium text-gray-600 hover:text-gray-900 px-3 py-2">
+            Today
+          </Link>
           <Link href="/dashboard/identities" className="text-sm font-medium text-gray-600 hover:text-gray-900 px-3 py-2">
             Identities
           </Link>
