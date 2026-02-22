@@ -255,7 +255,7 @@ export default function SettingsPage() {
         </label>
         {emailRemindersEnabled && (
           <div className="mb-3">
-            <label htmlFor="reminderTime" className="block text-xs font-medium text-gray-700 mb-1">Reminder time</label>
+            <label htmlFor="reminderTime" className="block text-xs font-medium text-gray-700 mb-1">Preferred time (saved for when we support more frequent delivery)</label>
             <input
               id="reminderTime"
               type="time"
@@ -263,6 +263,7 @@ export default function SettingsPage() {
               onChange={(e) => setEmailReminderTime(e.target.value)}
               className="h-10 px-3 rounded-lg border border-gray-200 text-sm"
             />
+            <p className="text-xs text-gray-500 mt-1">Reminders are sent once per day.</p>
           </div>
         )}
         <div className="mb-3">
@@ -292,7 +293,7 @@ export default function SettingsPage() {
 
       <div className="rounded-xl bg-white border border-gray-200/80 p-5">
         <h2 className="text-sm font-semibold text-gray-900 mb-3">Push notifications</h2>
-        <p className="text-sm text-gray-600 mb-3">Browser push at your habit times. Enable and allow when prompted.</p>
+        <p className="text-sm text-gray-600 mb-3">Browser push once per day. Enable and allow when prompted.</p>
         <PushToggle
           userId={userId}
           pushEnabled={pushEnabled}

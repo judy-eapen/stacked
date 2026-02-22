@@ -9,19 +9,6 @@ import {
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-function nowInTimezone(timezone: string): { hour: number; minute: number } {
-  const formatter = new Intl.DateTimeFormat('en-CA', {
-    timeZone: timezone,
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  })
-  const parts = formatter.formatToParts(new Date())
-  const hour = parseInt(parts.find((p) => p.type === 'hour')?.value ?? '0', 10)
-  const minute = parseInt(parts.find((p) => p.type === 'minute')?.value ?? '0', 10)
-  return { hour, minute }
-}
-
 function todayInTimezone(timezone: string): string {
   const formatter = new Intl.DateTimeFormat('en-CA', {
     timeZone: timezone,
@@ -34,12 +21,6 @@ function todayInTimezone(timezone: string): string {
   const m = parts.find((p) => p.type === 'month')?.value ?? ''
   const d = parts.find((p) => p.type === 'day')?.value ?? ''
   return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
-}
-
-function parseReminderTime(t: string): { hour: number; minute: number } {
-  const match = String(t).match(/^(\d{1,2}):(\d{2})/)
-  if (!match) return { hour: 8, minute: 0 }
-  return { hour: parseInt(match[1], 10), minute: parseInt(match[2], 10) }
 }
 
 export async function GET(request: Request) {
@@ -85,10 +66,6 @@ export async function GET(request: Request) {
   let sent = 0
   for (const pref of prefs) {
     const tz = pref.timezone || 'America/New_York'
-    const now = nowInTimezone(tz)
-    const reminder = parseReminderTime(String(pref.email_reminder_time))
-    if (now.hour !== reminder.hour || now.minute !== reminder.minute) continue
-
     const todayLocal = todayInTimezone(tz)
     const lastSent = pref.last_daily_reminder_sent_at
     if (lastSent && String(lastSent) >= todayLocal) continue

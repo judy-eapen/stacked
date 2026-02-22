@@ -1,19 +1,9 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { habitReminderHour, getStackContextForPush } from '@/lib/push'
+import { getStackContextForPush } from '@/lib/push'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
-
-function currentHourInTimezone(timezone: string): number {
-  const formatter = new Intl.DateTimeFormat('en-CA', {
-    timeZone: timezone,
-    hour: '2-digit',
-    hour12: false,
-  })
-  const parts = formatter.formatToParts(new Date())
-  return parseInt(parts.find((p) => p.type === 'hour')?.value ?? '0', 10)
-}
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization')
@@ -36,7 +26,7 @@ export async function GET(request: Request) {
 
   const { data: prefs } = await supabase
     .from('notification_preferences')
-    .select('user_id, timezone')
+    .select('user_id')
     .eq('push_enabled', true)
 
   if (!prefs?.length) {
@@ -44,10 +34,6 @@ export async function GET(request: Request) {
   }
 
   const userIds = prefs.map((p) => p.user_id)
-  const tzByUser = prefs.reduce((acc: Record<string, string>, p) => {
-    acc[p.user_id] = p.timezone || 'America/New_York'
-    return acc
-  }, {})
 
   const { data: habits } = await supabase
     .from('habits')
@@ -64,11 +50,6 @@ export async function GET(request: Request) {
   let sent = 0
   for (const habit of habits) {
     const userId = (habit as { user_id: string }).user_id
-    const tz = tzByUser[userId] || 'America/New_York'
-    const currentHour = currentHourInTimezone(tz)
-    const reminderHour = habitReminderHour((habit as { implementation_intention: { time?: string } | null }).implementation_intention)
-    if (currentHour !== reminderHour) continue
-
     const name = (habit as { name: string }).name
     const intention = (habit as { implementation_intention: { behavior?: string } | null }).implementation_intention
     const body = getStackContextForPush(intention)
