@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -541,6 +541,7 @@ export default function HabitsPage() {
                       key={h.id}
                       habit={h}
                       identityStatement={idn.statement}
+                      identities={identities}
                       scorecardEntries={scorecardEntries}
                       habits={habits}
                       getStackLabel={getStackLabel}
@@ -566,6 +567,7 @@ export default function HabitsPage() {
                     key={h.id}
                     habit={h}
                     identityStatement={null}
+                    identities={identities}
                     scorecardEntries={scorecardEntries}
                     habits={habits}
                     getStackLabel={getStackLabel}
@@ -613,6 +615,7 @@ export default function HabitsPage() {
 interface HabitCardProps {
   habit: Habit
   identityStatement: string | null
+  identities: IdentityOption[]
   scorecardEntries: ScorecardAnchor[]
   habits: Habit[]
   getStackLabel: (h: Habit) => string | null
@@ -628,6 +631,7 @@ interface HabitCardProps {
 function HabitCard({
   habit,
   identityStatement,
+  identities,
   getStackLabel,
   intentionString,
   hasDesignFields,
@@ -638,6 +642,15 @@ function HabitCard({
   onDelete,
 }: HabitCardProps) {
   const [editName, setEditName] = useState(habit.name)
+  const [editIdentityId, setEditIdentityId] = useState<string | null>(habit.identity_id)
+  const prevEditingRef = useRef(false)
+  useEffect(() => {
+    if (editingId === habit.id && !prevEditingRef.current) {
+      setEditName(habit.name)
+      setEditIdentityId(habit.identity_id)
+    }
+    prevEditingRef.current = editingId === habit.id
+  }, [editingId, habit.id, habit.name, habit.identity_id])
   const [editDesignBuild, setEditDesignBuild] = useState<DesignBuild>(() => ({
     ...EMPTY_DESIGN_BUILD,
     ...habit.design_build,
@@ -653,6 +666,7 @@ function HabitCard({
     const intentionFromBuild = db?.obvious?.implementation_intention?.trim()
     onUpdate({
       name: editName.trim().slice(0, 200) || habit.name,
+      identity_id: editIdentityId || null,
       design_build: isEmptyDesignBuild(db ?? null) ? null : db,
       implementation_intention: intentionFromBuild ? { behavior: intentionFromBuild.slice(0, 200), time: undefined, location: undefined } : habit.implementation_intention,
       two_minute_version: (db?.easy?.two_minute_rule?.trim()?.slice(0, 200)) ?? habit.two_minute_version,
@@ -669,6 +683,19 @@ function HabitCard({
         <div className="space-y-3">
           <label className="block text-xs font-medium text-gray-700">Habit name</label>
           <input value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-gray-200 text-sm" />
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Identity</label>
+            <select
+              value={editIdentityId ?? ''}
+              onChange={(e) => setEditIdentityId(e.target.value || null)}
+              className="w-full h-10 px-3 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#e87722]/70"
+            >
+              <option value="">Unlinked</option>
+              {identities.map((idn) => (
+                <option key={idn.id} value={idn.id}>{idn.statement}</option>
+              ))}
+            </select>
+          </div>
           <div>
             <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">4 laws: build this habit</p>
             <DesignBuildForm value={editDesignBuild} onChange={setEditDesignBuild} />

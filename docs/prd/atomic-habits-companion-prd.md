@@ -776,7 +776,7 @@ The scorecard in the app is a **diagnostic and reset tool**, not a daily tracker
 - Sidebar and mobile header both show "Next step" badge on Scorecard link
 - Scorecard add form: default rating "=", default time "Anytime"
 - Settings: Save display name shows "Saved" feedback (execution adds API and error handling)
-- Identity edit: statement only; re-linking habits to an identity = delete and recreate in Phase 1
+- Identity edit: statement only. Linking or changing a habit's identity is done on the Habits page via habit edit (identity selector in the edit form); no delete/recreate needed.
 - Display name: "Skip for now" allowed; execution may gate other flows (e.g. partner features) on display name being set
 - Loading and error states for Scorecard and Identities to be added in execution
 
@@ -839,7 +839,7 @@ The scorecard in the app is a **diagnostic and reset tool**, not a daily tracker
 - Habits page deep-links: query params identity, mode (reinforce|fix), new=1; when identity+mode=reinforce or new=1 open create flow with identity preselected; when mode=fix show blockers section for that identity
 - Blockers section on Habits page: add/edit one habit to break per identity (name + 4-laws break form); shown when mode=fix and identity set, or via "View & fix blockers" from Identities
 - Habit detail card showing all design metadata
-- Habit edit, delete, archive, and restore
+- Habit edit, delete, archive, and restore; habit edit form includes identity selector (Unlinked + list of identities) so users can link unlinked habits to an identity or change which identity a habit is linked to
 - Archived habits section (collapsed by default) on Habits page
 - Visual habit stack chain view
 - Empty states for Habits page (no habits, no identities)
@@ -850,7 +850,7 @@ The scorecard in the app is a **diagnostic and reset tool**, not a daily tracker
 - User can enter text for each of the 12 sub-points (4 laws × 3); design_build is stored and displayed
 - All methodology fields (including legacy intention, bundle, 2-min) are stored and displayed correctly
 - Habits can be stacked on scorecard entries or other habits
-- Habits can be edited, deleted, archived, and restored
+- Habits can be edited, deleted, archived, and restored; user can link an existing (including unlinked) habit to an identity or change which identity a habit is linked to via the habit edit form (identity selector; identity_id persisted on save)
 - Habits page shows organized view by identity with "Unlinked Habits" group
 - Habits page supports deep-links: identity, mode (reinforce|fix), new=1; opening with identity+mode=reinforce or new=1 opens create-habit flow with that identity preselected; mode=fix shows blockers section for that identity
 - Archived habits section shows archived habits and supports restore
@@ -1333,6 +1333,7 @@ These guidelines apply across all phases. They are cross-cutting UX patterns, no
 | D39 | Habit design: 4 laws (build) | design_build jsonb on habits | Every habit that reinforces an identity can be designed with the full 4 laws (obvious, attractive, easy, satisfying), 3 sub-points each. User enters something per point. Replaces/supplements previous intention/stack/bundle/2-min with structured 4-laws form. Legacy fields (implementation_intention, temptation_bundle, two_minute_version) kept and synced for backward compatibility. | 2026-02-20 |
 | D40 | Identity ↔ habit to break | habits_to_break table, one per identity | Every identity can have one contradicting/negating habit to break. User enters the habit name and a "how to break it" design using the 4 laws inversion (invisible, unattractive, difficult, unsatisfying), 3 sub-points each. Stored in habits_to_break.design_break. UI: add/edit on Habits page only (blockers section when identity&mode=fix); Identities page shows read-only "Undermined by" and "View & fix blockers" CTA. | 2026-02-20 |
 | D46 | Identities as scoreboard; Habits single source of truth | Identities read-only summary + nav; post-create prompt; deep-links | Identities page is a scoreboard: statement, This week votes, trend, Momentum (label; no change to calculation), Reinforced by (up to 3 habits), Undermined by (up to 2 blockers), CTAs only. No habit or blocker create/edit on Identities. After creating a new identity, show one-time modal: "Want to add a habit for this identity?" — "Create habit now" → /dashboard/habits?identity={id}&mode=reinforce&new=1; "Skip for now" closes. Habits page accepts identity, mode (reinforce|fix), new=1; mode=reinforce opens create flow with identity preselected; mode=fix shows blockers section for that identity. | 2026-02-20 |
+| D47 | Link existing habit to identity | Habit edit includes identity selector | Users can link an unlinked habit to an identity (or change identity) from the Habits page: the habit edit form includes an Identity dropdown (Unlinked + all identities); saving updates identity_id. No delete/recreate required. | 2026-02-20 |
 | D41 | MVP (4–6 weeks) scope | Identity + focus, 4 Laws habit builder, daily 3–7 habits, streaks/votes, weekly review | Narrow MVP for 4–6 week ship: 1–2 identities, one habit per identity at start (2-min required), 4 Laws guided flow, Today 3–7 habits with tiny/full + optional note, identity votes primary, never miss twice, 3-min weekly review. Build in 5 chunks; PRD Section 7 MVP defines order. | 2026-02-20 |
 | D42 | Scorecard strategy | Diagnostic + reset only; 3 entry points; Review placement; Workflows A/B/C | Scorecard is not a daily tracker. Purpose: notice patterns, recalibrate, restart when stuck. Entry points only: (A) Onboarding, (B) Weekly review, (C) Reset mode. No permanent tab, no daily prompt. Lives under Review. Workflow A: Map day → pattern detection → focus pick (one habit). Workflow B: Quick rating → friction question → auto-advice → Apply fix (Yes/Later). Workflow C: "Let's reset" mini-scorecard when 3+ days missed or streak lost twice. | 2026-02-20 |
 | D43 | Nav and dashboard: identity first | Identities, then Habits, then Review | Main nav order and dashboard home CTAs put Identities first, then Habits, then Review. Reflects methodology: define who you want to become, then link habits to identity. | 2026-02-20 |
