@@ -56,11 +56,6 @@ export default async function DashboardLayout({
               className="flex items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-[#e87722]/10 hover:text-gray-900"
             >
               <span>{item.label}</span>
-              {item.badge && (
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-[#e87722] bg-[#e87722]/10 px-1.5 py-0.5 rounded">
-                  {item.badge}
-                </span>
-              )}
             </Link>
           ))}
         </nav>
