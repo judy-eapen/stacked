@@ -169,16 +169,17 @@ A single person can be both a User (for their own data) and an Accountability Pa
 | id | uuid | Yes | gen_random_uuid() | — |
 | user_id | uuid | Yes | — | FK to profiles.id |
 | identity_id | uuid | Yes | — | FK to identities.id, UNIQUE (one per identity) |
+| habit_id | uuid | No | null | FK to habits.id ON DELETE SET NULL; when set, blocker was picked from an existing habit |
 | name | string | Yes | — | 1-200 chars, habit to break |
 | design_break | jsonb | No | null | 4 laws (inversion): invisible, unattractive, difficult, unsatisfying, each with 3 sub-points |
 | created_at | timestamptz | Yes | now() | Auto-set |
 | updated_at | timestamptz | Yes | now() | Auto-set on update |
 
 **Table:** `habits_to_break`
-**Indexes:** `(user_id)`, `(identity_id)`, primary key on `id`, UNIQUE on `identity_id`
-**Relationships:** Belongs to User. Belongs to Identity (one-to-one: each identity has at most one habit to break).
+**Indexes:** `(user_id)`, `(identity_id)`, `(habit_id)`, primary key on `id`, UNIQUE on `identity_id`
+**Relationships:** Belongs to User. Belongs to Identity (one-to-one: each identity has at most one habit to break). Optionally references Habit via habit_id when user picked from existing habits.
 **RLS:** User can CRUD own rows only.
-**Notes:** Captures the negative habit that contradicts the identity and how to break it (4 laws inversion: make it invisible, unattractive, difficult, unsatisfying).
+**Notes:** Captures the negative habit that contradicts the identity and how to break it (4 laws inversion). User can pick an existing habit from their list (habit_id set, name synced) or add by name only; then design how to break it.
 
 ---
 
@@ -837,7 +838,7 @@ The scorecard in the app is a **diagnostic and reset tool**, not a daily tracker
 - "Design this habit" action on habit cards with empty methodology fields
 - Habits list page grouped by identity (plus "Unlinked Habits" group)
 - Habits page deep-links: query params identity, mode (reinforce|fix), new=1; when identity+mode=reinforce or new=1 open create flow with identity preselected; when mode=fix show blockers section for that identity
-- Blockers section on Habits page: add/edit one habit to break per identity (name + 4-laws break form); shown when mode=fix and identity set, or via "View & fix blockers" from Identities
+- Blockers section on Habits page: add/edit one habit to break per identity; user can pick from existing habits ("Add as blocker") or add by name, then complete 4-laws break form; habit_id stored when picked from list; shown when mode=fix and identity set, or via "View & fix blockers" from Identities
 - Habit detail card showing all design metadata
 - Habit edit, delete, archive, and restore; habit edit form includes identity selector (Unlinked + list of identities) so users can link unlinked habits to an identity or change which identity a habit is linked to
 - Archived habits section (collapsed by default) on Habits page
@@ -854,7 +855,7 @@ The scorecard in the app is a **diagnostic and reset tool**, not a daily tracker
 - Habits page shows organized view by identity with "Unlinked Habits" group
 - Habits page supports deep-links: identity, mode (reinforce|fix), new=1; opening with identity+mode=reinforce or new=1 opens create-habit flow with that identity preselected; mode=fix shows blockers section for that identity
 - Archived habits section shows archived habits and supports restore
-- Per identity: user can add/edit one "habit to break" with name and 4-laws (break) design on the Habits page (blockers section when mode=fix or via "View & fix blockers" from Identities); habits_to_break is stored; Identities page shows read-only list (up to 2) and CTA to Habits
+- Per identity: user can add/edit one "habit to break" on the Habits page (blockers section when mode=fix or via "View & fix blockers" from Identities): pick from existing habits (Add as blocker) or enter name, then 4-laws (break) design; habits_to_break stores name, design_break, and optional habit_id when picked; Identities page shows read-only list (up to 2) and CTA to Habits
 
 **Definition of Done:**
 - All user stories pass
@@ -1334,6 +1335,7 @@ These guidelines apply across all phases. They are cross-cutting UX patterns, no
 | D40 | Identity ↔ habit to break | habits_to_break table, one per identity | Every identity can have one contradicting/negating habit to break. User enters the habit name and a "how to break it" design using the 4 laws inversion (invisible, unattractive, difficult, unsatisfying), 3 sub-points each. Stored in habits_to_break.design_break. UI: add/edit on Habits page only (blockers section when identity&mode=fix); Identities page shows read-only "Undermined by" and "View & fix blockers" CTA. | 2026-02-20 |
 | D46 | Identities as scoreboard; Habits single source of truth | Identities read-only summary + nav; post-create prompt; deep-links | Identities page is a scoreboard: statement, This week votes, trend, Momentum (label; no change to calculation), Reinforced by (up to 3 habits), Undermined by (up to 2 blockers), CTAs only. No habit or blocker create/edit on Identities. After creating a new identity, show one-time modal: "Want to add a habit for this identity?" — "Create habit now" → /dashboard/habits?identity={id}&mode=reinforce&new=1; "Skip for now" closes. Habits page accepts identity, mode (reinforce|fix), new=1; mode=reinforce opens create flow with identity preselected; mode=fix shows blockers section for that identity. | 2026-02-20 |
 | D47 | Link existing habit to identity | Habit edit includes identity selector | Users can link an unlinked habit to an identity (or change identity) from the Habits page: the habit edit form includes an Identity dropdown (Unlinked + all identities); saving updates identity_id. No delete/recreate required. | 2026-02-20 |
+| D48 | Pick existing habit as blocker | habits_to_break.habit_id; Blockers UI | When adding a habit to break (mode=fix), user can pick from existing habits list ("Add as blocker") so name is prefilled and optional habit_id is stored, or add by name only. habits_to_break has optional habit_id FK to habits.id (ON DELETE SET NULL). | 2026-02-20 |
 | D41 | MVP (4–6 weeks) scope | Identity + focus, 4 Laws habit builder, daily 3–7 habits, streaks/votes, weekly review | Narrow MVP for 4–6 week ship: 1–2 identities, one habit per identity at start (2-min required), 4 Laws guided flow, Today 3–7 habits with tiny/full + optional note, identity votes primary, never miss twice, 3-min weekly review. Build in 5 chunks; PRD Section 7 MVP defines order. | 2026-02-20 |
 | D42 | Scorecard strategy | Diagnostic + reset only; 3 entry points; Review placement; Workflows A/B/C | Scorecard is not a daily tracker. Purpose: notice patterns, recalibrate, restart when stuck. Entry points only: (A) Onboarding, (B) Weekly review, (C) Reset mode. No permanent tab, no daily prompt. Lives under Review. Workflow A: Map day → pattern detection → focus pick (one habit). Workflow B: Quick rating → friction question → auto-advice → Apply fix (Yes/Later). Workflow C: "Let's reset" mini-scorecard when 3+ days missed or streak lost twice. | 2026-02-20 |
 | D43 | Nav and dashboard: identity first | Identities, then Habits, then Review | Main nav order and dashboard home CTAs put Identities first, then Habits, then Review. Reflects methodology: define who you want to become, then link habits to identity. | 2026-02-20 |

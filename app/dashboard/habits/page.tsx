@@ -54,6 +54,7 @@ interface HabitToBreak {
   id: string
   user_id: string
   identity_id: string
+  habit_id: string | null
   name: string
   design_break: DesignBreak | null
   created_at: string
@@ -178,6 +179,7 @@ export default function HabitsPage() {
   const [habitsToBreak, setHabitsToBreak] = useState<HabitToBreak[]>([])
   const [showBlockerForm, setShowBlockerForm] = useState(false)
   const [blockerDraftName, setBlockerDraftName] = useState('')
+  const [blockerDraftHabitId, setBlockerDraftHabitId] = useState<string | null>(null)
   const [blockerDraftDesign, setBlockerDraftDesign] = useState<DesignBreak>(() => ({ ...EMPTY_DESIGN_BREAK }))
   const [editingBlockerId, setEditingBlockerId] = useState<string | null>(null)
 
@@ -360,7 +362,7 @@ export default function HabitsPage() {
       {modeParam === 'fix' && identityParam && (
         <div className="rounded-xl bg-white border border-gray-200 p-5 space-y-4">
           <h2 className="text-lg font-semibold text-gray-900">Blockers for this identity</h2>
-          <p className="text-sm text-gray-500">Habits that undermine this identity. Add or edit how to break them.</p>
+          <p className="text-sm text-gray-500">Habits that undermine this identity. Pick one from your habits or add by name, then design how to break it.</p>
           {habitsToBreak.filter((h) => h.identity_id === identityParam).length === 0 && !showBlockerForm && (
             <p className="text-sm text-gray-500">No blockers linked yet.</p>
           )}
@@ -416,22 +418,45 @@ export default function HabitsPage() {
                     const { data: { user } } = await supabase.auth.getUser()
                     if (!user) return
                     const db = trimDesignBreak(blockerDraftDesign)
-                    const { error: err } = await supabase.from('habits_to_break').upsert({ user_id: user.id, identity_id: identityParam, name, design_break: db }, { onConflict: 'identity_id' })
+                    const { error: err } = await supabase.from('habits_to_break').upsert({ user_id: user.id, identity_id: identityParam, habit_id: blockerDraftHabitId || null, name, design_break: db }, { onConflict: 'identity_id' })
                     if (err) setError(err.message)
-                    else { setShowBlockerForm(false); setBlockerDraftName(''); setBlockerDraftDesign({ ...EMPTY_DESIGN_BREAK }); fetchAll(); }
+                    else { setShowBlockerForm(false); setBlockerDraftName(''); setBlockerDraftHabitId(null); setBlockerDraftDesign({ ...EMPTY_DESIGN_BREAK }); fetchAll(); }
                   }}
                   disabled={!blockerDraftName.trim()}
                   className="h-9 px-3 rounded-lg bg-[#e87722] text-white text-sm font-medium disabled:opacity-50"
                 >
                   Save
                 </button>
-                <button type="button" onClick={() => { setShowBlockerForm(false); setBlockerDraftName(''); setBlockerDraftDesign({ ...EMPTY_DESIGN_BREAK }); }} className="h-9 px-3 rounded-lg border text-sm">Cancel</button>
+                <button type="button" onClick={() => { setShowBlockerForm(false); setBlockerDraftName(''); setBlockerDraftHabitId(null); setBlockerDraftDesign({ ...EMPTY_DESIGN_BREAK }); }} className="h-9 px-3 rounded-lg border text-sm">Cancel</button>
               </div>
             </div>
           ) : (
-            <button type="button" onClick={() => setShowBlockerForm(true)} className="text-sm font-medium text-[#e87722] hover:underline">
-              + Add habit to break
-            </button>
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-gray-700">Pick from existing habits</p>
+              <ul className="space-y-1 max-h-48 overflow-y-auto rounded-lg border border-gray-200 p-2">
+                {activeHabits.map((habit) => (
+                  <li key={habit.id} className="flex items-center justify-between gap-2 py-1.5 px-2 rounded hover:bg-gray-50">
+                    <span className="text-sm text-gray-900">{habit.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBlockerDraftName(habit.name)
+                        setBlockerDraftHabitId(habit.id)
+                        setShowBlockerForm(true)
+                      }}
+                      className="text-xs font-medium text-[#e87722] hover:underline"
+                    >
+                      Add as blocker
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              {activeHabits.length === 0 && <p className="text-sm text-gray-500">No habits yet. Create one first, then you can add it as a blocker here.</p>}
+              <p className="text-xs text-gray-500">Or add by name:</p>
+              <button type="button" onClick={() => { setBlockerDraftName(''); setBlockerDraftHabitId(null); setShowBlockerForm(true); }} className="text-sm font-medium text-[#e87722] hover:underline">
+                + Add habit to break (enter name)
+              </button>
+            </div>
           )}
         </div>
       )}
