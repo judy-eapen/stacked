@@ -767,7 +767,7 @@ The scorecard in the app is a **diagnostic and reset tool**, not a daily tracker
 - Auth pages (sign up, login, forgot password)
 - Layout: sidebar nav + main content area. Nav order: Identities, Habits, Review (identity first, then habits linked to identity, then review).
 - Scorecard page: list, add, edit, delete, reorder, rating toggle, grouped by time of day (first pass: no summary, no Take Action callout). Reached via Review only.
-- Identities page: list, add, edit, delete, reorder; optional habit to break per identity with 4-laws (break) form.
+- Identities page: scoreboard only (read-only). Per identity: statement, "This week: N votes", trend (↑/↓ vs last week or "—"), Momentum bar; "Reinforced by" up to 3 habits (read-only, "View all" if more); "Undermined by" up to 2 blockers (read-only) or empty state + "View & fix blockers". CTAs: "+ Add reinforcing habit" → Habits with identity&mode=reinforce&new=1; "View & fix blockers" → Habits with identity&mode=fix; optional "View details" → Habits with identity. Identity CRUD (create/edit/delete statement) via modal or existing flow; no habit or habit-to-break creation/editing on Identities page. Habit and habit-to-break create/edit live only on the Habits page (single source of truth).
 - First-run guided flow: after display name is set, onboarding is identity-first (one identity, one habit, lightweight 4 Laws, first completion in-flow, then optional add another identity). Onboarding ends with a win, not with setup. Dashboard home and sidebar put Identities first; flow is suggestive, not blocking.
 - Empty states for all Phase 1 pages (see UX Design Guidelines in Section 8)
 - Concept explainer subtitles on all methodology terms (see UX Design Guidelines in Section 8)
@@ -783,7 +783,8 @@ The scorecard in the app is a **diagnostic and reset tool**, not a daily tracker
 **Acceptance Criteria:**
 - User can register, log in, and log out
 - Scorecard CRUD works with real-time UI updates
-- Identities CRUD works
+- Identities CRUD works; Identities page is scoreboard only (read-only summary + CTAs to Habits; no habit/blocker create or edit on Identities)
+- After creating a new identity, user sees one-time prompt to add a linked habit ("Create habit now" → Habits with identity&mode=reinforce&new=1, or "Skip for now")
 - RLS prevents users from seeing other users' data
 - Responsive on mobile and desktop
 - First-time user sees guided flow pointing them to the Scorecard
@@ -835,6 +836,8 @@ The scorecard in the app is a **diagnostic and reset tool**, not a daily tracker
 - Habit creation form with quick-add mode (name + optional identity) and expandable "Design this habit" section for methodology fields
 - "Design this habit" action on habit cards with empty methodology fields
 - Habits list page grouped by identity (plus "Unlinked Habits" group)
+- Habits page deep-links: query params identity, mode (reinforce|fix), new=1; when identity+mode=reinforce or new=1 open create flow with identity preselected; when mode=fix show blockers section for that identity
+- Blockers section on Habits page: add/edit one habit to break per identity (name + 4-laws break form); shown when mode=fix and identity set, or via "View & fix blockers" from Identities
 - Habit detail card showing all design metadata
 - Habit edit, delete, archive, and restore
 - Archived habits section (collapsed by default) on Habits page
@@ -849,8 +852,9 @@ The scorecard in the app is a **diagnostic and reset tool**, not a daily tracker
 - Habits can be stacked on scorecard entries or other habits
 - Habits can be edited, deleted, archived, and restored
 - Habits page shows organized view by identity with "Unlinked Habits" group
+- Habits page supports deep-links: identity, mode (reinforce|fix), new=1; opening with identity+mode=reinforce or new=1 opens create-habit flow with that identity preselected; mode=fix shows blockers section for that identity
 - Archived habits section shows archived habits and supports restore
-- Per identity: user can add/edit one "habit to break" with name and 4-laws (break) design; habits_to_break is stored and shown on identity card
+- Per identity: user can add/edit one "habit to break" with name and 4-laws (break) design on the Habits page (blockers section when mode=fix or via "View & fix blockers" from Identities); habits_to_break is stored; Identities page shows read-only list (up to 2) and CTA to Habits
 
 **Definition of Done:**
 - All user stories pass
@@ -1327,7 +1331,8 @@ These guidelines apply across all phases. They are cross-cutting UX patterns, no
 | D37 | Phase 1 design | Finalized; design catalog docs/design/stacked-phase-1-designs.md | PRD updated to match. Add to Home Screen = instructional banner + "Got it"; Scorecard add defaults = and Anytime; Settings "Saved" feedback; identity edit = statement only, re-link = delete/recreate; mobile "Next step" badge; loading/error in execution. | 2026-02-20 |
 | D38 | Scorecard first pass | Current state only (habits, +/−=, timing) | Strip scorecard to list + rating + time of day. No summary, Take Action callout, Commit section, or pattern-by-time grid in first pass. Reduces scope; summary and bridge to action can be added later. | 2026-02-20 |
 | D39 | Habit design: 4 laws (build) | design_build jsonb on habits | Every habit that reinforces an identity can be designed with the full 4 laws (obvious, attractive, easy, satisfying), 3 sub-points each. User enters something per point. Replaces/supplements previous intention/stack/bundle/2-min with structured 4-laws form. Legacy fields (implementation_intention, temptation_bundle, two_minute_version) kept and synced for backward compatibility. | 2026-02-20 |
-| D40 | Identity ↔ habit to break | habits_to_break table, one per identity | Every identity can have one contradicting/negating habit to break. User enters the habit name and a "how to break it" design using the 4 laws inversion (invisible, unattractive, difficult, unsatisfying), 3 sub-points each. Stored in habits_to_break.design_break. UI: inline on identity card (Add/Edit habit to break). | 2026-02-20 |
+| D40 | Identity ↔ habit to break | habits_to_break table, one per identity | Every identity can have one contradicting/negating habit to break. User enters the habit name and a "how to break it" design using the 4 laws inversion (invisible, unattractive, difficult, unsatisfying), 3 sub-points each. Stored in habits_to_break.design_break. UI: add/edit on Habits page only (blockers section when identity&mode=fix); Identities page shows read-only "Undermined by" and "View & fix blockers" CTA. | 2026-02-20 |
+| D46 | Identities as scoreboard; Habits single source of truth | Identities read-only summary + nav; post-create prompt; deep-links | Identities page is a scoreboard: statement, This week votes, trend, Momentum (label; no change to calculation), Reinforced by (up to 3 habits), Undermined by (up to 2 blockers), CTAs only. No habit or blocker create/edit on Identities. After creating a new identity, show one-time modal: "Want to add a habit for this identity?" — "Create habit now" → /dashboard/habits?identity={id}&mode=reinforce&new=1; "Skip for now" closes. Habits page accepts identity, mode (reinforce|fix), new=1; mode=reinforce opens create flow with identity preselected; mode=fix shows blockers section for that identity. | 2026-02-20 |
 | D41 | MVP (4–6 weeks) scope | Identity + focus, 4 Laws habit builder, daily 3–7 habits, streaks/votes, weekly review | Narrow MVP for 4–6 week ship: 1–2 identities, one habit per identity at start (2-min required), 4 Laws guided flow, Today 3–7 habits with tiny/full + optional note, identity votes primary, never miss twice, 3-min weekly review. Build in 5 chunks; PRD Section 7 MVP defines order. | 2026-02-20 |
 | D42 | Scorecard strategy | Diagnostic + reset only; 3 entry points; Review placement; Workflows A/B/C | Scorecard is not a daily tracker. Purpose: notice patterns, recalibrate, restart when stuck. Entry points only: (A) Onboarding, (B) Weekly review, (C) Reset mode. No permanent tab, no daily prompt. Lives under Review. Workflow A: Map day → pattern detection → focus pick (one habit). Workflow B: Quick rating → friction question → auto-advice → Apply fix (Yes/Later). Workflow C: "Let's reset" mini-scorecard when 3+ days missed or streak lost twice. | 2026-02-20 |
 | D43 | Nav and dashboard: identity first | Identities, then Habits, then Review | Main nav order and dashboard home CTAs put Identities first, then Habits, then Review. Reflects methodology: define who you want to become, then link habits to identity. | 2026-02-20 |

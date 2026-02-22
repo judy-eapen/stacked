@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { DesignBuild } from '@/lib/db-types'
+import { DesignBreakForm, EMPTY_DESIGN_BREAK, trimDesignBreak } from '@/components/DesignBreakForm'
+import type { DesignBreak } from '@/lib/db-types'
 
 type HabitFrequency = 'daily' | 'weekdays' | 'weekends' | 'custom'
 
@@ -46,6 +48,16 @@ interface IdentityOption {
 interface ScorecardAnchor {
   id: string
   habit_name: string
+}
+
+interface HabitToBreak {
+  id: string
+  user_id: string
+  identity_id: string
+  name: string
+  design_break: DesignBreak | null
+  created_at: string
+  updated_at: string
 }
 
 const EMPTY_DESIGN_BUILD: DesignBuild = {
@@ -163,6 +175,11 @@ export default function HabitsPage() {
   const [draftStackScorecardId, setDraftStackScorecardId] = useState<string | null>(null)
   const [draftStackHabitId, setDraftStackHabitId] = useState<string | null>(null)
   const [draftDesignBuild, setDraftDesignBuild] = useState<DesignBuild>(() => ({ ...EMPTY_DESIGN_BUILD }))
+  const [habitsToBreak, setHabitsToBreak] = useState<HabitToBreak[]>([])
+  const [showBlockerForm, setShowBlockerForm] = useState(false)
+  const [blockerDraftName, setBlockerDraftName] = useState('')
+  const [blockerDraftDesign, setBlockerDraftDesign] = useState<DesignBreak>(() => ({ ...EMPTY_DESIGN_BREAK }))
+  const [editingBlockerId, setEditingBlockerId] = useState<string | null>(null)
 
   const fetchAll = useCallback(async () => {
     const supabase = createClient()
@@ -187,15 +204,23 @@ export default function HabitsPage() {
     else setIdentities((identitiesRes.data ?? []) as IdentityOption[])
     if (scorecardRes.error) setScorecardEntries([])
     else setScorecardEntries((scorecardRes.data ?? []) as ScorecardAnchor[])
+    if (habitsToBreakRes.error) setHabitsToBreak([])
+    else setHabitsToBreak((habitsToBreakRes.data ?? []) as HabitToBreak[])
   }, [])
 
   useEffect(() => {
     fetchAll().finally(() => setLoading(false))
   }, [fetchAll])
 
+  const identityParam = searchParams.get('identity')
+  const modeParam = searchParams.get('mode')
+  const newParam = searchParams.get('new')
+
   useEffect(() => {
     if (searchParams.get('add') === '1') setShowAddForm(true)
-  }, [searchParams])
+    if (identityParam) setDraftIdentityId(identityParam)
+    if (newParam === '1' || (identityParam && modeParam === 'reinforce')) setShowAddForm(true)
+  }, [searchParams, identityParam, modeParam, newParam])
 
   const activeHabits = habits.filter((h) => h.is_active)
   const habitsByIdentity = new Map<string | null, Habit[]>()
@@ -329,6 +354,85 @@ export default function HabitsPage() {
         <p className="text-sm text-red-600 p-3 rounded-lg bg-red-50 border border-red-200" role="alert">
           {error}
         </p>
+      )}
+
+      {modeParam === 'fix' && identityParam && (
+        <div className="rounded-xl bg-white border border-gray-200 p-5 space-y-4">
+          <h2 className="text-lg font-semibold text-gray-900">Blockers for this identity</h2>
+          <p className="text-sm text-gray-500">Habits that undermine this identity. Add or edit how to break them.</p>
+          {habitsToBreak.filter((h) => h.identity_id === identityParam).length === 0 && !showBlockerForm && (
+            <p className="text-sm text-gray-500">No blockers linked yet.</p>
+          )}
+          <ul className="space-y-2">
+            {habitsToBreak.filter((h) => h.identity_id === identityParam).map((h) => (
+              <li key={h.id} className="flex items-center justify-between gap-2 rounded-lg border border-gray-100 px-3 py-2 text-sm">
+                {editingBlockerId === h.id ? (
+                  <div className="flex-1 space-y-2">
+                    <input value={blockerDraftName} onChange={(e) => setBlockerDraftName(e.target.value)} placeholder="Habit name" className="w-full h-9 px-3 rounded border border-gray-200 text-sm" />
+                    <DesignBreakForm value={blockerDraftDesign} onChange={setBlockerDraftDesign} />
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const name = blockerDraftName.trim().slice(0, 200)
+                          if (!name) return
+                          const supabase = createClient()
+                          const { data: { user } } = await supabase.auth.getUser()
+                          if (!user) return
+                          const db = trimDesignBreak(blockerDraftDesign)
+                          const { error: err } = await supabase.from('habits_to_break').update({ name, design_break: db }).eq('id', h.id).eq('user_id', user.id)
+                          if (err) setError(err.message)
+                          else { setEditingBlockerId(null); fetchAll(); }
+                        }}
+                        className="h-9 px-3 rounded-lg bg-[#e87722] text-white text-sm font-medium"
+                      >
+                        Save
+                      </button>
+                      <button type="button" onClick={() => setEditingBlockerId(null)} className="h-9 px-3 rounded-lg border text-sm">Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <span className="font-medium text-gray-900">{h.name}</span>
+                    <button type="button" onClick={() => { setEditingBlockerId(h.id); setBlockerDraftName(h.name); setBlockerDraftDesign({ ...EMPTY_DESIGN_BREAK, ...h.design_break }); }} className="text-[#e87722] hover:underline text-xs">Edit</button>
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+          {showBlockerForm ? (
+            <div className="border-t border-gray-100 pt-4 space-y-3">
+              <p className="text-sm font-medium text-gray-900">Add habit to break</p>
+              <input value={blockerDraftName} onChange={(e) => setBlockerDraftName(e.target.value)} placeholder="Habit name" className="w-full h-10 px-3 rounded-lg border border-gray-200 text-sm" />
+              <DesignBreakForm value={blockerDraftDesign} onChange={setBlockerDraftDesign} />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const name = blockerDraftName.trim().slice(0, 200)
+                    if (!name) return
+                    const supabase = createClient()
+                    const { data: { user } } = await supabase.auth.getUser()
+                    if (!user) return
+                    const db = trimDesignBreak(blockerDraftDesign)
+                    const { error: err } = await supabase.from('habits_to_break').upsert({ user_id: user.id, identity_id: identityParam, name, design_break: db }, { onConflict: 'identity_id' })
+                    if (err) setError(err.message)
+                    else { setShowBlockerForm(false); setBlockerDraftName(''); setBlockerDraftDesign({ ...EMPTY_DESIGN_BREAK }); fetchAll(); }
+                  }}
+                  disabled={!blockerDraftName.trim()}
+                  className="h-9 px-3 rounded-lg bg-[#e87722] text-white text-sm font-medium disabled:opacity-50"
+                >
+                  Save
+                </button>
+                <button type="button" onClick={() => { setShowBlockerForm(false); setBlockerDraftName(''); setBlockerDraftDesign({ ...EMPTY_DESIGN_BREAK }); }} className="h-9 px-3 rounded-lg border text-sm">Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <button type="button" onClick={() => setShowBlockerForm(true)} className="text-sm font-medium text-[#e87722] hover:underline">
+              + Add habit to break
+            </button>
+          )}
+        </div>
       )}
 
       {showAddForm ? (
