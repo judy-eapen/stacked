@@ -542,6 +542,8 @@ export default function HabitsPage() {
                       habit={h}
                       identityStatement={idn.statement}
                       identities={identities}
+                      linkToIdentityId={null}
+                      linkToIdentityStatement={null}
                       scorecardEntries={scorecardEntries}
                       habits={habits}
                       getStackLabel={getStackLabel}
@@ -561,6 +563,9 @@ export default function HabitsPage() {
           {(habitsByIdentity.get(null) ?? []).length > 0 && (
             <div>
               <h2 className="text-sm font-semibold text-gray-900 mb-2">Unlinked Habits</h2>
+              {identityParam && modeParam === 'reinforce' && identities.find((idn) => idn.id === identityParam) && (
+                <p className="text-xs text-gray-600 mb-2">Click &quot;Add to identity&quot; on a habit below to link it to <strong>{identities.find((idn) => idn.id === identityParam)?.statement}</strong>.</p>
+              )}
               <ul className="space-y-3">
                 {(habitsByIdentity.get(null) ?? []).map((h) => (
                   <HabitCard
@@ -568,6 +573,8 @@ export default function HabitsPage() {
                     habit={h}
                     identityStatement={null}
                     identities={identities}
+                    linkToIdentityId={identityParam && modeParam === 'reinforce' ? identityParam : null}
+                    linkToIdentityStatement={identityParam && modeParam === 'reinforce' ? identities.find((idn) => idn.id === identityParam)?.statement ?? null : null}
                     scorecardEntries={scorecardEntries}
                     habits={habits}
                     getStackLabel={getStackLabel}
@@ -616,6 +623,8 @@ interface HabitCardProps {
   habit: Habit
   identityStatement: string | null
   identities: IdentityOption[]
+  linkToIdentityId: string | null
+  linkToIdentityStatement: string | null
   scorecardEntries: ScorecardAnchor[]
   habits: Habit[]
   getStackLabel: (h: Habit) => string | null
@@ -632,6 +641,8 @@ function HabitCard({
   habit,
   identityStatement,
   identities,
+  linkToIdentityId,
+  linkToIdentityStatement,
   getStackLabel,
   intentionString,
   hasDesignFields,
@@ -722,6 +733,15 @@ function HabitCard({
               <button type="button" onClick={onDelete} className="text-gray-400 hover:text-red-600 p-1 text-sm" aria-label="Delete">×</button>
             </div>
           </div>
+          {linkToIdentityId && linkToIdentityStatement && (
+            <button
+              type="button"
+              onClick={() => onUpdate({ identity_id: linkToIdentityId })}
+              className="mt-2 mr-2 inline-flex h-9 items-center justify-center rounded-lg bg-[#e87722] px-3 text-sm font-medium text-white hover:bg-[#d96b1e]"
+            >
+              Add to identity
+            </button>
+          )}
           {!hasDesignFields && (
             <button type="button" onClick={() => setEditingId(habit.id)} className="mt-2 text-xs text-[#e87722] hover:underline">
               Design this habit
