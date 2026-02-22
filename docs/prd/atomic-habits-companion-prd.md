@@ -683,7 +683,7 @@ The scorecard in the app is a **diagnostic and reset tool**, not a daily tracker
 | **B. Weekly review** | Once per week (opt-in reminder) |
 | **C. "I'm stuck" / Reset mode** | When user misses 3+ days, opens app but doesn't log, or loses streak twice |
 
-**UI placement:** Scorecard lives under **Profile / Review**, not on the main screen. Example nav: Home | Habits | Progress | **Review** ← Scorecard lives here. If the scorecard is on the main screen, retention drops.
+**UI placement:** Scorecard lives under **Profile / Review**, not on the main screen. Main nav order: **Identities** | Habits | **Review** (identity first, then habits linked to identity, then review/scorecard). Review is where the scorecard lives. If the scorecard is on the main screen, retention drops.
 
 ---
 
@@ -728,7 +728,7 @@ The scorecard in the app is a **diagnostic and reset tool**, not a daily tracker
 
 **Why:** Prevents abandonment.
 
-**Scorecard strategy implementation (done):** Nav shows Review (not Scorecard) as main item; Scorecard is only reachable via Review. Review hub at `/dashboard/review` offers: Weekly review, Map your day (scorecard), I'm stuck — reset. Workflow B at `/dashboard/review/weekly`: Step 1 rate habits =/−, Step 2 friction (Forgot / Too tired / Too busy / Phone / Boring / Hard), Step 3 auto-advice table and per-habit suggestion, Step 4 Apply fix (Yes/Later) with `weekly_review_ratings` table. Workflow C at `/dashboard/review/reset`: "Let's reset. 60 seconds." Mini-scorecard of active habits, pick one, shrink it (set 2-min version, streak reset), Done. Dashboard home and onboarding CTA point to Review (or Habits). Scorecard page has "← Review" and diagnostic+reset explainer.
+**Scorecard strategy implementation (done):** Nav order: Identities, Habits, Review (identity first, then habits, then review). Scorecard is only reachable via Review. Review hub at `/dashboard/review` offers: Weekly review, Map your day (scorecard), I'm stuck — reset. Workflow B at `/dashboard/review/weekly`, Workflow C at `/dashboard/review/reset`. Dashboard home primary CTA: Identities; secondary: Habits, Review. Onboarding completion CTA: Go to Review. Scorecard page has "← Review" and diagnostic+reset explainer.
 
 ---
 
@@ -765,10 +765,10 @@ The scorecard in the app is a **diagnostic and reset tool**, not a daily tracker
 **Frontend Tasks:**
 - Set up Next.js project with Tailwind CSS + shadcn/ui
 - Auth pages (sign up, login, forgot password)
-- Layout: sidebar nav + main content area
-- Scorecard page: list, add, edit, delete, reorder, rating toggle, grouped by time of day (first pass: no summary, no Take Action callout)
-- Identities page: list, add, edit, delete, reorder; optional habit to break per identity with 4-laws (break) form
-- First-run guided flow: after display name is set, direct user to Scorecard with a welcome message explaining the first step. Sidebar highlights the recommended next page (Scorecard -> Identities -> Habits). Flow is suggestive, not blocking.
+- Layout: sidebar nav + main content area. Nav order: Identities, Habits, Review (identity first, then habits linked to identity, then review).
+- Scorecard page: list, add, edit, delete, reorder, rating toggle, grouped by time of day (first pass: no summary, no Take Action callout). Reached via Review only.
+- Identities page: list, add, edit, delete, reorder; optional habit to break per identity with 4-laws (break) form.
+- First-run guided flow: after display name is set, onboarding is identity-first (1–2 identities, then one habit per identity with 2-min required). Dashboard home and sidebar put Identities first; flow is suggestive, not blocking.
 - Empty states for all Phase 1 pages (see UX Design Guidelines in Section 8)
 - Concept explainer subtitles on all methodology terms (see UX Design Guidelines in Section 8)
 - "Add to Home Screen" dismissible banner on mobile browsers (PWA manifest meta tags for icon and app name, no service worker). Banner shows instructional copy (e.g. "Tap your browser menu (⋮) then Add to Home Screen"); primary CTA is "Got it" (dismiss). No programmatic install in Phase 1.
@@ -1271,7 +1271,7 @@ These guidelines apply across all phases. They are cross-cutting UX patterns, no
 
 **Emotional Messaging (Missed Days & Streaks):** The app's tone around missed days is encouraging, not punitive. This is the single most important UX writing decision for retention. See US-3.2 for the three messaging states.
 
-**First-Run Guided Flow:** After account creation and display name setup, the app guides (but does not force) the user through the Atomic Habits progression: Scorecard first, then Identities, then Habits. The sidebar highlights the recommended next step. Each step can be skipped. See Phase 1 Frontend Tasks.
+**First-Run Guided Flow:** After account creation and display name setup, the app guides (but does not force) the user through the Atomic Habits progression: **Identity first**, then habits linked to identity, then Review when needed. Nav and dashboard home put Identities first, then Habits, then Review. Each step can be skipped. See Phase 1 Frontend Tasks.
 
 ### Security
 
@@ -1306,7 +1306,7 @@ These guidelines apply across all phases. They are cross-cutting UX patterns, no
 | D16 | Accessibility | Defer WCAG 2.1 AA | Not required for v1 (friends only). Add as a future requirement before public launch. Use semantic HTML and shadcn/ui defaults for baseline accessibility. | 2026-02-19 |
 | D17 | Dark mode | Include in v1 | shadcn/ui supports it natively. Low effort, high UX value. | 2026-02-19 |
 | D18 | Development pace | Fast, no quality compromise | Solo developer. Build as fast as possible while maintaining code quality and test coverage. | 2026-02-19 |
-| D19 | Onboarding flow | Guided first-run flow, skippable | After display name setup, guide user through Scorecard -> Identities -> Habits progression. Sidebar highlights recommended next step. Each step skippable. Empty states teach at every page. "Add to Home Screen" banner on mobile. | 2026-02-19 |
+| D19 | Onboarding flow | Guided first-run flow, skippable | After display name setup, guide user through identity-first flow (identities, then habits linked to them). Sidebar highlights recommended next step. Each step skippable. Empty states teach at every page. "Add to Home Screen" banner on mobile. | 2026-02-19 |
 | D20 | Archived habits | Keep history, hide from Today, allow restore | Completions and streaks preserved. Habit hidden from daily view. Viewable in Archived section with "Restore" action. Restoring un-archives the habit; streak restarts from 0, completion history preserved. | 2026-02-19 |
 | D21 | App name | **Stacked** | References habit stacking (the app's core differentiator). Short, memorable, brandable. Tagline: "Build habits that compound." | 2026-02-19 |
 | D22 | Apple Calendar | Deferred (post-launch) | Google Calendar covers the majority of users. CalDAV integration adds complexity. Add after validating Google Calendar sync adoption. | 2026-02-19 |
@@ -1329,7 +1329,8 @@ These guidelines apply across all phases. They are cross-cutting UX patterns, no
 | D39 | Habit design: 4 laws (build) | design_build jsonb on habits | Every habit that reinforces an identity can be designed with the full 4 laws (obvious, attractive, easy, satisfying), 3 sub-points each. User enters something per point. Replaces/supplements previous intention/stack/bundle/2-min with structured 4-laws form. Legacy fields (implementation_intention, temptation_bundle, two_minute_version) kept and synced for backward compatibility. | 2026-02-20 |
 | D40 | Identity ↔ habit to break | habits_to_break table, one per identity | Every identity can have one contradicting/negating habit to break. User enters the habit name and a "how to break it" design using the 4 laws inversion (invisible, unattractive, difficult, unsatisfying), 3 sub-points each. Stored in habits_to_break.design_break. UI: inline on identity card (Add/Edit habit to break). | 2026-02-20 |
 | D41 | MVP (4–6 weeks) scope | Identity + focus, 4 Laws habit builder, daily 3–7 habits, streaks/votes, weekly review | Narrow MVP for 4–6 week ship: 1–2 identities, one habit per identity at start (2-min required), 4 Laws guided flow, Today 3–7 habits with tiny/full + optional note, identity votes primary, never miss twice, 3-min weekly review. Build in 5 chunks; PRD Section 7 MVP defines order. | 2026-02-20 |
-| D42 | Scorecard strategy | Diagnostic + reset only; 3 entry points; Review placement; Workflows A/B/C | Scorecard is not a daily tracker. Purpose: notice patterns, recalibrate, restart when stuck. Entry points only: (A) Onboarding, (B) Weekly review, (C) Reset mode. No permanent tab, no daily prompt. Lives under Review (Home | Habits | Progress | Review). Workflow A: Map day → pattern detection → focus pick (one habit). Workflow B: Quick rating → friction question → auto-advice (Forgot→Add cue, Hard→Shrink habit, Boring→Add reward, Busy→Move time) → Apply fix (Yes/Later). Workflow C: "Let's reset" mini-scorecard when 3+ days missed or streak lost twice. | 2026-02-20 |
+| D42 | Scorecard strategy | Diagnostic + reset only; 3 entry points; Review placement; Workflows A/B/C | Scorecard is not a daily tracker. Purpose: notice patterns, recalibrate, restart when stuck. Entry points only: (A) Onboarding, (B) Weekly review, (C) Reset mode. No permanent tab, no daily prompt. Lives under Review. Workflow A: Map day → pattern detection → focus pick (one habit). Workflow B: Quick rating → friction question → auto-advice → Apply fix (Yes/Later). Workflow C: "Let's reset" mini-scorecard when 3+ days missed or streak lost twice. | 2026-02-20 |
+| D43 | Nav and dashboard: identity first | Identities, then Habits, then Review | Main nav order and dashboard home CTAs put Identities first, then Habits, then Review. Reflects methodology: define who you want to become, then link habits to identity. Onboarding is already identity-first (1–2 identities, one habit per identity). | 2026-02-20 |
 
 ---
 

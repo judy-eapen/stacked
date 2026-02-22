@@ -30,23 +30,23 @@ export default function DashboardPage() {
           </div>
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto pt-1">
             <Link
-              href="/dashboard/habits"
+              href="/dashboard/identities"
               className="inline-flex items-center justify-center h-12 px-6 rounded-lg bg-[#e87722] text-white font-semibold hover:bg-[#d96b1e] transition-colors gap-2"
             >
-              Habits
+              Identities
               <span aria-hidden>→</span>
+            </Link>
+            <Link
+              href="/dashboard/habits"
+              className="inline-flex items-center justify-center h-12 px-6 rounded-lg border border-gray-200 bg-white text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+            >
+              Habits
             </Link>
             <Link
               href="/dashboard/review"
               className="inline-flex items-center justify-center h-12 px-6 rounded-lg border border-gray-200 bg-white text-gray-700 font-medium hover:bg-gray-50 transition-colors"
             >
               Review
-            </Link>
-            <Link
-              href="/dashboard/identities"
-              className="inline-flex items-center justify-center h-12 px-6 rounded-lg border border-gray-200 bg-white text-gray-700 font-medium hover:bg-gray-50 transition-colors"
-            >
-              Identities
             </Link>
           </div>
         </div>
