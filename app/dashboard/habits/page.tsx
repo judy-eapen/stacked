@@ -434,24 +434,30 @@ export default function HabitsPage() {
             <div className="space-y-2">
               <p className="text-xs font-medium text-gray-700">Pick from existing habits</p>
               <ul className="space-y-1 max-h-48 overflow-y-auto rounded-lg border border-gray-200 p-2">
-                {activeHabits.map((habit) => (
-                  <li key={habit.id} className="flex items-center justify-between gap-2 py-1.5 px-2 rounded hover:bg-gray-50">
-                    <span className="text-sm text-gray-900">{habit.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setBlockerDraftName(habit.name)
-                        setBlockerDraftHabitId(habit.id)
-                        setShowBlockerForm(true)
-                      }}
-                      className="text-xs font-medium text-[#e87722] hover:underline"
-                    >
-                      Add as blocker
-                    </button>
-                  </li>
-                ))}
+                {activeHabits
+                  .filter((habit) => habit.identity_id !== identityParam)
+                  .map((habit) => (
+                    <li key={habit.id} className="flex items-center justify-between gap-2 py-1.5 px-2 rounded hover:bg-gray-50">
+                      <span className="text-sm text-gray-900">{habit.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBlockerDraftName(habit.name)
+                          setBlockerDraftHabitId(habit.id)
+                          setShowBlockerForm(true)
+                        }}
+                        className="text-xs font-medium text-[#e87722] hover:underline"
+                      >
+                        Add as blocker
+                      </button>
+                    </li>
+                  ))}
               </ul>
-              {activeHabits.length === 0 && <p className="text-sm text-gray-500">No habits yet. Create one first, then you can add it as a blocker here.</p>}
+              {activeHabits.filter((h) => h.identity_id !== identityParam).length === 0 && (
+                <p className="text-sm text-gray-500">
+                  {activeHabits.length === 0 ? 'No habits yet. Create one first, then you can add it as a blocker here.' : 'No other habits to pick. Your reinforcing habits for this identity are not shown here; add a blocker by name below.'}
+                </p>
+              )}
               <p className="text-xs text-gray-500">Or add by name:</p>
               <button type="button" onClick={() => { setBlockerDraftName(''); setBlockerDraftHabitId(null); setShowBlockerForm(true); }} className="text-sm font-medium text-[#e87722] hover:underline">
                 + Add habit to break (enter name)
