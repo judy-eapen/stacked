@@ -22,10 +22,10 @@ export function GuidedTourWrapper({
       setShow(true)
       return
     }
-    if (!tourCompletedAt && hasIdentities) {
+    if (!tourCompletedAt) {
       setShow(true)
     }
-  }, [replay, tourCompletedAt, hasIdentities])
+  }, [replay, tourCompletedAt])
 
   const handleComplete = async () => {
     if (replay) {
@@ -42,6 +42,9 @@ export function GuidedTourWrapper({
         .eq('id', user.id)
     }
     setShow(false)
+    if (!hasIdentities) {
+      router.replace('/dashboard/onboarding')
+    }
   }
 
   const handleSkip = async () => {
@@ -59,6 +62,9 @@ export function GuidedTourWrapper({
         .eq('id', user.id)
     }
     setShow(false)
+    if (!hasIdentities) {
+      router.replace('/dashboard/onboarding')
+    }
   }
 
   if (!show) return null
