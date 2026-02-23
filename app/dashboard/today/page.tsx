@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { format, parseISO, startOfWeek, addDays, isSameDay } from 'date-fns'
+import { Share2, Check, ChevronDown, ChevronUp, Zap } from 'lucide-react'
 import { GraduationPrompt } from '@/components/graduation-prompt'
 
 interface TodayHabit {
@@ -18,6 +20,7 @@ interface TodayHabit {
   consecutive_misses: number
   total_completions: number
   missed_yesterday: boolean
+  week_completion?: boolean[]
 }
 
 interface TodayData {
@@ -25,6 +28,8 @@ interface TodayData {
   days_since_last_visit: number
   habits: TodayHabit[]
 }
+
+const WEEKDAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 
 export default function TodayPage() {
   const [data, setData] = useState<TodayData | null>(null)
@@ -204,8 +209,7 @@ export default function TodayPage() {
           ...prev,
           habits: prev.habits.map((h) =>
             h.id === habit.id
-              ? { ...h, completed_today: nextCompleted, current_streak: result.current_streak }
-              : h
+              ? { ...h, completed_today: nextCompleted, current_streak: result.current_streak } : h
           ),
         }
       })
@@ -234,37 +238,6 @@ export default function TodayPage() {
       setIdentityVoteSummary(summary)
     }
   }
-
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16">
-        <div className="h-10 w-10 animate-spin rounded-full border-2 border-[#e87722]/30 border-t-[#e87722]" />
-        <p className="text-sm text-gray-500 mt-4 font-medium">Loading today…</p>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="space-y-4">
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900">Today</h1>
-        <p className="text-sm text-red-600 p-3 rounded-lg bg-red-50 border border-red-200" role="alert">
-          {error}
-        </p>
-        <button
-          type="button"
-          onClick={() => { setLoading(true); fetchToday().finally(() => setLoading(false)); }}
-          className="h-10 px-4 rounded-lg bg-[#e87722] text-white text-sm font-medium"
-        >
-          Retry
-        </button>
-      </div>
-    )
-  }
-
-  const showWelcome = data && data.days_since_last_visit >= 7 && !dismissedWelcome
-  const habits = data?.habits ?? []
-  const remaining = habits.filter((h) => !h.completed_today).length
 
   function shareCheckIn() {
     if (!data) return
@@ -295,140 +268,143 @@ export default function TodayPage() {
     })
   }
 
+  if (loading) {
+    return (
+      <div className="min-h-[50vh] flex flex-col items-center justify-center bg-background">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+        <p className="text-sm text-muted-foreground mt-4 font-body">Loading today…</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="bg-background min-h-[50vh] p-4 space-y-4">
+        <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">Today</h1>
+        <p className="text-sm text-red-600 p-3 rounded-lg bg-red-50 border border-red-200 font-body" role="alert">
+          {error}
+        </p>
+        <button
+          type="button"
+          onClick={() => { setLoading(true); fetchToday().finally(() => setLoading(false)); }}
+          className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium font-body"
+        >
+          Retry
+        </button>
+      </div>
+    )
+  }
+
+  const showWelcome = data && data.days_since_last_visit >= 7 && !dismissedWelcome
+  const habits = data?.habits ?? []
+  const remaining = habits.filter((h) => !h.completed_today).length
   const completedCount = habits.length - remaining
+  const todayDate = data?.date ? parseISO(data.date) : new Date()
+  const weekStart = startOfWeek(todayDate, { weekStartsOn: 1 })
+  const weekDates = [0, 1, 2, 3, 4, 5, 6].map((i) => addDays(weekStart, i))
 
   return (
-    <div className="space-y-6">
-      {/* Header + progress */}
-      <div className="space-y-4">
-        <div>
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-gray-900">
-            Today
-          </h1>
-          {habits.length > 0 && (
-            <p className="mt-2 text-lg font-semibold text-gray-700">
-              {remaining === 0
-                ? 'All done for today.'
-                : (
-                  <>
-                    <span className="text-[#e87722]">{completedCount}</span>
-                    <span className="text-gray-500 font-medium"> / {habits.length} </span>
-                    <span className="text-gray-600">completed</span>
-                  </>
-                )}
+    <div className="bg-background min-h-screen -mx-4 md:-mx-6 lg:-mx-8 px-4 md:px-6 lg:px-8 py-6 space-y-6">
+      {/* Header */}
+      <div className="space-y-2">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <h1 className="font-heading text-3xl md:text-4xl font-bold tracking-tight text-foreground">
+              Today
+            </h1>
+            <p className="font-body text-base text-foreground mt-0.5">
+              {format(todayDate, 'EEEE, MMMM d')}
             </p>
-          )}
+          </div>
+          <button
+            type="button"
+            onClick={shareCheckIn}
+            className="flex items-center gap-1.5 text-foreground hover:text-primary font-body text-sm font-medium shrink-0"
+          >
+            <Share2 className="w-4 h-4" />
+            {shareCopied ? 'Copied' : 'Share'}
+          </button>
         </div>
-
         {habits.length > 0 && (
           <>
-            {/* Segment progress bar */}
-            <div className="flex gap-1.5" aria-hidden>
+            <p className="font-body text-foreground font-medium">
+              {completedCount}/{habits.length} completed
+            </p>
+            <p className="font-body text-sm text-muted-foreground">
+              Never miss twice. One miss is fine, two breaks the streak.
+            </p>
+            <div className="flex gap-1 h-2 rounded-full bg-muted overflow-hidden">
               {habits.map((h) => (
                 <div
                   key={h.id}
-                  className={`h-2 flex-1 rounded-full transition-all duration-300 ${
-                    h.completed_today ? 'bg-[#e87722]' : 'bg-gray-200'
+                  className={`flex-1 rounded-full transition-all duration-300 ${
+                    h.completed_today ? 'bg-primary' : 'bg-muted'
                   }`}
                 />
               ))}
             </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={shareCheckIn}
-                className="text-sm font-medium text-[#e87722] hover:text-[#c45a0a] hover:underline transition-colors"
-              >
-                {shareCopied ? 'Copied' : 'Share check-in'}
-              </button>
-              <span className="text-xs text-gray-500">One miss doesn&rsquo;t reset your streak; two in a row do.</span>
-            </div>
+            <p className="font-body text-sm text-muted-foreground">
+              {completedCount} of {habits.length} completed
+            </p>
           </>
         )}
       </div>
 
+      {/* This Week */}
       {habits.length > 0 && (
-        <div className="rounded-2xl bg-white/90 border border-gray-200/80 shadow-sm p-4">
-          <button
-            type="button"
-            onClick={() => { setShowPastDays((v) => !v); if (!showPastDays) setPastDaysDate(null); }}
-            className="text-sm font-medium text-[#e87722] hover:text-[#c45a0a] hover:underline transition-colors"
-          >
-            {showPastDays ? 'Hide past days' : 'Edit past days'}
-          </button>
-          {showPastDays && (
-            <div className="mt-4 space-y-3">
-              <p className="text-xs text-gray-600">Select a date (last 7 days) to mark habits complete or incomplete.</p>
-              <div className="flex flex-wrap gap-2">
-                {getLast7Days().map((d) => {
-                  const label = (() => {
-                    const dt = new Date(d + 'T12:00:00')
-                    const today = new Date()
-                    const diff = Math.floor((today.getTime() - dt.getTime()) / (24 * 60 * 60 * 1000))
-                    if (diff === 1) return 'Yesterday'
-                    if (diff <= 7) return `${diff} days ago`
-                    return d
-                  })()
-                  return (
-                    <button
-                      key={d}
-                      type="button"
-                      onClick={() => setPastDaysDate(d)}
-                      className={`px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
-                        pastDaysDate === d
-                          ? 'bg-[#e87722] text-white shadow-sm'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  )
-                })}
-              </div>
-              {pastDaysDate && (
-                <div className="border-t border-gray-100 pt-3">
-                  {pastDaysLoading ? (
-                    <p className="text-sm text-gray-500">Loading…</p>
-                  ) : pastDaysData ? (
-                    <ul className="space-y-2">
-                      {pastDaysData.habits.map((h) => (
-                        <li key={h.id} className="flex items-center justify-between gap-2 py-2 border-b border-gray-50 last:border-0">
-                          <span className="text-sm text-gray-900">{h.name}</span>
-                          <button
-                            type="button"
-                            onClick={() => handlePastDayToggle(h, pastDaysDate)}
-                            disabled={pastDaysTogglingId === h.id}
-                            className={`shrink-0 w-7 h-7 rounded-full border-2 flex items-center justify-center transition-colors ${
-                              h.completed_today ? 'bg-[#e87722] border-[#e87722] text-white' : 'border-gray-300 hover:border-[#e87722]/70'
-                            }`}
-                            aria-label={h.completed_today ? 'Mark incomplete' : 'Mark complete'}
-                          >
-                            {h.completed_today ? '✓' : null}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
+        <div className="rounded-2xl bg-card border border-border shadow-sm p-4">
+          <h2 className="font-heading font-semibold text-foreground mb-3">This Week</h2>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {weekDates.map((d, i) => {
+              const completedThatDay = habits.filter((h) => h.week_completion?.[i]).length
+              const isToday = isSameDay(d, todayDate)
+              return (
+                <div
+                  key={d.toISOString()}
+                  className={`shrink-0 flex flex-col items-center rounded-lg px-3 py-2 min-w-[56px] ${
+                    isToday ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-foreground'
+                  }`}
+                >
+                  <span className="font-body text-xs font-semibold uppercase">
+                    {format(d, 'EEE')}
+                  </span>
+                  <span className="font-heading text-lg font-bold">{format(d, 'd')}</span>
+                  <div className="flex gap-0.5 mt-1.5">
+                    {habits.map((_, j) => (
+                      <div
+                        key={j}
+                        className={`w-1.5 h-1.5 rounded-full ${
+                          habits[j].week_completion?.[i]
+                            ? isToday
+                              ? 'bg-primary-foreground/80'
+                              : 'bg-primary'
+                            : 'bg-muted-foreground/30'
+                        }`}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              )}
-            </div>
-          )}
+              )
+            })}
+          </div>
         </div>
       )}
 
       {showWelcome && (
-        <div className="rounded-2xl bg-white/95 border border-[#e87722]/30 shadow-sm p-5 flex items-start justify-between gap-3 animate-fade-in-up">
+        <div className="rounded-2xl bg-card border border-primary/30 shadow-sm p-5 flex items-start justify-between gap-3 animate-fade-in-up">
           <div className="flex items-start gap-3">
             <span className="text-2xl shrink-0" aria-hidden>👋</span>
             <div>
-              <p className="font-semibold text-gray-900">Welcome back.</p>
-              <p className="text-sm text-gray-600 mt-0.5">Here&rsquo;s where things stand. Check in today.</p>
+              <p className="font-heading font-semibold text-foreground">Welcome back.</p>
+              <p className="font-body text-sm text-muted-foreground mt-0.5">
+                Here&rsquo;s where things stand. Check in today.
+              </p>
             </div>
           </div>
           <button
             type="button"
             onClick={() => setDismissedWelcome(true)}
-            className="text-gray-400 hover:text-gray-600 shrink-0 p-1 rounded-lg hover:bg-gray-100 transition-colors"
+            className="text-muted-foreground hover:text-foreground shrink-0 p-1 rounded-lg hover:bg-muted transition-colors"
             aria-label="Dismiss"
           >
             ×
@@ -443,12 +419,16 @@ export default function TodayPage() {
       )}
 
       {showCelebration && identityVoteSummary && (
-        <div className="rounded-2xl bg-gradient-to-br from-[#e87722]/15 to-[#e87722]/5 border border-[#e87722]/30 shadow-md p-6 space-y-4 animate-fade-in-up">
+        <div className="rounded-2xl bg-card border border-primary/30 shadow-md p-6 space-y-4 animate-fade-in-up">
           <div className="flex items-center gap-3">
-            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#e87722] text-white text-2xl" aria-hidden>✓</span>
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground">
+              <Check className="w-6 h-6" />
+            </span>
             <div>
-              <p className="font-bold text-gray-900 text-lg">All done for today!</p>
-              <p className="text-sm text-gray-600">You cast votes for your identities.</p>
+              <p className="font-heading font-bold text-foreground text-lg">All done for today!</p>
+              <p className="font-body text-sm text-muted-foreground">
+                You cast votes for your identities.
+              </p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -457,28 +437,30 @@ export default function TodayPage() {
               .map(([identity, n]) => (
                 <span
                   key={identity}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/80 border border-[#e87722]/20 text-sm font-medium text-gray-800"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted text-foreground text-sm font-medium font-body border border-border"
                 >
-                  <span className="text-[#e87722]">{n}×</span>
+                  <span className="text-primary">{n}×</span>
                   {identity}
                 </span>
               ))}
           </div>
           {!sharePromptDismissed && (
-            <div className="pt-4 border-t border-[#e87722]/20 space-y-3">
-              <p className="text-sm font-medium text-gray-900">Share your check-in with your partner?</p>
+            <div className="pt-4 border-t border-border space-y-3">
+              <p className="font-body text-sm font-medium text-foreground">
+                Share your check-in with your partner?
+              </p>
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => { shareCheckIn(); dismissSharePrompt(); }}
-                  className="h-10 px-4 rounded-xl bg-[#e87722] text-white text-sm font-semibold hover:bg-[#d96b1e] transition-colors shadow-sm"
+                  className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-semibold font-body shadow-sm hover:opacity-90 transition-opacity"
                 >
                   {shareCopied ? 'Copied' : 'Copy summary'}
                 </button>
                 <button
                   type="button"
                   onClick={dismissSharePrompt}
-                  className="h-10 px-4 rounded-xl border border-gray-200 text-sm font-medium hover:bg-gray-50 transition-colors"
+                  className="h-10 px-4 rounded-lg border border-border text-sm font-medium font-body bg-card hover:bg-muted transition-colors"
                 >
                   Maybe later
                 </button>
@@ -488,90 +470,202 @@ export default function TodayPage() {
           <button
             type="button"
             onClick={() => { setShowCelebration(false); setIdentityVoteSummary(null); }}
-            className="text-sm font-medium text-[#e87722] hover:text-[#c45a0a] hover:underline transition-colors"
+            className="font-body text-sm font-medium text-primary hover:underline"
           >
             Dismiss
           </button>
         </div>
       )}
 
+      {/* Habit list */}
       {habits.length === 0 ? (
-        <div className="rounded-2xl bg-white/90 border border-gray-200 shadow-sm p-8 text-center">
+        <div className="rounded-2xl bg-card border border-border shadow-sm p-8 text-center">
           <span className="text-4xl block mb-3" aria-hidden>📋</span>
-          <p className="font-medium text-gray-800">No habits to track yet.</p>
-          <p className="text-sm text-gray-500 mt-1">Add habits from Identities or Habits to see them here.</p>
+          <p className="font-body font-medium text-foreground">No habits to track yet.</p>
+          <p className="font-body text-sm text-muted-foreground mt-1">
+            Add habits from Identities or Habits to see them here.
+          </p>
         </div>
       ) : (
-        <ul className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {habits.map((h) => (
-            <li
+            <div
               key={h.id}
-              className={`rounded-2xl bg-white/95 border shadow-sm p-4 transition-all duration-200 ${
+              className={`rounded-2xl bg-card border shadow-sm p-4 transition-all duration-200 hover:shadow-md ${
                 h.completed_today
-                  ? 'border-[#e87722]/30 border-l-4 border-l-[#e87722]'
-                  : 'border-gray-200/80 hover:shadow-md'
+                  ? 'border-l-4 border-l-primary border-border'
+                  : 'border-border'
               }`}
             >
-              <div className="flex items-start gap-4">
+              <div className="flex items-start gap-3">
                 <button
                   type="button"
                   onClick={() => handleToggle(h)}
                   disabled={togglingId === h.id}
-                  className={`mt-0.5 shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-bold transition-colors ${
+                  className={`mt-0.5 shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
                     justCompletedId === h.id ? 'animate-check-pop ' : ''
                   }${
                     h.completed_today
-                      ? 'bg-[#e87722] border-[#e87722] text-white'
-                      : 'border-gray-300 hover:border-[#e87722] hover:bg-[#e87722]/10'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'border-2 border-border hover:border-primary hover:bg-primary/10'
                   }`}
                   aria-label={h.completed_today ? 'Mark incomplete' : 'Mark complete'}
                 >
-                  {h.completed_today ? '✓' : null}
+                  {h.completed_today ? (
+                    <Check className="w-4 h-4" strokeWidth={3} />
+                  ) : null}
                 </button>
                 <div className="min-w-0 flex-1">
-                  <p className={`font-semibold ${h.completed_today ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
+                  <p
+                    className={`font-heading font-semibold ${
+                      h.completed_today ? 'text-muted-foreground line-through' : 'text-foreground'
+                    }`}
+                  >
                     {h.name}
                   </p>
                   {h.two_minute_version && (
-                    <p className="text-sm text-gray-600 mt-0.5">{h.two_minute_version}</p>
-                  )}
-                  {h.stack_context && (
-                    <p className="text-xs text-gray-500 mt-1">{h.stack_context}</p>
-                  )}
-                  <div className="flex flex-wrap items-center gap-2 mt-2">
-                    <span
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-                        h.current_streak > 0
-                          ? 'bg-[#e87722]/15 text-[#c45a0a]'
-                          : 'bg-gray-100 text-gray-500'
-                      }`}
-                      title="Never miss twice: one miss doesn't reset; two consecutive misses reset to 0."
-                    >
-                      {h.current_streak > 0 && <span aria-hidden>🔥</span>}
-                      {h.current_streak} day{h.current_streak !== 1 ? 's' : ''}
-                      {h.total_completions > 0 && (
-                        <span className="text-gray-400"> · {h.total_completions} total</span>
-                      )}
-                    </span>
-                  </div>
-                  {h.consecutive_misses === 1 && !h.completed_today && (
-                    <p className="text-sm text-amber-700 mt-2">
-                      You missed yesterday. Do it today and your streak continues. Never miss twice.
+                    <p className="font-body text-sm text-muted-foreground mt-0.5">
+                      {h.two_minute_version}
                     </p>
                   )}
-                  {h.consecutive_misses >= 2 && !h.completed_today && (
-                    <p className="text-sm text-gray-600 mt-2">
-                      Fresh start. Your history isn&rsquo;t gone — you&rsquo;ve completed this habit {h.total_completions} times total. Pick up where you left off.
+                  {h.stack_context && (
+                    <p className="font-body text-xs text-muted-foreground mt-0.5">{h.stack_context}</p>
+                  )}
+                  {h.consecutive_misses === 1 && !h.completed_today && (
+                    <p className="font-body text-sm text-amber-700 mt-1.5">
+                      You missed yesterday. Do it today and your streak continues.
                     </p>
                   )}
                   {voteFeedback?.habitId === h.id && voteFeedback?.identity && (
-                    <p className="text-sm font-medium text-[#e87722] mt-2">+1 vote for &ldquo;{voteFeedback.identity}&rdquo;</p>
+                    <p className="font-body text-sm font-medium text-primary mt-1">
+                      +1 vote for &ldquo;{voteFeedback.identity}&rdquo;
+                    </p>
                   )}
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    <span
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium font-body ${
+                        h.current_streak > 0 ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'
+                      }`}
+                    >
+                      {h.current_streak > 0 && <Zap className="w-3 h-3" />}
+                      {h.current_streak} day{h.current_streak !== 1 ? 's' : ''}
+                    </span>
+                    {h.total_completions > 0 && (
+                      <span className="font-body text-xs text-muted-foreground">
+                        {h.total_completions} total
+                      </span>
+                    )}
+                  </div>
+                  {/* Weekly dots */}
+                  <div className="flex items-center gap-1 mt-2">
+                    {WEEKDAY_LETTERS.map((letter, i) => (
+                      <div key={i} className="flex flex-col items-center gap-0.5">
+                        <span className="font-body text-[10px] text-muted-foreground">{letter}</span>
+                        <div
+                          className={`w-5 h-5 rounded-full flex items-center justify-center ${
+                            h.week_completion?.[i] ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                          }`}
+                        >
+                          {h.week_completion?.[i] ? (
+                            <Check className="w-2.5 h-2.5" strokeWidth={3} />
+                          ) : null}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
+      )}
+
+      {/* Edit past days */}
+      {habits.length > 0 && (
+        <div className="rounded-2xl bg-card border border-border shadow-sm p-4">
+          <button
+            type="button"
+            onClick={() => { setShowPastDays((v) => !v); if (!showPastDays) setPastDaysDate(null); }}
+            className="flex items-center justify-between w-full font-body text-sm font-medium text-foreground hover:text-primary transition-colors"
+          >
+            Edit past days
+            {showPastDays ? (
+              <ChevronUp className="w-4 h-4 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-muted-foreground" />
+            )}
+          </button>
+          {showPastDays && (
+            <div className="mt-4 space-y-3">
+              <p className="font-body text-xs text-muted-foreground">
+                Select a date (last 7 days) to mark habits complete or incomplete.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {getLast7Days().map((d) => {
+                  const dt = new Date(d + 'T12:00:00')
+                  const today = new Date()
+                  const diff = Math.floor(
+                    (today.getTime() - dt.getTime()) / (24 * 60 * 60 * 1000)
+                  )
+                  const label =
+                    diff === 1 ? 'Yesterday' : diff <= 7 ? `${diff} days ago` : d
+                  const isSelected = pastDaysDate === d
+                  return (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => setPastDaysDate(d)}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium font-body transition-colors ${
+                        isSelected
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'bg-muted text-foreground hover:bg-muted/80'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  )
+                })}
+              </div>
+              {pastDaysDate && (
+                <div className="border-t border-border pt-3">
+                  {pastDaysLoading ? (
+                    <p className="font-body text-sm text-muted-foreground">Loading…</p>
+                  ) : pastDaysData ? (
+                    <ul className="space-y-2">
+                      {pastDaysData.habits.map((habit) => (
+                        <li
+                          key={habit.id}
+                          className="flex items-center justify-between gap-2 py-2 border-b border-border/50 last:border-0"
+                        >
+                          <span className="font-body text-sm text-foreground">
+                            {habit.name}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handlePastDayToggle(habit, pastDaysDate)}
+                            disabled={pastDaysTogglingId === habit.id}
+                            className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
+                              habit.completed_today
+                                ? 'bg-primary text-primary-foreground'
+                                : 'border-2 border-border hover:border-primary'
+                            }`}
+                            aria-label={
+                              habit.completed_today ? 'Mark incomplete' : 'Mark complete'
+                            }
+                          >
+                            {habit.completed_today ? (
+                              <Check className="w-4 h-4" strokeWidth={3} />
+                            ) : null}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       )}
     </div>
   )

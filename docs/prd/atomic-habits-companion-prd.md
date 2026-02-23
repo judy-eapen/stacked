@@ -1242,6 +1242,54 @@ The scorecard in the app is a **diagnostic and reset tool**, not a daily tracker
 
 ---
 
+### Today Page UI Refresh (Post–Phase 7)
+
+**Goal:** Update the Today page to a mobile-first, warm, motivational UI that matches the approved design: header with date and progress, "This Week" horizontal calendar with completion dots, habit cards in a grid with weekly streak dots and optional 30-day expandable view. Design system: Outfit + Inter, oklch palette (cream background, primary orange), no gradients, subtle shadows.
+
+**Design reference:** See design mockups and `docs/today-page-ui-spec.md` (if present) for layout, copy, and component details.
+
+**User Stories:**
+
+- US-Today-UI-1: As a user on the Today page, I see a clear header with "Today", the current date (e.g. "Monday, February 23"), progress (X/N completed), a motivational line ("Never miss twice. One miss is fine, two breaks the streak."), and a horizontal progress bar so I know my status at a glance.
+  - AC: Header uses Outfit for "Today"; date formatted via date-fns; Share control (e.g. "Share" + icon) for copy-check-in; progress bar shows filled (primary orange) vs unfilled (muted) segments; all copy and colors match the design system.
+- US-Today-UI-2: As a user on the Today page, I see a "This Week" section with a horizontal row of day pills (Mon–Sun of current week), each showing day label, date number, and small dots indicating how many habits were completed that day, with today highlighted in primary orange.
+  - AC: Current week computed with date-fns (week starts Monday); each pill shows abbreviated day (e.g. TUE), date number, and a row of dots (filled = completed habits that day, unfilled = muted); today's pill has primary background and white text; section is in a single card, rounded-2xl, shadow-sm.
+- US-Today-UI-3: As a user on the Today page, I see habit cards in a grid (one column on mobile, two on wider screens), each with a completion checkbox, habit name, description/cue, streak pill and total, and a row of seven dots (T W T F S S M) showing completion for each day of the current week.
+  - AC: Cards use card background, rounded-2xl, shadow-sm; completed habits have a primary left border; checkbox is Circle (incomplete) or filled primary circle with Check icon (completed); streak shown as pill (e.g. "4 days") with optional lightning icon; "N total" adjacent; seven dots represent Mon–Sun completion for that habit; "You missed yesterday…" and "+1 vote for [identity]" shown when applicable.
+- US-Today-UI-4: As a user on the Today page, I can still edit past days via a collapsible "Edit past days" section with day pills (Yesterday, 2 days ago, …) and a list of habits with checkboxes for the selected date.
+  - AC: Behavior unchanged from current implementation; styling matches design system (same card, pill, and checkbox styles as rest of page).
+
+**Backend / API:**
+
+- Extend `GET /api/habits/today` response: for each habit, include `week_completion: boolean[]` (length 7, Mon=0 … Sun=6) indicating whether the habit was completed on each day of the current week. Optionally include a page-level summary for "This Week" day-pill dots (e.g. completion count per day) if not derivable client-side.
+
+**Frontend Tasks:**
+
+- Design system: Load Outfit and Inter from `next/font/google`; expose as CSS variables `--font-outfit`, `--font-inter`. Add oklch color tokens to Tailwind theme (background, foreground, card, primary, primary-foreground, muted, muted-foreground, border). Base radius 0.75rem; cards rounded-2xl; buttons/pills rounded-lg or rounded-full.
+- Header: "Today" (Outfit), date with date-fns `format(..., 'EEEE, MMMM d')`, Share (lucide-react Share2), "X/N completed", motivational line, progress bar (filled % = completedCount/habits.length).
+- This Week: One card; title "This Week"; horizontal scroll of 7 day pills; each pill = day abbreviation + date + dots row (use week_completion or per-day completion counts from API); today pill = primary bg + white text.
+- Habit list: Grid (grid-cols-1 sm:grid-cols-2); each card = checkbox (lucide Circle/Check), title, two_minute_version + stack_context, vote/missed copy, streak pill + total, 7-dot row from habit.week_completion.
+- Edit past days: Collapsible block; day pills (Yesterday, 2 days ago, …) and habit list for selected date; reuse existing API and toggle logic; restyle to match.
+- Icons: Use lucide-react (Share2, Check, Circle, ChevronUp/ChevronDown, Calendar as needed). Date formatting: date-fns.
+
+**Acceptance Criteria:**
+
+- Today page matches the approved design: header, This Week strip, habit cards with weekly dots, Edit past days styled consistently.
+- All existing behavior preserved: toggle completion (today and past days), share check-in, celebration and identity votes, welcome back, graduation prompt, empty state.
+- Design system applied: Outfit/Inter, oklch palette, no gradients, shadow-sm/hover:shadow-md on cards.
+- Mobile-first: layout and touch targets work on 375px; horizontal scroll for This Week without layout break.
+
+**Definition of Done:**
+
+- PRD section and Decision Log updated.
+- GET /api/habits/today returns week_completion per habit (and any needed per-day summary).
+- Today page rebuilt with new layout and components; no regressions in completion, share, or past-day edit flows.
+- Optional: 30-day expandable calendar on habit cards deferred to a follow-up if not in initial scope.
+
+**Dependencies:** Phase 3 (Today view and API exist). Phase 7 optional (tour can point at new UI).
+
+---
+
 ## 8. Observability & Non-Functional Requirements
 
 ### Logging
@@ -1390,6 +1438,7 @@ These guidelines apply across all phases. They are cross-cutting UX patterns, no
 | D51 | Blocker CTA and pick list | Identities CTA copy; Habits mode=fix filter | When an identity has no blockers, Identities CTA says "Add a blocking habit" (same link: habits?identity=&mode=fix). When it has blockers, CTA says "View & fix blockers →". On Habits page in mode=fix, the "Pick from existing habits" list shows only habits not linked as reinforcing any identity (identity_id is null); habits linked to any identity are excluded so only unlinked habits can be added as blockers. User can still add a blocker by name. | 2026-02-22 |
 | D52 | Identity detail page | Same-page UX: identity + habits + blockers | Identity detail at /dashboard/identities/[identityId] shows scoreboard (statement, votes, trend, Momentum), full list of habits for that identity, and blockers section (add/edit habit to break) on one page. Identities list links to identity detail; CTAs "Add reinforcing habit" and "Add/View & fix blockers" go to identity detail (?add=1 or ?blockers=1). "Add reinforcing habit" from identity detail links to Habits page with identity preselected. Habits page remains single source of truth for habit create/edit; identity detail is the primary place to view and manage one identity and its blockers. | 2026-02-22 |
 | D53 | Phase 2–5 PRD gaps implemented | Past 7 days backfill; habit detail + calendar; graduation; share prompt; stack chain; explainers | Past 7 days backfill: Today page "Edit past days" with date picker and toggle completions; API /api/habits/today?date= supports last 7 days. Habit detail page at /dashboard/habits/[habitId] with 30-day completion grid (heatmap). GraduationPrompt component (21+ completions) on Review write and Today. Share check-in auto-prompt when all daily habits done (dismissible, localStorage per day). Phase 2: StackChainView on habit cards; concept explainers (Momentum, streak tooltip, 4 Laws subtitle on Habits). | 2026-02-22 |
+| D54 | Today Page UI refresh | Mobile-first redesign with This Week calendar and habit cards with weekly dots | Today page updated to match approved design: Outfit + Inter, oklch palette (cream, primary orange), header with date and progress bar, "This Week" horizontal day pills with completion dots, habit cards in grid with streak pills and 7-dot weekly row. API extended with week_completion per habit. See "Today Page UI Refresh" in Section 7. | 2026-02-22 |
 
 ---
 

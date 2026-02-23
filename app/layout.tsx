@@ -1,10 +1,17 @@
 import type { Metadata, Viewport } from 'next'
-import { Outfit } from 'next/font/google'
+import { Outfit, Inter } from 'next/font/google'
 import './globals.css'
 
 const outfit = Outfit({
   subsets: ['latin'],
   display: 'swap',
+  variable: '--font-outfit',
+})
+
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
 })
 
 export const metadata: Metadata = {
@@ -15,7 +22,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#e87722',
+  themeColor: 'oklch(0.65 0.19 50)',
 }
 
 export default function RootLayout({
@@ -24,8 +31,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={`antialiased ${outfit.className}`}>{children}</body>
+    <html lang="en" className={`${outfit.variable} ${inter.variable}`}>
+      <body className="antialiased font-body">{children}</body>
     </html>
   )
 }

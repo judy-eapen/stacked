@@ -125,6 +125,19 @@ export async function GET(request: Request) {
     }
   }
 
+  // Week containing targetStr (Monday = index 0 .. Sunday = index 6) for week_completion
+  const targetDate = new Date(targetStr + 'T12:00:00')
+  const dayOfWeek = targetDate.getDay()
+  const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+  const weekStart = new Date(targetDate)
+  weekStart.setDate(targetDate.getDate() - daysToMonday)
+  function toLocalDateStr(d: Date): string {
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  }
+
   const outHabits: Record<string, unknown>[] = []
   for (const h of habitList) {
     const raw = h as {
@@ -159,6 +172,14 @@ export async function GET(request: Request) {
     const completed_today = todayCompletions[habit.id] === true
     const missed_yesterday = consecutive_misses >= 1 && !completed_today
 
+    const completedSet = new Set(dates)
+    const week_completion: boolean[] = []
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(weekStart)
+      d.setDate(weekStart.getDate() + i)
+      week_completion.push(completedSet.has(toLocalDateStr(d)))
+    }
+
     let stack_context: string | null = null
     if (habit.stack_anchor_habit_id || habit.stack_anchor_scorecard_id) {
       if (habit.implementation_intention?.behavior) {
@@ -191,6 +212,7 @@ export async function GET(request: Request) {
       consecutive_misses,
       total_completions: totalCompletionsLifetime,
       missed_yesterday,
+      week_completion,
     })
   }
 

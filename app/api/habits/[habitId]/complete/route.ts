@@ -90,10 +90,14 @@ export async function POST(
     .gte('completed_date', startStr)
     .lte('completed_date', toDateString(new Date()))
 
-  const completedDates = (compRows ?? [])
-    .filter((r) => r.completed)
+  // Build completed set using the value we just wrote for dateStr, so unchecking today
+  // correctly excludes today and streak = consecutive days ending yesterday
+  const otherCompleted = (compRows ?? [])
+    .filter((r) => r.completed_date !== dateStr && r.completed)
     .map((r) => r.completed_date)
-    .sort((a, b) => b.localeCompare(a))
+  const completedDates = completed
+    ? [dateStr, ...otherCompleted].sort((a, b) => b.localeCompare(a))
+    : otherCompleted.sort((a, b) => b.localeCompare(a))
 
   const hab = habit as {
     frequency: HabitFrequency
