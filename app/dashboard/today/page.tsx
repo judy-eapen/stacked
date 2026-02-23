@@ -42,6 +42,7 @@ export default function TodayPage() {
   const [pastDaysData, setPastDaysData] = useState<TodayData | null>(null)
   const [pastDaysLoading, setPastDaysLoading] = useState(false)
   const [pastDaysTogglingId, setPastDaysTogglingId] = useState<string | null>(null)
+  const [justCompletedId, setJustCompletedId] = useState<string | null>(null)
 
   function getLast7Days(): string[] {
     const out: string[] = []
@@ -210,6 +211,10 @@ export default function TodayPage() {
       })
     }
 
+    if (nextCompleted) {
+      setJustCompletedId(habit.id)
+      setTimeout(() => setJustCompletedId(null), 400)
+    }
     if (nextCompleted && result.identity) {
       setVoteFeedback({ habitId: habit.id, identity: result.identity })
       setTimeout(() => setVoteFeedback(null), 3000)
@@ -232,9 +237,9 @@ export default function TodayPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-12">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#e87722] border-t-transparent" />
-        <p className="text-sm text-gray-500 mt-3">Loading…</p>
+      <div className="flex flex-col items-center justify-center py-16">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-[#e87722]/30 border-t-[#e87722]" />
+        <p className="text-sm text-gray-500 mt-4 font-medium">Loading today…</p>
       </div>
     )
   }
@@ -290,37 +295,64 @@ export default function TodayPage() {
     })
   }
 
+  const completedCount = habits.length - remaining
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-1">
-          Today
-        </h1>
-        <p className="text-sm text-gray-500">
-          {remaining === 0 && habits.length > 0
-            ? 'All done for today.'
-            : `${remaining} of ${habits.length} remaining.`}
-        </p>
+      {/* Header + progress */}
+      <div className="space-y-4">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-gray-900">
+            Today
+          </h1>
+          {habits.length > 0 && (
+            <p className="mt-2 text-lg font-semibold text-gray-700">
+              {remaining === 0
+                ? 'All done for today.'
+                : (
+                  <>
+                    <span className="text-[#e87722]">{completedCount}</span>
+                    <span className="text-gray-500 font-medium"> / {habits.length} </span>
+                    <span className="text-gray-600">completed</span>
+                  </>
+                )}
+            </p>
+          )}
+        </div>
+
         {habits.length > 0 && (
-          <p className="text-xs text-gray-500 mt-0.5">One miss doesn&rsquo;t reset your streak; two in a row do.</p>
-        )}
-        {habits.length > 0 && (
-          <button
-            type="button"
-            onClick={shareCheckIn}
-            className="mt-2 text-sm font-medium text-[#e87722] hover:underline"
-          >
-            {shareCopied ? 'Copied' : 'Share check-in'}
-          </button>
+          <>
+            {/* Segment progress bar */}
+            <div className="flex gap-1.5" aria-hidden>
+              {habits.map((h) => (
+                <div
+                  key={h.id}
+                  className={`h-2 flex-1 rounded-full transition-all duration-300 ${
+                    h.completed_today ? 'bg-[#e87722]' : 'bg-gray-200'
+                  }`}
+                />
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={shareCheckIn}
+                className="text-sm font-medium text-[#e87722] hover:text-[#c45a0a] hover:underline transition-colors"
+              >
+                {shareCopied ? 'Copied' : 'Share check-in'}
+              </button>
+              <span className="text-xs text-gray-500">One miss doesn&rsquo;t reset your streak; two in a row do.</span>
+            </div>
+          </>
         )}
       </div>
 
       {habits.length > 0 && (
-        <div className="rounded-xl bg-white border border-gray-200 p-4">
+        <div className="rounded-2xl bg-white/90 border border-gray-200/80 shadow-sm p-4">
           <button
             type="button"
             onClick={() => { setShowPastDays((v) => !v); if (!showPastDays) setPastDaysDate(null); }}
-            className="text-sm font-medium text-[#e87722] hover:underline"
+            className="text-sm font-medium text-[#e87722] hover:text-[#c45a0a] hover:underline transition-colors"
           >
             {showPastDays ? 'Hide past days' : 'Edit past days'}
           </button>
@@ -342,8 +374,10 @@ export default function TodayPage() {
                       key={d}
                       type="button"
                       onClick={() => setPastDaysDate(d)}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
-                        pastDaysDate === d ? 'bg-[#e87722] text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      className={`px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
+                        pastDaysDate === d
+                          ? 'bg-[#e87722] text-white shadow-sm'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                     >
                       {label}
@@ -364,7 +398,7 @@ export default function TodayPage() {
                             type="button"
                             onClick={() => handlePastDayToggle(h, pastDaysDate)}
                             disabled={pastDaysTogglingId === h.id}
-                            className={`shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                            className={`shrink-0 w-7 h-7 rounded-full border-2 flex items-center justify-center transition-colors ${
                               h.completed_today ? 'bg-[#e87722] border-[#e87722] text-white' : 'border-gray-300 hover:border-[#e87722]/70'
                             }`}
                             aria-label={h.completed_today ? 'Mark incomplete' : 'Mark complete'}
@@ -383,15 +417,18 @@ export default function TodayPage() {
       )}
 
       {showWelcome && (
-        <div className="rounded-xl bg-white border border-[#e87722]/30 p-4 flex items-start justify-between gap-3">
-          <div>
-            <p className="font-medium text-gray-900">Welcome back.</p>
-            <p className="text-sm text-gray-600 mt-1">Here&rsquo;s where things stand. Check in today.</p>
+        <div className="rounded-2xl bg-white/95 border border-[#e87722]/30 shadow-sm p-5 flex items-start justify-between gap-3 animate-fade-in-up">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl shrink-0" aria-hidden>👋</span>
+            <div>
+              <p className="font-semibold text-gray-900">Welcome back.</p>
+              <p className="text-sm text-gray-600 mt-0.5">Here&rsquo;s where things stand. Check in today.</p>
+            </div>
           </div>
           <button
             type="button"
             onClick={() => setDismissedWelcome(true)}
-            className="text-gray-400 hover:text-gray-600 shrink-0"
+            className="text-gray-400 hover:text-gray-600 shrink-0 p-1 rounded-lg hover:bg-gray-100 transition-colors"
             aria-label="Dismiss"
           >
             ×
@@ -406,29 +443,42 @@ export default function TodayPage() {
       )}
 
       {showCelebration && identityVoteSummary && (
-        <div className="rounded-xl bg-[#e87722]/10 border border-[#e87722]/30 p-4 space-y-3">
-          <p className="font-medium text-gray-900">All done for today!</p>
-          <p className="text-sm text-gray-600">
+        <div className="rounded-2xl bg-gradient-to-br from-[#e87722]/15 to-[#e87722]/5 border border-[#e87722]/30 shadow-md p-6 space-y-4 animate-fade-in-up">
+          <div className="flex items-center gap-3">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#e87722] text-white text-2xl" aria-hidden>✓</span>
+            <div>
+              <p className="font-bold text-gray-900 text-lg">All done for today!</p>
+              <p className="text-sm text-gray-600">You cast votes for your identities.</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
             {Object.entries(identityVoteSummary)
               .filter(([, n]) => n > 0)
-              .map(([identity, n]) => `${n} vote${n !== 1 ? 's' : ''} for "${identity}"`)
-              .join('. ')}
-          </p>
+              .map(([identity, n]) => (
+                <span
+                  key={identity}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/80 border border-[#e87722]/20 text-sm font-medium text-gray-800"
+                >
+                  <span className="text-[#e87722]">{n}×</span>
+                  {identity}
+                </span>
+              ))}
+          </div>
           {!sharePromptDismissed && (
-            <div className="pt-2 border-t border-[#e87722]/20 space-y-2">
+            <div className="pt-4 border-t border-[#e87722]/20 space-y-3">
               <p className="text-sm font-medium text-gray-900">Share your check-in with your partner?</p>
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => { shareCheckIn(); dismissSharePrompt(); }}
-                  className="h-9 px-3 rounded-lg bg-[#e87722] text-white text-sm font-medium hover:bg-[#d96b1e]"
+                  className="h-10 px-4 rounded-xl bg-[#e87722] text-white text-sm font-semibold hover:bg-[#d96b1e] transition-colors shadow-sm"
                 >
                   {shareCopied ? 'Copied' : 'Copy summary'}
                 </button>
                 <button
                   type="button"
                   onClick={dismissSharePrompt}
-                  className="h-9 px-3 rounded-lg border border-gray-200 text-sm font-medium hover:bg-gray-50"
+                  className="h-10 px-4 rounded-xl border border-gray-200 text-sm font-medium hover:bg-gray-50 transition-colors"
                 >
                   Maybe later
                 </button>
@@ -438,7 +488,7 @@ export default function TodayPage() {
           <button
             type="button"
             onClick={() => { setShowCelebration(false); setIdentityVoteSummary(null); }}
-            className="text-sm font-medium text-[#e87722] hover:underline"
+            className="text-sm font-medium text-[#e87722] hover:text-[#c45a0a] hover:underline transition-colors"
           >
             Dismiss
           </button>
@@ -446,30 +496,40 @@ export default function TodayPage() {
       )}
 
       {habits.length === 0 ? (
-        <div className="rounded-xl bg-white border border-gray-200 p-6 text-center">
-          <p className="text-gray-600">You don&rsquo;t have any habits to track yet.</p>
-          <p className="text-sm text-gray-500 mt-2">Add habits from Identities or Habits to see them here.</p>
+        <div className="rounded-2xl bg-white/90 border border-gray-200 shadow-sm p-8 text-center">
+          <span className="text-4xl block mb-3" aria-hidden>📋</span>
+          <p className="font-medium text-gray-800">No habits to track yet.</p>
+          <p className="text-sm text-gray-500 mt-1">Add habits from Identities or Habits to see them here.</p>
         </div>
       ) : (
-        <ul className="space-y-3">
+        <ul className="space-y-4">
           {habits.map((h) => (
-            <li key={h.id} className="rounded-xl bg-white border border-gray-200/80 p-4">
-              <div className="flex items-start gap-3">
+            <li
+              key={h.id}
+              className={`rounded-2xl bg-white/95 border shadow-sm p-4 transition-all duration-200 ${
+                h.completed_today
+                  ? 'border-[#e87722]/30 border-l-4 border-l-[#e87722]'
+                  : 'border-gray-200/80 hover:shadow-md'
+              }`}
+            >
+              <div className="flex items-start gap-4">
                 <button
                   type="button"
                   onClick={() => handleToggle(h)}
                   disabled={togglingId === h.id}
-                  className={`mt-0.5 shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                  className={`mt-0.5 shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-bold transition-colors ${
+                    justCompletedId === h.id ? 'animate-check-pop ' : ''
+                  }${
                     h.completed_today
                       ? 'bg-[#e87722] border-[#e87722] text-white'
-                      : 'border-gray-300 hover:border-[#e87722]/70'
+                      : 'border-gray-300 hover:border-[#e87722] hover:bg-[#e87722]/10'
                   }`}
                   aria-label={h.completed_today ? 'Mark incomplete' : 'Mark complete'}
                 >
                   {h.completed_today ? '✓' : null}
                 </button>
                 <div className="min-w-0 flex-1">
-                  <p className={`font-medium ${h.completed_today ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
+                  <p className={`font-semibold ${h.completed_today ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
                     {h.name}
                   </p>
                   {h.two_minute_version && (
@@ -478,10 +538,20 @@ export default function TodayPage() {
                   {h.stack_context && (
                     <p className="text-xs text-gray-500 mt-1">{h.stack_context}</p>
                   )}
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="text-xs text-gray-500" title="Never miss twice: one miss doesn't reset; two consecutive misses reset to 0.">
-                      Streak: {h.current_streak}
-                      {h.total_completions > 0 && ` · ${h.total_completions} total`}
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    <span
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                        h.current_streak > 0
+                          ? 'bg-[#e87722]/15 text-[#c45a0a]'
+                          : 'bg-gray-100 text-gray-500'
+                      }`}
+                      title="Never miss twice: one miss doesn't reset; two consecutive misses reset to 0."
+                    >
+                      {h.current_streak > 0 && <span aria-hidden>🔥</span>}
+                      {h.current_streak} day{h.current_streak !== 1 ? 's' : ''}
+                      {h.total_completions > 0 && (
+                        <span className="text-gray-400"> · {h.total_completions} total</span>
+                      )}
                     </span>
                   </div>
                   {h.consecutive_misses === 1 && !h.completed_today && (
@@ -495,7 +565,7 @@ export default function TodayPage() {
                     </p>
                   )}
                   {voteFeedback?.habitId === h.id && voteFeedback?.identity && (
-                    <p className="text-sm text-[#e87722] mt-2">1 vote for &ldquo;{voteFeedback.identity}&rdquo;</p>
+                    <p className="text-sm font-medium text-[#e87722] mt-2">+1 vote for &ldquo;{voteFeedback.identity}&rdquo;</p>
                   )}
                 </div>
               </div>
