@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { DesignBuild } from '@/lib/db-types'
 import { DesignBreakForm, EMPTY_DESIGN_BREAK, trimDesignBreak } from '@/components/DesignBreakForm'
+import { StackChainView } from '@/components/stack-chain-view'
 import type { DesignBreak } from '@/lib/db-types'
 
 type HabitFrequency = 'daily' | 'weekdays' | 'weekends' | 'custom'
@@ -160,13 +161,13 @@ function hasDesignFields(h: Habit): boolean {
 }
 
 export default function HabitsPage() {
+  const searchParams = useSearchParams()
   const [habits, setHabits] = useState<Habit[]>([])
   const [archivedHabits, setArchivedHabits] = useState<Habit[]>([])
   const [identities, setIdentities] = useState<IdentityOption[]>([])
   const [scorecardEntries, setScorecardEntries] = useState<ScorecardAnchor[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const searchParams = useSearchParams()
   const [showAddForm, setShowAddForm] = useState(false)
   const [showDesignSection, setShowDesignSection] = useState(false)
   const [archivedOpen, setArchivedOpen] = useState(false)
@@ -374,6 +375,7 @@ export default function HabitsPage() {
         <p className="text-sm text-gray-500">
           Design habits with implementation intentions, stacking, and two-minute versions. Quick-add by name, or expand to add the full methodology.
         </p>
+        <p className="text-xs text-gray-500 mt-0.5">4 Laws (obvious, attractive, easy, satisfying) and stacking (after [X], I will [Y]) from Atomic Habits.</p>
       </div>
       {error && (
         <p className="text-sm text-red-600 p-3 rounded-lg bg-red-50 border border-red-200" role="alert">
@@ -793,12 +795,13 @@ function HabitCard({
             <div className="min-w-0">
               <p className="font-medium text-gray-900">{habit.name}</p>
               {identityStatement && <p className="text-xs text-gray-500 mt-0.5">{identityStatement}</p>}
-              {stackLabel && <p className="text-xs text-gray-600 mt-1">Stack: {stackLabel}</p>}
+              {stackLabel && <StackChainView anchorLabel={stackLabel.replace(/^After "/, '').replace(/"$/, '')} habitName={habit.name} className="mt-1" />}
               {intention && <p className="text-xs text-gray-600 mt-0.5">{intention}</p>}
               {habit.two_minute_version && <p className="text-xs text-gray-600 mt-0.5">2-min: {habit.two_minute_version}</p>}
               {habit.temptation_bundle && <p className="text-xs text-gray-600 mt-0.5">Reward: {habit.temptation_bundle}</p>}
             </div>
             <div className="flex items-center gap-1 shrink-0">
+              <Link href={`/dashboard/habits/${habit.id}`} className="text-gray-400 hover:text-[#e87722] p-1 text-sm" aria-label="View">View</Link>
               <button type="button" onClick={() => setEditingId(habit.id)} className="text-gray-400 hover:text-gray-600 p-1 text-sm" aria-label="Edit">✎</button>
               <button type="button" onClick={onArchive} className="text-gray-400 hover:text-amber-600 p-1 text-sm" aria-label="Archive">Archive</button>
               <button type="button" onClick={onDelete} className="text-gray-400 hover:text-red-600 p-1 text-sm" aria-label="Delete">×</button>

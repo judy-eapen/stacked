@@ -9,7 +9,14 @@ import {
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+function parseDate(dateStr: string): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr)
+  if (!m) return null
+  const d = new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10))
+  return isNaN(d.getTime()) ? null : dateStr
+}
+
+export async function GET(request: Request) {
   const supabase = await createClient()
   const {
     data: { user },
@@ -18,7 +25,19 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const todayStr = toDateString(new Date())
+  const today = new Date()
+  const todayStr = toDateString(today)
+  const { searchParams } = new URL(request.url)
+  const dateParam = searchParams.get('date')
+  let targetStr = todayStr
+  if (dateParam) {
+    const parsed = parseDate(dateParam)
+    if (parsed) {
+      const target = new Date(parsed + 'T12:00:00')
+      const diffDays = Math.floor((today.getTime() - target.getTime()) / (24 * 60 * 60 * 1000))
+      if (diffDays >= 0 && diffDays <= 7) targetStr = parsed
+    }
+  }
 
   const { data: habits, error: habitsError } = await supabase
     .from('habits')
@@ -101,7 +120,7 @@ export async function GET() {
 
   const todayCompletions: Record<string, boolean> = {}
   for (const row of completions ?? []) {
-    if (row.completed_date === todayStr) {
+    if (row.completed_date === targetStr) {
       todayCompletions[row.habit_id] = row.completed === true
     }
   }
@@ -125,7 +144,7 @@ export async function GET() {
     const scheduled = isScheduledForDate(
       habit.frequency,
       habit.custom_days,
-      todayStr
+      targetStr
     )
     if (!scheduled) continue
 
@@ -135,7 +154,7 @@ export async function GET() {
     const isScheduledFn = (d: string) =>
       isScheduledForDate(habit.frequency, habit.custom_days, d)
     const { current_streak, consecutive_misses } =
-      computeStreakFromHistory(dates, todayStr, isScheduledFn)
+      computeStreakFromHistory(dates, targetStr, isScheduledFn)
 
     const completed_today = todayCompletions[habit.id] === true
     const missed_yesterday = consecutive_misses >= 1 && !completed_today
@@ -193,7 +212,7 @@ export async function GET() {
   }
 
   return NextResponse.json({
-    date: todayStr,
+    date: targetStr,
     days_since_last_visit: Math.max(0, days_since_last_visit),
     habits: outHabits,
   })

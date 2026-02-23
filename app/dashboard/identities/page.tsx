@@ -176,7 +176,7 @@ export default function IdentitiesPage() {
           <p className="text-sm text-gray-600">Pick one habit that proves you&rsquo;re becoming this person. Start with a 2-minute version.</p>
           <div className="flex flex-col sm:flex-row gap-3">
             <Link
-              href={`/dashboard/habits?identity=${promptForHabitIdentityId}&mode=reinforce&new=1`}
+              href={`/dashboard/identities/${promptForHabitIdentityId}?add=1`}
               className="inline-flex items-center justify-center h-10 px-4 rounded-lg bg-[#e87722] text-white text-sm font-medium hover:bg-[#d96b1e]"
             >
               Create habit now
@@ -284,14 +284,17 @@ export default function IdentitiesPage() {
                               : `↓ ${idn.trend_delta} vs last week`
                             : 'Trend: —'}
                         </p>
-                        <div className="mt-2 flex items-center gap-2">
-                          <div className="flex-1 h-2 rounded-full bg-gray-200 overflow-hidden">
-                            <div
-                              className="h-full rounded-full bg-[#e87722]/80"
-                              style={{ width: `${Math.min(100, Math.max(0, momentumPct(idn)))}%` }}
-                            />
+                        <div className="mt-2">
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 h-2 rounded-full bg-gray-200 overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-[#e87722]/80"
+                                style={{ width: `${Math.min(100, Math.max(0, momentumPct(idn)))}%` }}
+                              />
+                            </div>
+                            <span className="text-xs text-gray-600 shrink-0">Momentum: {momentumPct(idn)}%</span>
                           </div>
-                          <span className="text-xs text-gray-600 shrink-0">Momentum: {momentumPct(idn)}%</span>
+                          <p className="text-xs text-gray-500 mt-0.5">How much you showed up this week vs. max possible (7 days × habits).</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
@@ -328,7 +331,7 @@ export default function IdentitiesPage() {
                         </ul>
                       )}
                       {idn.reinforcing_total > 3 && (
-                        <Link href={`/dashboard/habits?identity=${idn.id}`} className="text-xs text-[#e87722] hover:underline mt-1 inline-block">View all</Link>
+                        <Link href={`/dashboard/identities/${idn.id}`} className="text-xs text-[#e87722] hover:underline mt-1 inline-block">View all</Link>
                       )}
                     </div>
 
@@ -347,19 +350,19 @@ export default function IdentitiesPage() {
 
                     <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
                       <Link
-                        href={`/dashboard/habits?identity=${idn.id}&mode=reinforce&new=1`}
+                        href={`/dashboard/identities/${idn.id}?add=1`}
                         className="inline-flex items-center justify-center h-9 px-4 rounded-lg bg-[#e87722] text-white text-sm font-medium hover:bg-[#d96b1e]"
                       >
                         + Add reinforcing habit
                       </Link>
                       <Link
-                        href={`/dashboard/habits?identity=${idn.id}&mode=fix`}
+                        href={`/dashboard/identities/${idn.id}?blockers=1`}
                         className="inline-flex items-center justify-center h-9 px-4 rounded-lg border border-gray-200 text-sm font-medium hover:bg-gray-50"
                       >
                         {idn.undermining.length === 0 ? 'Add a blocking habit' : 'View & fix blockers →'}
                       </Link>
                       <Link
-                        href={`/dashboard/habits?identity=${idn.id}`}
+                        href={`/dashboard/identities/${idn.id}`}
                         className="inline-flex items-center justify-center h-9 px-4 rounded-lg border border-gray-200 text-sm font-medium hover:bg-gray-50"
                       >
                         View details

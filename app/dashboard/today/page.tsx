@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { GraduationPrompt } from '@/components/graduation-prompt'
 
 interface TodayHabit {
   id: string
@@ -35,6 +36,68 @@ export default function TodayPage() {
   const [dismissedWelcome, setDismissedWelcome] = useState(false)
   const [identityVoteSummary, setIdentityVoteSummary] = useState<Record<string, number> | null>(null)
   const [shareCopied, setShareCopied] = useState(false)
+  const [sharePromptDismissed, setSharePromptDismissed] = useState(false)
+  const [showPastDays, setShowPastDays] = useState(false)
+  const [pastDaysDate, setPastDaysDate] = useState<string | null>(null)
+  const [pastDaysData, setPastDaysData] = useState<TodayData | null>(null)
+  const [pastDaysLoading, setPastDaysLoading] = useState(false)
+  const [pastDaysTogglingId, setPastDaysTogglingId] = useState<string | null>(null)
+
+  function getLast7Days(): string[] {
+    const out: string[] = []
+    const d = new Date()
+    for (let i = 1; i <= 7; i++) {
+      const x = new Date(d)
+      x.setDate(d.getDate() - i)
+      out.push(x.toISOString().slice(0, 10))
+    }
+    return out
+  }
+
+  const fetchPastDay = useCallback(async (dateStr: string) => {
+    setPastDaysLoading(true)
+    const res = await fetch(`/api/habits/today?date=${dateStr}`, { credentials: 'include' })
+    setPastDaysLoading(false)
+    if (!res.ok) {
+      setPastDaysData(null)
+      return
+    }
+    const json = await res.json()
+    setPastDaysData(json)
+  }, [])
+
+  useEffect(() => {
+    if (showPastDays && pastDaysDate) fetchPastDay(pastDaysDate)
+    else setPastDaysData(null)
+  }, [showPastDays, pastDaysDate, fetchPastDay])
+
+  const handlePastDayToggle = async (habit: TodayHabit, selectedDate: string) => {
+    if (pastDaysTogglingId) return
+    const nextCompleted = !habit.completed_today
+    setPastDaysTogglingId(habit.id)
+    setPastDaysData((prev) => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        habits: prev.habits.map((h) =>
+          h.id === habit.id ? { ...h, completed_today: nextCompleted } : h
+        ),
+      }
+    })
+    const res = await fetch(`/api/habits/${habit.id}/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ date: selectedDate, completed: nextCompleted }),
+    })
+    setPastDaysTogglingId(null)
+    if (!res.ok) {
+      if (pastDaysDate) fetchPastDay(pastDaysDate)
+      return
+    }
+    if (pastDaysDate) fetchPastDay(pastDaysDate)
+    fetchToday()
+  }
 
   const fetchToday = useCallback(async () => {
     const res = await fetch('/api/habits/today', { credentials: 'include' })
@@ -52,6 +115,32 @@ export default function TodayPage() {
   useEffect(() => {
     fetchToday().finally(() => setLoading(false))
   }, [fetchToday])
+
+  useEffect(() => {
+    const key = 'stacked_share_prompt_dismissed'
+    try {
+      const raw = localStorage.getItem(key)
+      if (raw) {
+        const { date } = JSON.parse(raw)
+        const today = new Date().toISOString().slice(0, 10)
+        if (date === today) setSharePromptDismissed(true)
+      }
+    } catch {
+      // ignore
+    }
+  }, [])
+
+  const dismissSharePrompt = () => {
+    setSharePromptDismissed(true)
+    try {
+      localStorage.setItem(
+        'stacked_share_prompt_dismissed',
+        JSON.stringify({ date: new Date().toISOString().slice(0, 10) })
+      )
+    } catch {
+      // ignore
+    }
+  }
 
   useEffect(() => {
     if (!data) return
@@ -127,6 +216,7 @@ export default function TodayPage() {
     }
     if (result.all_completed_today) {
       setShowCelebration(true)
+      setSharePromptDismissed(false)
       const summary: Record<string, number> = {}
       for (const h of data?.habits ?? []) {
         if (h.identity && (h.id === habit.id ? nextCompleted : h.completed_today)) {
@@ -222,6 +312,73 @@ export default function TodayPage() {
         )}
       </div>
 
+      {habits.length > 0 && (
+        <div className="rounded-xl bg-white border border-gray-200 p-4">
+          <button
+            type="button"
+            onClick={() => { setShowPastDays((v) => !v); if (!showPastDays) setPastDaysDate(null); }}
+            className="text-sm font-medium text-[#e87722] hover:underline"
+          >
+            {showPastDays ? 'Hide past days' : 'Edit past days'}
+          </button>
+          {showPastDays && (
+            <div className="mt-4 space-y-3">
+              <p className="text-xs text-gray-600">Select a date (last 7 days) to mark habits complete or incomplete.</p>
+              <div className="flex flex-wrap gap-2">
+                {getLast7Days().map((d) => {
+                  const label = (() => {
+                    const dt = new Date(d + 'T12:00:00')
+                    const today = new Date()
+                    const diff = Math.floor((today.getTime() - dt.getTime()) / (24 * 60 * 60 * 1000))
+                    if (diff === 1) return 'Yesterday'
+                    if (diff <= 7) return `${diff} days ago`
+                    return d
+                  })()
+                  return (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => setPastDaysDate(d)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
+                        pastDaysDate === d ? 'bg-[#e87722] text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  )
+                })}
+              </div>
+              {pastDaysDate && (
+                <div className="border-t border-gray-100 pt-3">
+                  {pastDaysLoading ? (
+                    <p className="text-sm text-gray-500">Loading…</p>
+                  ) : pastDaysData ? (
+                    <ul className="space-y-2">
+                      {pastDaysData.habits.map((h) => (
+                        <li key={h.id} className="flex items-center justify-between gap-2 py-2 border-b border-gray-50 last:border-0">
+                          <span className="text-sm text-gray-900">{h.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => handlePastDayToggle(h, pastDaysDate)}
+                            disabled={pastDaysTogglingId === h.id}
+                            className={`shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                              h.completed_today ? 'bg-[#e87722] border-[#e87722] text-white' : 'border-gray-300 hover:border-[#e87722]/70'
+                            }`}
+                            aria-label={h.completed_today ? 'Mark incomplete' : 'Mark complete'}
+                          >
+                            {h.completed_today ? '✓' : null}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {showWelcome && (
         <div className="rounded-xl bg-white border border-[#e87722]/30 p-4 flex items-start justify-between gap-3">
           <div>
@@ -239,8 +396,14 @@ export default function TodayPage() {
         </div>
       )}
 
+      {remaining === 0 && habits.length > 0 && habits.some((h) => h.total_completions >= 21) && (
+        <GraduationPrompt
+          habits={habits.map((h) => ({ habit_id: h.id, habit_name: h.name, total_completions: h.total_completions }))}
+        />
+      )}
+
       {showCelebration && identityVoteSummary && (
-        <div className="rounded-xl bg-[#e87722]/10 border border-[#e87722]/30 p-4 space-y-2">
+        <div className="rounded-xl bg-[#e87722]/10 border border-[#e87722]/30 p-4 space-y-3">
           <p className="font-medium text-gray-900">All done for today!</p>
           <p className="text-sm text-gray-600">
             {Object.entries(identityVoteSummary)
@@ -248,6 +411,27 @@ export default function TodayPage() {
               .map(([identity, n]) => `${n} vote${n !== 1 ? 's' : ''} for "${identity}"`)
               .join('. ')}
           </p>
+          {!sharePromptDismissed && (
+            <div className="pt-2 border-t border-[#e87722]/20 space-y-2">
+              <p className="text-sm font-medium text-gray-900">Share your check-in with your partner?</p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => { shareCheckIn(); dismissSharePrompt(); }}
+                  className="h-9 px-3 rounded-lg bg-[#e87722] text-white text-sm font-medium hover:bg-[#d96b1e]"
+                >
+                  {shareCopied ? 'Copied' : 'Copy summary'}
+                </button>
+                <button
+                  type="button"
+                  onClick={dismissSharePrompt}
+                  className="h-9 px-3 rounded-lg border border-gray-200 text-sm font-medium hover:bg-gray-50"
+                >
+                  Maybe later
+                </button>
+              </div>
+            </div>
+          )}
           <button
             type="button"
             onClick={() => { setShowCelebration(false); setIdentityVoteSummary(null); }}
@@ -292,7 +476,7 @@ export default function TodayPage() {
                     <p className="text-xs text-gray-500 mt-1">{h.stack_context}</p>
                   )}
                   <div className="flex items-center gap-2 mt-2">
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-gray-500" title="Never miss twice: one miss doesn't reset; two consecutive misses reset to 0.">
                       Streak: {h.current_streak}
                       {h.total_completions > 0 && ` · ${h.total_completions} total`}
                     </span>

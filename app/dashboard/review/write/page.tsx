@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { GraduationPrompt } from '@/components/graduation-prompt'
 
 function getWeekStart(d: Date): string {
   const day = d.getDay()
@@ -178,19 +179,7 @@ export default function WriteReviewPage() {
                 Identity votes: {Object.entries(summary.identity_votes).map(([id, n]) => `${n} for "${id}"`).join('; ')}
               </p>
             )}
-            {summary.habits.some((h) => (h.total_completions ?? 0) >= 21) && (
-              <div className="mt-3 pt-3 border-t border-gray-200">
-                <p className="text-sm font-medium text-gray-900">Ready to level up?</p>
-                <p className="text-sm text-gray-600 mt-0.5">
-                  You&rsquo;ve completed these habits 21+ times. Consider expanding beyond the 2-minute version.
-                </p>
-                <ul className="mt-1 text-sm text-gray-700 list-disc list-inside">
-                  {summary.habits.filter((h) => (h.total_completions ?? 0) >= 21).map((h) => (
-                    <li key={h.habit_id}>{h.habit_name}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            <GraduationPrompt habits={summary.habits} className="mt-3 pt-3 border-t border-gray-200" />
           </div>
 
           <div className="rounded-xl bg-white border border-gray-200 p-5 space-y-4">
