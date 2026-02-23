@@ -302,6 +302,9 @@ export default function TodayPage() {
             : `${remaining} of ${habits.length} remaining.`}
         </p>
         {habits.length > 0 && (
+          <p className="text-xs text-gray-500 mt-0.5">One miss doesn&rsquo;t reset your streak; two in a row do.</p>
+        )}
+        {habits.length > 0 && (
           <button
             type="button"
             onClick={shareCheckIn}

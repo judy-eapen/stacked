@@ -176,7 +176,7 @@ export default function IdentitiesPage() {
           <p className="text-sm text-gray-600">Pick one habit that proves you&rsquo;re becoming this person. Start with a 2-minute version.</p>
           <div className="flex flex-col sm:flex-row gap-3">
             <Link
-              href={`/dashboard/identities/${promptForHabitIdentityId}?add=1`}
+              href={`/dashboard/habits?identity=${promptForHabitIdentityId}&mode=reinforce&new=1`}
               className="inline-flex items-center justify-center h-10 px-4 rounded-lg bg-[#e87722] text-white text-sm font-medium hover:bg-[#d96b1e]"
             >
               Create habit now

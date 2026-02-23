@@ -8,16 +8,14 @@ export default async function DashboardPage() {
   if (!user) {
     redirect('/login')
   }
-  const { data: habits } = await supabase
-    .from('habits')
-    .select('id')
-    .eq('user_id', user.id)
-    .eq('is_active', true)
-    .is('archived_at', null)
-    .limit(1)
+  const [{ data: habits }, { data: identities }] = await Promise.all([
+    supabase.from('habits').select('id').eq('user_id', user.id).eq('is_active', true).is('archived_at', null).limit(1),
+    supabase.from('identities').select('id').eq('user_id', user.id).limit(1),
+  ])
   if (habits && habits.length > 0) {
     redirect('/dashboard/today')
   }
+  const hasIdentities = identities && identities.length > 0
 
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] md:min-h-[calc(100vh-2rem)]">
@@ -45,6 +43,11 @@ export default async function DashboardPage() {
             <p className="text-base text-gray-600 leading-relaxed">
               Track daily habits. Use Review when you need to recalibrate or reset.
             </p>
+            {hasIdentities && (
+              <p className="text-sm text-gray-600">
+                Add a habit to an identity to start checking in on Today.
+              </p>
+            )}
           </div>
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto pt-1">
             <Link

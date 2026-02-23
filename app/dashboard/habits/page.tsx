@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { DesignBuild } from '@/lib/db-types'
 import { DesignBreakForm, EMPTY_DESIGN_BREAK, trimDesignBreak } from '@/components/DesignBreakForm'
@@ -161,6 +161,7 @@ function hasDesignFields(h: Habit): boolean {
 }
 
 export default function HabitsPage() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const [habits, setHabits] = useState<Habit[]>([])
   const [archivedHabits, setArchivedHabits] = useState<Habit[]>([])
@@ -289,8 +290,12 @@ export default function HabitsPage() {
         body: JSON.stringify({ habitId: inserted.id }),
       }).catch(() => {})
     }
+    const identityForRedirect = draftIdentityId || identityParam || null
     resetCreateForm()
     fetchAll()
+    if (identityForRedirect) {
+      router.push(`/dashboard/identities/${identityForRedirect}`)
+    }
   }
 
   const updateHabit = async (habitId: string, updates: Partial<Habit>) => {
@@ -801,7 +806,7 @@ function HabitCard({
               {habit.temptation_bundle && <p className="text-xs text-gray-600 mt-0.5">Reward: {habit.temptation_bundle}</p>}
             </div>
             <div className="flex items-center gap-1 shrink-0">
-              <Link href={`/dashboard/habits/${habit.id}`} className="text-gray-400 hover:text-[#e87722] p-1 text-sm" aria-label="View">View</Link>
+              <Link href={`/dashboard/habits/${habit.id}`} className="text-gray-400 hover:text-[#e87722] p-1 text-sm" aria-label="View calendar">View calendar</Link>
               <button type="button" onClick={() => setEditingId(habit.id)} className="text-gray-400 hover:text-gray-600 p-1 text-sm" aria-label="Edit">✎</button>
               <button type="button" onClick={onArchive} className="text-gray-400 hover:text-amber-600 p-1 text-sm" aria-label="Archive">Archive</button>
               <button type="button" onClick={onDelete} className="text-gray-400 hover:text-red-600 p-1 text-sm" aria-label="Delete">×</button>
