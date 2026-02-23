@@ -20,10 +20,6 @@ export function RedirectToOnboardingWhenEmpty({
 
   useEffect(() => {
     if (pathname === '/dashboard/onboarding') {
-      if (!tourCompletedAt) {
-        router.replace('/dashboard')
-        return
-      }
       setChecked(true)
       return
     }
