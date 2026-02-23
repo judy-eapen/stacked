@@ -101,7 +101,6 @@ export default function TodayPage() {
       return
     }
     if (pastDaysDate) fetchPastDay(pastDaysDate)
-    fetchToday()
   }
 
   const fetchToday = useCallback(async () => {
@@ -166,11 +165,18 @@ export default function TodayPage() {
     const prevCompleted = habit.completed_today
     setData((prev) => {
       if (!prev) return prev
+      const todayDate = parseISO(prev.date)
+      const weekStart = startOfWeek(todayDate, { weekStartsOn: 1 })
+      const todayIndex = Math.round((todayDate.getTime() - weekStart.getTime()) / (24 * 60 * 60 * 1000))
       return {
         ...prev,
-        habits: prev.habits.map((h) =>
-          h.id === habit.id ? { ...h, completed_today: nextCompleted } : h
-        ),
+        habits: prev.habits.map((h) => {
+          if (h.id !== habit.id) return h
+          const current = h.week_completion ?? [false, false, false, false, false, false, false]
+          const nextWeek = [...current]
+          nextWeek[todayIndex] = nextCompleted
+          return { ...h, completed_today: nextCompleted, week_completion: nextWeek }
+        }),
       }
     })
 
@@ -188,11 +194,18 @@ export default function TodayPage() {
     if (!res.ok) {
       setData((prev) => {
         if (!prev) return prev
+        const todayDate = parseISO(prev.date)
+        const weekStart = startOfWeek(todayDate, { weekStartsOn: 1 })
+        const todayIndex = Math.round((todayDate.getTime() - weekStart.getTime()) / (24 * 60 * 60 * 1000))
         return {
           ...prev,
-          habits: prev.habits.map((h) =>
-            h.id === habit.id ? { ...h, completed_today: prevCompleted } : h
-          ),
+          habits: prev.habits.map((h) => {
+            if (h.id !== habit.id) return h
+            const current = h.week_completion ?? [false, false, false, false, false, false, false]
+            const nextWeek = [...current]
+            nextWeek[todayIndex] = prevCompleted
+            return { ...h, completed_today: prevCompleted, week_completion: nextWeek }
+          }),
         }
       })
       const err = await res.json().catch(() => ({}))
