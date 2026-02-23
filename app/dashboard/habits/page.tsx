@@ -261,21 +261,32 @@ export default function HabitsPage() {
     const twoMinFromBuild = db?.easy?.two_minute_rule?.trim()
     const temptationFromBuild = db?.attractive?.temptation_bundling?.trim()
     const onlyOneStack = draftStackScorecardId ? { stack_anchor_scorecard_id: draftStackScorecardId, stack_anchor_habit_id: null } : draftStackHabitId ? { stack_anchor_scorecard_id: null, stack_anchor_habit_id: draftStackHabitId } : {}
-    const { error: err } = await supabase.from('habits').insert({
-      user_id: user.id,
-      identity_id: draftIdentityId || null,
-      name,
-      two_minute_version: twoMinFromBuild?.slice(0, 200) || null,
-      implementation_intention: intention,
-      temptation_bundle: temptationFromBuild?.slice(0, 500) || null,
-      design_build: isEmptyDesignBuild(db ?? null) ? null : db,
-      frequency: 'daily',
-      sort_order: habits.length,
-      ...onlyOneStack,
-    })
+    const { data: inserted, error: err } = await supabase
+      .from('habits')
+      .insert({
+        user_id: user.id,
+        identity_id: draftIdentityId || null,
+        name,
+        two_minute_version: twoMinFromBuild?.slice(0, 200) || null,
+        implementation_intention: intention,
+        temptation_bundle: temptationFromBuild?.slice(0, 500) || null,
+        design_build: isEmptyDesignBuild(db ?? null) ? null : db,
+        frequency: 'daily',
+        sort_order: habits.length,
+        ...onlyOneStack,
+      })
+      .select('id')
+      .single()
     if (err) {
       setError(err.message)
       return
+    }
+    if (inserted?.id) {
+      fetch('/api/calendar/sync-habit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ habitId: inserted.id }),
+      }).catch(() => {})
     }
     resetCreateForm()
     fetchAll()
@@ -290,6 +301,11 @@ export default function HabitsPage() {
     else {
       setEditingId(null)
       fetchAll()
+      fetch('/api/calendar/sync-habit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ habitId }),
+      }).catch(() => {})
     }
   }
 
@@ -305,6 +321,11 @@ export default function HabitsPage() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
+    await fetch('/api/calendar/sync-habit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ habitId: id, remove: true }),
+    }).catch(() => {})
     const { error: err } = await supabase.from('habits').delete().eq('id', id).eq('user_id', user.id)
     if (err) setError(err.message)
     else {

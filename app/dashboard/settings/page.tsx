@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 const COMMON_TIMEZONES = [
@@ -108,8 +108,10 @@ export default function SettingsPage() {
   const [emailWeeklySummary, setEmailWeeklySummary] = useState(true)
   const [timezone, setTimezone] = useState('America/New_York')
   const [pushEnabled, setPushEnabled] = useState(false)
+  const [calendarConnected, setCalendarConnected] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
   const [prefsLoaded, setPrefsLoaded] = useState(false)
+  const searchParams = useSearchParams()
 
   useEffect(() => {
     const supabase = createClient()
@@ -122,7 +124,8 @@ export default function SettingsPage() {
       Promise.all([
         supabase.from('profiles').select('display_name').eq('id', user.id).single(),
         supabase.from('notification_preferences').select('*').eq('user_id', user.id).maybeSingle(),
-      ]).then(async ([profileRes, prefsRes]) => {
+        supabase.from('calendar_connections').select('id').eq('user_id', user.id).maybeSingle(),
+      ]).then(async ([profileRes, prefsRes, calendarRes]) => {
         setDisplayName(profileRes.data?.display_name ?? '')
         const prefs = prefsRes.data
         if (prefs) {
@@ -141,6 +144,7 @@ export default function SettingsPage() {
             timezone: 'America/New_York',
           })
         }
+        setCalendarConnected(!!calendarRes.data)
         setPrefsLoaded(true)
       }).finally(() => setLoading(false))
     })
@@ -299,6 +303,41 @@ export default function SettingsPage() {
           pushEnabled={pushEnabled}
           onToggle={setPushEnabled}
         />
+      </div>
+
+      <div className="rounded-xl bg-white border border-gray-200/80 p-5">
+        <h2 className="text-sm font-semibold text-gray-900 mb-3">Google Calendar</h2>
+        <p className="text-sm text-gray-600 mb-3">Sync habits as recurring events. Events update when you add, edit, or archive habits.</p>
+        {searchParams.get('calendar') === 'connected' && (
+          <p className="text-sm text-green-600 mb-2" role="status">Calendar connected. Your habits have been synced.</p>
+        )}
+        {searchParams.get('calendar') === 'error' && (
+          <p className="text-sm text-red-600 mb-2" role="alert">
+            Could not connect calendar. {searchParams.get('reason') === 'no_refresh_token' ? 'Try again and accept all permissions.' : 'Try again later.'}
+          </p>
+        )}
+        {calendarConnected ? (
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-gray-700">Connected</span>
+            <button
+              type="button"
+              onClick={async () => {
+                const res = await fetch('/api/calendar/disconnect', { method: 'POST' })
+                if (res.ok) setCalendarConnected(false)
+              }}
+              className="text-sm font-medium text-red-600 hover:text-red-700"
+            >
+              Disconnect
+            </button>
+          </div>
+        ) : (
+          <a
+            href="/api/calendar/connect"
+            className="inline-block h-10 px-4 rounded-lg bg-[#e87722] text-white text-sm font-medium hover:bg-[#d96b1e] focus:outline-none focus:ring-2 focus:ring-[#e87722]/70 focus:ring-offset-2"
+          >
+            Connect Google Calendar
+          </a>
+        )}
       </div>
 
       <div className="rounded-xl bg-white border border-gray-200/80 p-5">
