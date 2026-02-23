@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -8,6 +8,7 @@ import type { DesignBuild } from '@/lib/db-types'
 import { DesignBreakForm, EMPTY_DESIGN_BREAK, trimDesignBreak } from '@/components/DesignBreakForm'
 import { StackChainView } from '@/components/stack-chain-view'
 import type { DesignBreak } from '@/lib/db-types'
+import { Search, Plus, Archive, Trash2, Bell, Users, FileSignature, Sparkles, Pencil, Calendar } from 'lucide-react'
 
 type HabitFrequency = 'daily' | 'weekdays' | 'weekends' | 'custom'
 
@@ -185,6 +186,7 @@ export default function HabitsPage() {
   const [blockerDraftHabitId, setBlockerDraftHabitId] = useState<string | null>(null)
   const [blockerDraftDesign, setBlockerDraftDesign] = useState<DesignBreak>(() => ({ ...EMPTY_DESIGN_BREAK }))
   const [editingBlockerId, setEditingBlockerId] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
 
   const fetchAll = useCallback(async () => {
     const supabase = createClient()
@@ -229,15 +231,33 @@ export default function HabitsPage() {
   }, [searchParams, identityParam, modeParam, newParam])
 
   const activeHabits = habits.filter((h) => h.is_active)
-  const habitsByIdentity = new Map<string | null, Habit[]>()
-  habitsByIdentity.set(null, [])
-  identities.forEach((idn) => habitsByIdentity.set(idn.id, []))
-  activeHabits.forEach((h) => {
-    const key = h.identity_id ?? null
-    const list = habitsByIdentity.get(key) ?? []
-    list.push(h)
-    habitsByIdentity.set(key, list)
-  })
+  const habitsByIdentity = useMemo(() => {
+    const map = new Map<string | null, Habit[]>()
+    map.set(null, [])
+    identities.forEach((idn) => map.set(idn.id, []))
+    activeHabits.forEach((h) => {
+      const key = h.identity_id ?? null
+      const list = map.get(key) ?? []
+      list.push(h)
+      map.set(key, list)
+    })
+    return map
+  }, [activeHabits, identities])
+
+  const matchesSearch = useCallback((h: Habit) => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return true
+    return (
+      h.name.toLowerCase().includes(q) ||
+      (h.two_minute_version?.toLowerCase().includes(q) ?? false)
+    )
+  }, [searchQuery])
+
+  const activeCount = activeHabits.length
+  const onStreakCount = activeHabits.filter((h) => h.current_streak > 0).length
+  const identitiesWithHabitsCount = identities.filter(
+    (idn) => (habitsByIdentity.get(idn.id) ?? []).length > 0
+  ).length
 
   const resetCreateForm = () => {
     setDraftName('')
@@ -373,20 +393,66 @@ export default function HabitsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-1">
-          Habits
-        </h1>
-        <p className="text-sm text-gray-500">
-          Design habits with implementation intentions, stacking, and two-minute versions. Quick-add by name, or expand to add the full methodology.
-        </p>
-        <p className="text-xs text-gray-500 mt-0.5">4 Laws (obvious, attractive, easy, satisfying) and stacking (after [X], I will [Y]) from Atomic Habits.</p>
+      {/* Header: title, subtitle, + Add habit button */}
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div>
+          <h1 className="font-heading text-2xl md:text-3xl font-bold tracking-tight text-foreground">
+            Habits
+          </h1>
+          <p className="font-body text-sm text-muted-foreground mt-0.5">
+            Design habits with implementation intentions, stacking, and two-minute versions. Expand any habit to see its full 4 Laws design.
+          </p>
+        </div>
+        {!showAddForm && (
+          <button
+            type="button"
+            onClick={() => setShowAddForm(true)}
+            className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-lg bg-primary text-primary-foreground font-body text-sm font-medium hover:opacity-90 shrink-0"
+          >
+            <Plus className="h-4 w-4" />
+            Add habit
+          </button>
+        )}
       </div>
       {error && (
         <p className="text-sm text-red-600 p-3 rounded-lg bg-red-50 border border-red-200" role="alert">
           {error}
         </p>
       )}
+
+      {/* Summary stats: ACTIVE, ON STREAK, IDENTITIES */}
+      {activeHabits.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          <span className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-3 py-1 font-body text-xs font-medium text-red-800">
+            {activeCount} ACTIVE
+          </span>
+          <span className="inline-flex items-center rounded-full border border-green-200 bg-green-50 px-3 py-1 font-body text-xs font-medium text-green-800">
+            {onStreakCount} ON STREAK
+          </span>
+          <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1 font-body text-xs font-medium text-blue-800">
+            {identitiesWithHabitsCount} IDENTITIES
+          </span>
+        </div>
+      )}
+
+      {/* Search */}
+      {activeHabits.length > 0 && (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search habits…"
+            className="font-body w-full rounded-lg border border-border bg-card py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+            aria-label="Search habits by name"
+          />
+        </div>
+      )}
+
+      <p className="font-body text-xs text-muted-foreground">
+        4 Laws (obvious, attractive, easy, satisfying) and stacking (after [X], I will [Y]) from Atomic Habits.
+      </p>
 
       {modeParam === 'fix' && identityParam && (
         <div className="rounded-xl bg-white border border-gray-200 p-5 space-y-4">
@@ -565,37 +631,34 @@ export default function HabitsPage() {
             Create habit
           </button>
         </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setShowAddForm(true)}
-          className="text-sm font-medium text-[#e87722] hover:underline"
-        >
-          + Add habit
-        </button>
-      )}
+      ) : null}
 
       {activeHabits.length === 0 && !showAddForm ? (
-        <div className="rounded-[20px] bg-white shadow-xl border border-black/6 p-8 text-center">
-          <p className="text-gray-600 mb-6">
+        <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
+          <p className="font-body text-muted-foreground mb-6">
             Add habits to track. Start with a name and optional identity; you can add implementation intentions and stacking later.
           </p>
           <Link
             href="/dashboard/habits?add=1"
-            className="inline-flex items-center justify-center h-12 px-6 rounded-lg bg-[#e87722] text-white font-semibold hover:bg-[#d96b1e] transition-colors"
+            className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-lg bg-primary text-primary-foreground font-body font-semibold hover:opacity-90"
           >
-            Add your first habit
+            <Plus className="h-4 w-4" /> Add your first habit
           </Link>
         </div>
       ) : (
         <div className="space-y-6">
           {identities.map((idn) => {
-            const groupHabits = habitsByIdentity.get(idn.id) ?? []
+            const groupHabits = (habitsByIdentity.get(idn.id) ?? []).filter(matchesSearch)
             if (groupHabits.length === 0) return null
             return (
               <div key={idn.id}>
-                <h2 className="text-sm font-semibold text-gray-900 mb-2">{idn.statement}</h2>
-                <ul className="space-y-3">
+                <h2 className="font-heading text-sm font-semibold text-foreground mb-2">
+                  {idn.statement}
+                  <span className="font-body text-muted-foreground font-normal ml-1">
+                    ({groupHabits.length} habit{groupHabits.length !== 1 ? 's' : ''})
+                  </span>
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {groupHabits.map((h) => (
                     <HabitCard
                       key={h.id}
@@ -616,18 +679,23 @@ export default function HabitsPage() {
                       onDelete={() => deleteHabit(h.id)}
                     />
                   ))}
-                </ul>
+                </div>
               </div>
             )
           })}
-          {(habitsByIdentity.get(null) ?? []).length > 0 && (
+          {(habitsByIdentity.get(null) ?? []).filter(matchesSearch).length > 0 && (
             <div>
-              <h2 className="text-sm font-semibold text-gray-900 mb-2">Unlinked Habits</h2>
+              <h2 className="font-heading text-sm font-semibold text-foreground mb-2">
+                Unlinked Habits
+                <span className="font-body text-muted-foreground font-normal ml-1">
+                  ({(habitsByIdentity.get(null) ?? []).filter(matchesSearch).length} habit{(habitsByIdentity.get(null) ?? []).filter(matchesSearch).length !== 1 ? 's' : ''})
+                </span>
+              </h2>
               {identityParam && modeParam === 'reinforce' && identities.find((idn) => idn.id === identityParam) && (
-                <p className="text-xs text-gray-600 mb-2">Click &quot;Add to identity&quot; on a habit below to link it to <strong>{identities.find((idn) => idn.id === identityParam)?.statement}</strong>.</p>
+                <p className="font-body text-xs text-muted-foreground mb-2">Click &quot;Add to identity&quot; on a habit below to link it to <strong>{identities.find((idn) => idn.id === identityParam)?.statement}</strong>.</p>
               )}
-              <ul className="space-y-3">
-                {(habitsByIdentity.get(null) ?? []).map((h) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {(habitsByIdentity.get(null) ?? []).filter(matchesSearch).map((h) => (
                   <HabitCard
                     key={h.id}
                     habit={h}
@@ -647,7 +715,7 @@ export default function HabitsPage() {
                     onDelete={() => deleteHabit(h.id)}
                   />
                 ))}
-              </ul>
+              </div>
             </div>
           )}
 
@@ -749,17 +817,17 @@ function HabitCard({
   const intention = intentionString(habit)
 
   return (
-    <li className="rounded-xl bg-white border border-gray-200/80 p-4">
+    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
       {isEditing ? (
         <div className="space-y-3">
-          <label className="block text-xs font-medium text-gray-700">Habit name</label>
-          <input value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-gray-200 text-sm" />
+          <label className="font-body block text-xs font-medium text-muted-foreground">Habit name</label>
+          <input value={editName} onChange={(e) => setEditName(e.target.value)} className="font-body w-full h-10 px-3 rounded-lg border border-border bg-card text-sm text-foreground" />
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Identity</label>
+            <label className="font-body block text-xs font-medium text-muted-foreground mb-1">Identity</label>
             <select
               value={editIdentityId ?? ''}
               onChange={(e) => setEditIdentityId(e.target.value || null)}
-              className="w-full h-10 px-3 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#e87722]/70"
+              className="font-body w-full h-10 px-3 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
             >
               <option value="">Unlinked</option>
               {identities.map((idn) => (
@@ -797,59 +865,70 @@ function HabitCard({
       ) : (
         <>
           <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <p className="font-medium text-gray-900">{habit.name}</p>
-              {identityStatement && <p className="text-xs text-gray-500 mt-0.5">{identityStatement}</p>}
+            <div className="min-w-0 flex-1">
+              <p className="font-heading font-medium text-foreground">{habit.name}</p>
+              {identityStatement && <p className="font-body text-xs text-muted-foreground mt-0.5">{identityStatement}</p>}
+              {(habit.current_streak > 0) && (
+                <p className="font-body text-xs text-muted-foreground mt-0.5">{habit.current_streak} day streak</p>
+              )}
               {stackLabel && <StackChainView anchorLabel={stackLabel.replace(/^After "/, '').replace(/"$/, '')} habitName={habit.name} className="mt-1" />}
-              {intention && <p className="text-xs text-gray-600 mt-0.5">{intention}</p>}
-              {habit.two_minute_version && <p className="text-xs text-gray-600 mt-0.5">2-min: {habit.two_minute_version}</p>}
-              {habit.temptation_bundle && <p className="text-xs text-gray-600 mt-0.5">Reward: {habit.temptation_bundle}</p>}
+              {intention && <p className="font-body text-xs text-muted-foreground mt-0.5">{intention}</p>}
+              {habit.two_minute_version && <p className="font-body text-xs text-muted-foreground mt-0.5">2-min: {habit.two_minute_version}</p>}
+              {habit.temptation_bundle && <p className="font-body text-xs text-muted-foreground mt-0.5">Reward: {habit.temptation_bundle}</p>}
             </div>
-            <div className="flex items-center gap-1 shrink-0">
-              <Link href={`/dashboard/habits/${habit.id}`} className="text-gray-400 hover:text-[#e87722] p-1 text-sm" aria-label="View calendar">View calendar</Link>
-              <button type="button" onClick={() => setEditingId(habit.id)} className="text-gray-400 hover:text-gray-600 p-1 text-sm" aria-label="Edit">✎</button>
-              <button type="button" onClick={onArchive} className="text-gray-400 hover:text-amber-600 p-1 text-sm" aria-label="Archive">Archive</button>
-              <button type="button" onClick={onDelete} className="text-gray-400 hover:text-red-600 p-1 text-sm" aria-label="Delete">×</button>
+            <div className="flex items-center gap-0.5 shrink-0">
+              <button type="button" onClick={onArchive} className="p-1.5 text-muted-foreground hover:text-amber-600 rounded-md hover:bg-card" aria-label="Archive">
+                <Archive className="h-4 w-4" />
+              </button>
+              <button type="button" onClick={onDelete} className="p-1.5 text-muted-foreground hover:text-red-600 rounded-md hover:bg-card" aria-label="Delete">
+                <Trash2 className="h-4 w-4" />
+              </button>
             </div>
           </div>
           <div className="mt-2 flex items-center gap-3 flex-wrap">
+            <Link href={`/dashboard/habits/${habit.id}`} className="font-body inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-primary" aria-label="View calendar">
+              <Calendar className="h-3.5 w-3.5" /> View calendar
+            </Link>
+            <button type="button" onClick={() => setEditingId(habit.id)} className="font-body inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground" aria-label="Edit">
+              <Pencil className="h-3.5 w-3.5" /> Edit
+            </button>
             <button
               type="button"
               onClick={() => onUpdate({ is_shared: !habit.is_shared })}
-              className={`text-xs font-medium ${habit.is_shared ? 'text-[#e87722]' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`font-body inline-flex items-center gap-1 text-xs font-medium ${habit.is_shared ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
             >
-              {habit.is_shared ? '✓ Shared with partners' : 'Share with partners'}
+              <Users className="h-3.5 w-3.5" /> {habit.is_shared ? 'Shared' : 'Share'}
             </button>
             <button
               type="button"
               onClick={() => onUpdate({ push_notification_enabled: !(habit.push_notification_enabled ?? false) })}
-              className={`text-xs font-medium ${habit.push_notification_enabled ? 'text-[#e87722]' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`font-body inline-flex items-center gap-1 text-xs font-medium ${habit.push_notification_enabled ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
             >
-              {(habit.push_notification_enabled ?? false) ? '✓ Push reminders' : 'Push reminders'}
+              <Bell className="h-3.5 w-3.5" /> {habit.push_notification_enabled ? 'Reminders on' : 'Reminders'}
             </button>
             <Link
               href={`/dashboard/habits/${habit.id}/contract`}
-              className="text-xs font-medium text-gray-500 hover:text-[#e87722]"
+              className="font-body inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-primary"
             >
-              Contract
+              <FileSignature className="h-3.5 w-3.5" /> Contract
             </Link>
           </div>
           {linkToIdentityId && linkToIdentityStatement && (
             <button
               type="button"
               onClick={() => onUpdate({ identity_id: linkToIdentityId })}
-              className="mt-2 mr-2 inline-flex h-9 items-center justify-center rounded-lg bg-[#e87722] px-3 text-sm font-medium text-white hover:bg-[#d96b1e]"
+              className="mt-2 inline-flex h-9 items-center justify-center rounded-lg bg-primary px-3 font-body text-sm font-medium text-primary-foreground hover:opacity-90"
             >
               Add to identity
             </button>
           )}
           {!hasDesignFields && (
-            <button type="button" onClick={() => setEditingId(habit.id)} className="mt-2 text-xs text-[#e87722] hover:underline">
-              Design this habit
+            <button type="button" onClick={() => setEditingId(habit.id)} className="mt-2 font-body inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+              <Sparkles className="h-3.5 w-3.5" /> Design this habit
             </button>
           )}
         </>
       )}
-    </li>
+    </div>
   )
 }

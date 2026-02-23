@@ -1363,6 +1363,71 @@ The scorecard in the app is a **diagnostic and reset tool**, not a daily tracker
 
 ---
 
+### Habits Page UI Refresh (Post–Phase 7)
+
+**Goal:** Redesign the Habits list page to match the approved v0-style design: clear header with persistent "+ Add habit" button, summary stats (Active, On streak, Identities), search bar, identity-grouped sections with habit cards in a 2-column grid, and consistent card styling. All existing functionality (create, edit, archive, delete, reminders, shared, contract, 4 Laws design, view calendar, blockers flow) must continue to work.
+
+**Proposed changes for your confirmation**
+
+Before implementation, please confirm the following. Anything you want to add, drop, or change?
+
+| # | Change | Notes |
+|---|--------|------|
+| **Header** | | |
+| 1 | Page title "Habits" with subtitle: "Design habits with implementation intentions, stacking, and two-minute versions. Expand any habit to see its full 4 Laws design." | Same intent as current; wording can match design. |
+| 2 | Persistent orange "+ Add habit" button (top-right of header area, same row as title). | Replaces text link when habits exist; same create flow. |
+| **Summary stats** | | |
+| 3 | Three stat chips/pills below the header (horizontal, wrap on small screens): | New block. |
+| | • **X ACTIVE** — count of active (non-archived) habits; red accent on label or number. | |
+| | • **X ON STREAK** — count of habits with current_streak > 0; green accent. | |
+| | • **X IDENTITIES** — count of identities that have at least one habit; blue accent. | |
+| **Search** | | |
+| 4 | Search bar with magnifying glass icon and placeholder "Search habits...". Filter the list of habits by name (and optionally identity/2-min) so only matching habits (and their identity sections) show. | New; client-side filter only, no backend change. |
+| **Explainer** | | |
+| 5 | Keep or surface the one-line explainer: "4 Laws (obvious, attractive, easy, satisfying) and stacking (after [X], I will [Y]) from Atomic Habits." below the search or stats. | Already on page; placement can move. |
+| **Identity sections and layout** | | |
+| 6 | Group habits by identity (and "Unlinked" section) as today. Each section: identity statement + small icon (e.g. lucide Dumbbell, BookOpen per identity or generic) + "N habits." | Optional per-identity icons; at minimum "N habits" subtitle. |
+| 7 | Habit cards in a **2-column grid** within each section (and for Unlinked). Single column on mobile. | Current layout is single-column list; change to grid. |
+| **Habit cards** | | |
+| 8 | Each card: habit name (title), action icons (archive, delete) in top-right; streak (e.g. "Xd streak") and total; cue/stack ("After [X]"); 2-min version; tags for Reminders, Shared, Contract; links "Design this habit with the 4 Laws" / "Edit habit design" and "View calendar" as today. | Same data and actions; restyle as card (rounded-2xl, border, shadow-sm). |
+| 9 | Edit mode (name, identity, share, push, 4 Laws form, Save/Cancel) unchanged; can stay inline on the card or modal. | No behavior change. |
+| **Empty state and create flow** | | |
+| 10 | Empty state when no habits: message + "Add your first habit" (or "+ Add habit") opening the same create form. Create flow (name, identity, optional design, stack, create) unchanged. | Same behavior. |
+| **Behavior preserved** | | |
+| 11 | All existing behavior preserved: add habit, edit habit, archive, delete, link to identity, Reminders toggle, Shared with partners, Contract link, "Design with 4 Laws" / "Edit habit design", View calendar, blockers flow (mode=fix), URL params (identity, mode, new). No backend or schema changes. | Validation before and after build. |
+
+**User stories (if confirmed)**
+
+- US-Habits-UI-1: As a user on the Habits page, I see a clear header with title, subtitle, and a persistent orange "+ Add habit" button so I can add a habit from any state.
+- US-Habits-UI-2: As a user on the Habits page, I see summary stats (Active, On streak, Identities) and a search bar so I can quickly see counts and filter habits by name.
+- US-Habits-UI-3: As a user on the Habits page, I see habits grouped by identity (and Unlinked), each section with "N habits," and habit cards in a 2-column grid so the layout matches the design and uses space well.
+- US-Habits-UI-4: As a user on the Habits page, I can still create, edit, archive, delete, set reminders/shared, open contract, design with 4 Laws, and view calendar; all links and flows work as today.
+
+**Frontend tasks (after confirmation)**
+
+- Header with title, subtitle, "+ Add habit" button (lucide Plus). Design system (font-heading, font-body, primary, card, rounded-2xl).
+- Summary block: three stat chips (ACTIVE, ON STREAK, IDENTITIES) with counts; color accents (red, green, blue) per design.
+- Search input with Search icon; filter habits (and hide empty identity sections) by name (client-side).
+- Explainer line below search or stats.
+- Identity sections: identity statement + optional icon + "N habits"; habit cards in grid (grid-cols-1 md:grid-cols-2).
+- HabitCard restyle: card container, action icons top-right, streak/total/cue/2-min/tags/links; same props and callbacks.
+- Empty state and create form: unchanged behavior; button styling to match.
+
+**Acceptance criteria**
+
+- Habits page matches the approved design: header with button, stats, search, explainer, identity-grouped 2-col habit cards.
+- All existing functionality preserved (create, edit, archive, delete, reminders, shared, contract, 4 Laws, view calendar, blockers flow, URL params).
+- No backend or schema changes. Mobile: stats and grid stack appropriately.
+
+**Definition of Done**
+
+- PRD and Decision Log updated (this phase and D57).
+- Habits page rebuilt with new layout and components; all listed behaviors verified.
+
+**Dependencies:** Phase 1 (Habits and Identities exist). Identities/Today UI refresh optional (design system shared).
+
+---
+
 ## 8. Observability & Non-Functional Requirements
 
 ### Logging
@@ -1514,6 +1579,7 @@ These guidelines apply across all phases. They are cross-cutting UX patterns, no
 | D54 | Today Page UI refresh | Mobile-first redesign with This Week calendar and habit cards with weekly dots | Today page updated to match approved design: Outfit + Inter, oklch palette (cream, primary orange), header with date and progress bar, "This Week" horizontal day pills with completion dots, habit cards in grid with streak pills and 7-dot weekly row. API extended with week_completion per habit. See "Today Page UI Refresh" in Section 7. | 2026-02-22 |
 | D55 | Identities Page UI refresh | New phase: summary stats, 2-col cards, linked-habits pills, all behavior preserved | Identities list page redesigned to match v0-style: header with "+ Create identity" button, three summary cards (Identities, Votes this week, Avg momentum), identity cards in 2-col grid with statement, votes/trend, momentum bar, collapsible Linked habits (reinforcing/undermining pills), same three actions. No backend changes; create, edit, delete, all links, post-create prompt, and empty state must continue to work. See "Identities Page UI Refresh" in Section 7. | 2026-02-22 |
 | D56 | Dashboard nav: top tabs with icons | Single top bar, tabs on top, lucide icons, orange active | Dashboard layout updated: sidebar removed; single sticky top bar with logo, nav tabs (Today, Identities, Habits, Review, Partners), and user block. Each tab has a lucide-react icon (Calendar, Users, ListTodo, FileText, UserPlus). Active tab shown with orange background and white text. Implemented in `components/dashboard-nav.tsx` and `app/dashboard/layout.tsx`. See "Dashboard navigation — top tabs with icons" in Section 7. | 2026-02-22 |
+| D57 | Habits Page UI refresh | New phase: header + button, stats, search, 2-col grid, all behavior preserved | Habits list page to be redesigned to match v0-style: header with "+ Add habit" button, three stat chips (Active, On streak, Identities), search bar, identity-grouped sections, habit cards in 2-col grid. Create, edit, archive, delete, reminders, shared, contract, 4 Laws, view calendar, blockers flow unchanged. See "Habits Page UI Refresh" in Section 7; proposed changes listed for product confirmation before implementation. | 2026-02-22 |
 
 ---
 
