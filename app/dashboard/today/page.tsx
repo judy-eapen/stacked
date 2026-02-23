@@ -302,33 +302,41 @@ export default function TodayPage() {
     )
   }
 
-  return React.createElement(TodayContent, {
-    habits,
-    todayDate,
-    weekDates,
-    completedCount,
-    remaining,
-    showWelcome: Boolean(showWelcome),
-    showCelebration,
-    identityVoteSummary,
-    shareCopied,
-    sharePromptDismissed,
-    togglingId,
-    justCompletedId,
-    voteFeedback,
-    showPastDays,
-    pastDaysDate,
-    pastDaysData,
-    pastDaysLoading,
-    pastDaysTogglingId,
-    getLast7Days,
-    onShareCheckIn: shareCheckIn,
-    onDismissSharePrompt: dismissSharePrompt,
-    onDismissWelcome: () => setDismissedWelcome(true),
-    onDismissCelebration: () => { setShowCelebration(false); setIdentityVoteSummary(null); },
-    onToggle: handleToggle,
-    onPastDayToggle: handlePastDayToggle,
-    onTogglePastDays: () => { setShowPastDays((v) => !v); if (!showPastDays) setPastDaysDate(null); },
-    setPastDaysDate,
-  })
+  return (
+    <TodayContent
+      habits={habits}
+      todayDate={todayDate}
+      weekDates={weekDates}
+      completedCount={completedCount}
+      remaining={remaining}
+      showWelcome={Boolean(showWelcome)}
+      showCelebration={showCelebration}
+      identityVoteSummary={identityVoteSummary}
+      shareCopied={shareCopied}
+      sharePromptDismissed={sharePromptDismissed}
+      togglingId={togglingId}
+      justCompletedId={justCompletedId}
+      voteFeedback={voteFeedback}
+      showPastDays={showPastDays}
+      pastDaysDate={pastDaysDate}
+      pastDaysData={pastDaysData}
+      pastDaysLoading={pastDaysLoading}
+      pastDaysTogglingId={pastDaysTogglingId}
+      getLast7Days={getLast7Days}
+      onShareCheckIn={shareCheckIn}
+      onDismissSharePrompt={dismissSharePrompt}
+      onDismissWelcome={() => setDismissedWelcome(true)}
+      onDismissCelebration={() => {
+        setShowCelebration(false)
+        setIdentityVoteSummary(null)
+      }}
+      onToggle={handleToggle}
+      onPastDayToggle={handlePastDayToggle}
+      onTogglePastDays={() => {
+        setShowPastDays((v) => !v)
+        if (!showPastDays) setPastDaysDate(null)
+      }}
+      setPastDaysDate={setPastDaysDate}
+    />
+  )
 }
