@@ -21,18 +21,21 @@ export function UserBlock({
   }
 
   return (
-    <>
-      <Link href="/dashboard/settings" className="rounded-lg px-3 py-2.5 block text-sm text-gray-600 hover:bg-gray-100">
+    <div className="flex flex-col min-w-0 max-w-[180px]">
+      <Link
+        href="/dashboard/settings"
+        className="rounded-lg px-3 py-2 block text-sm text-gray-600 hover:bg-gray-100 text-left"
+      >
         <p className="font-medium text-gray-900 truncate">{displayName || 'Account'}</p>
         <p className="text-xs text-gray-500 truncate">{email}</p>
       </Link>
       <button
         type="button"
         onClick={handleLogout}
-        className="mt-1 w-full text-left rounded-lg px-3 py-2 text-xs font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+        className="rounded-lg px-3 py-2 text-left text-xs font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-700"
       >
         Log out
       </button>
-    </>
+    </div>
   )
 }

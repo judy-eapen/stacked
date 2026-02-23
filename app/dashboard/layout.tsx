@@ -60,7 +60,7 @@ export default async function DashboardLayout({
       {/* Main content */}
       <main className="flex-1 min-h-screen">
         <RedirectToOnboardingWhenEmpty tourCompletedAt={tourCompletedAt} />
-        <div className="p-4 md:p-6 lg:p-8 max-w-3xl mx-auto">{children}</div>
+        <div className="p-4 md:p-6 lg:p-8 max-w-6xl mx-auto w-full">{children}</div>
       </main>
 
       <Suspense fallback={null}>
