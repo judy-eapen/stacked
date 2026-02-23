@@ -1,9 +1,11 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { AddToHomeBanner } from '@/components/add-to-home-banner'
 import { UserBlock } from '@/components/user-block'
 import { RedirectToOnboardingWhenEmpty } from '@/components/redirect-to-onboarding'
+import { GuidedTourWrapper } from '@/components/guided-tour-wrapper'
 
 const nav = [
   { label: 'Today', href: '/dashboard/today' },
@@ -25,11 +27,17 @@ export default async function DashboardLayout({
   }
   const { data: profile } = await supabase
     .from('profiles')
-    .select('display_name')
+    .select('display_name, tour_completed_at')
     .eq('id', user.id)
     .single()
   const displayName = (profile?.display_name ?? '').trim()
   const email = user.email ?? ''
+  const tourCompletedAt = profile?.tour_completed_at ?? null
+  const { count: identitiesCount } = await supabase
+    .from('identities')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+  const hasIdentities = (identitiesCount ?? 0) > 0
 
   return (
     <div
@@ -100,6 +108,13 @@ export default async function DashboardLayout({
         <RedirectToOnboardingWhenEmpty />
         <div className="p-4 md:p-6 lg:p-8 max-w-3xl mx-auto">{children}</div>
       </main>
+
+      <Suspense fallback={null}>
+        <GuidedTourWrapper
+          tourCompletedAt={tourCompletedAt}
+          hasIdentities={hasIdentities}
+        />
+      </Suspense>
 
       <AddToHomeBanner />
     </div>

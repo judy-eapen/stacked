@@ -1200,6 +1200,48 @@ The scorecard in the app is a **diagnostic and reset tool**, not a daily tracker
 
 ---
 
+### Phase 7 — Post-Onboarding Guided Tour
+
+**Goal:** After a user completes onboarding, they see a guided tour that walks them through the main areas of the app (Today, Identities, Habits, Review, Partners, Settings) so they learn how to use Stacked effectively. The tour is skippable, can be replayed from Help/Settings, and does not block usage.
+
+**User Stories:**
+
+- US-7.1: As a new user who just finished onboarding, I want a short guided tour of the app so I know where to go for daily check-ins, habit design, and review.
+  - AC: The tour starts automatically the first time the user lands on the dashboard (or Today) after completing the onboarding wizard. The tour consists of 5–7 steps, each highlighting one area (Today, Identities, Habits, Review, Partners, Settings) with one or two sentences of explanation and a Next (and optionally Back) control. A Skip tour control is visible on every step. After the last step (or Skip), the tour does not auto-show again.
+- US-7.2: As a user who skipped or finished the tour, I want to replay the tour from the app so I can re-learn the flow later.
+  - AC: A "How to use Stacked" or "Take the tour" entry exists in a visible place (e.g. Settings, Help section, or dashboard empty state). Choosing it runs the same guided tour again. No automatic re-trigger on later visits.
+- US-7.3: As a user in the tour, I want each step to point to the real UI (sidebar link or main area) so I know where things live.
+  - AC: Each step either navigates to the relevant route (e.g. Today, Identities, Habits, Review, Partners, Settings) or clearly highlights the corresponding nav item or section. Copy is concise and explains what the section is for (e.g. "Today is where you check off habits daily"; "Identities are who you want to become"; "Habits are the actions that vote for your identities").
+
+**Backend Tasks:**
+- Persist "tour completed" or "tour skipped" so the tour does not auto-start again (e.g. `profiles.tour_completed_at` or `profiles.saw_guided_tour`; or a client-only flag such as localStorage with a clear note in the PRD that server persistence is preferred for cross-device behavior).
+- No new API required if using existing profiles; otherwise add a minimal PATCH or use Supabase client to update the profile.
+
+**Frontend Tasks:**
+- Implement a tour component (modal/overlay or spotlight + card) that: shows a sequence of steps with short copy and Next / Back / Skip; for each step, either navigates to the relevant page and then shows the step, or highlights the nav/section (e.g. by route or data attribute).
+- Define tour steps and copy for: Today (daily check-in, streaks, identity votes), Identities (scoreboard, add habits, fix blockers), Habits (add, design, stack, archive), Review (weekly/monthly, reset), Partners (invite, shared view, contract), Settings (profile, email/push/calendar, export). Optional final step: "You're all set. Open Today to check in."
+- Trigger the tour automatically once: when the user has at least one identity (onboarding completed) and has not yet completed/skipped the tour (check profiles or localStorage).
+- Add a "How to use Stacked" / "Take the tour" entry (Settings, Help, or dashboard) that restarts the same tour.
+- Ensure the tour is usable on mobile (tap targets, readable text, no overlapping critical UI).
+
+**Acceptance Criteria:**
+- The tour runs automatically once after onboarding when the user first reaches the dashboard (or Today).
+- The tour has 5–7 steps covering Today, Identities, Habits, Review, Partners, Settings (and optionally a closing step).
+- Each step explains the purpose of that part of the app in one or two sentences.
+- User can move Next/Back, and can Skip at any time; after completion or Skip, the tour does not auto-start again.
+- User can start the tour again via "How to use Stacked" (or equivalent) in Settings or Help.
+- Tour state is persisted (profile or documented client-only approach).
+
+**Definition of Done:**
+- All user stories pass acceptance criteria
+- Tour copy is reviewed for clarity and consistency with Atomic Habits terminology (identity, habit, vote, streak, review)
+- Tour works on the primary mobile breakpoint (375px) and on desktop
+- No automatic tour after the first completion/skip; re-play is explicitly user-initiated
+
+**Dependencies:** Phase 1 (onboarding, dashboard, nav). Phases 2–6 (Habits, Review, Partners, Settings) define the areas the tour describes; the tour should reference only features that exist in the built product.
+
+---
+
 ## 8. Observability & Non-Functional Requirements
 
 ### Logging
@@ -1344,6 +1386,7 @@ These guidelines apply across all phases. They are cross-cutting UX patterns, no
 | D44 | Onboarding ends with a win | One identity → one habit → 4 Laws (lightweight) → first completion → optional add identity | Onboarding is a wizard that creates one identity, one habit (2-min required), configures cue/reward (4 Laws in ~60–90 sec), then "Do the tiny version now" with single Done. App records first completion and shows "You cast 1 vote for [Identity]." Step 4 offers "Add another identity?" (skip or link to Identities). No "max 2 identities" in onboarding; one identity by default, add more later. | 2026-02-20 |
 | D45 | One identity rule everywhere | Unlimited identities; onboarding nudges to 1 | Identities are unlimited on both onboarding and Identities page. Onboarding strongly guides to one identity first; "Add another identity later" and step 4 offer adding more. No structural cap. | 2026-02-20 |
 | D49 | Today as default landing (Phase 3) | After daily view exists: Today first in nav; post-login land on Today when user has habits | Once Phase 3 (Today view) is built, Today becomes the first dashboard nav item and the default post-login destination when the user has at least one active habit. Users with no habits land on dashboard home. Supports daily check-in as the primary action. | 2026-02-22 |
+| D50 | Post-onboarding guided tour (Phase 7) | One-time guided walkthrough after onboarding | After onboarding, user sees a skippable guided tour of Today, Identities, Habits, Review, Partners, Settings. Tour state persisted (profile or localStorage); replay via "How to use Stacked" in Settings. | 2026-02-22 |
 
 ---
 

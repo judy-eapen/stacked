@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 
 const COMMON_TIMEZONES = [
@@ -338,6 +339,17 @@ export default function SettingsPage() {
             Connect Google Calendar
           </a>
         )}
+      </div>
+
+      <div className="rounded-xl bg-white border border-gray-200/80 p-5">
+        <h2 className="text-sm font-semibold text-gray-900 mb-3">How to use Stacked</h2>
+        <p className="text-sm text-gray-600 mb-3">Take a short guided tour of Today, Identities, Habits, Review, Partners, and Settings.</p>
+        <Link
+          href="/dashboard?tour=1"
+          className="inline-block h-10 px-4 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#e87722]/70 focus:ring-offset-2"
+        >
+          Take the tour
+        </Link>
       </div>
 
       <div className="rounded-xl bg-white border border-gray-200/80 p-5">
