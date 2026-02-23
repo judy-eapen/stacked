@@ -356,7 +356,7 @@ export default function IdentitiesPage() {
                         href={`/dashboard/habits?identity=${idn.id}&mode=fix`}
                         className="inline-flex items-center justify-center h-9 px-4 rounded-lg border border-gray-200 text-sm font-medium hover:bg-gray-50"
                       >
-                        View & fix blockers →
+                        {idn.undermining.length === 0 ? 'Add a blocking habit' : 'View & fix blockers →'}
                       </Link>
                       <Link
                         href={`/dashboard/habits?identity=${idn.id}`}

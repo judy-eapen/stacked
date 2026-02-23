@@ -457,7 +457,7 @@ export default function HabitsPage() {
               <p className="text-xs font-medium text-gray-700">Pick from existing habits</p>
               <ul className="space-y-1 max-h-48 overflow-y-auto rounded-lg border border-gray-200 p-2">
                 {activeHabits
-                  .filter((habit) => habit.identity_id !== identityParam)
+                  .filter((habit) => habit.identity_id == null)
                   .map((habit) => (
                     <li key={habit.id} className="flex items-center justify-between gap-2 py-1.5 px-2 rounded hover:bg-gray-50">
                       <span className="text-sm text-gray-900">{habit.name}</span>
@@ -475,9 +475,9 @@ export default function HabitsPage() {
                     </li>
                   ))}
               </ul>
-              {activeHabits.filter((h) => h.identity_id !== identityParam).length === 0 && (
+              {activeHabits.filter((h) => h.identity_id == null).length === 0 && (
                 <p className="text-sm text-gray-500">
-                  {activeHabits.length === 0 ? 'No habits yet. Create one first, then you can add it as a blocker here.' : 'No other habits to pick. Your reinforcing habits for this identity are not shown here; add a blocker by name below.'}
+                  {activeHabits.length === 0 ? 'No habits yet. Create one first, then you can add it as a blocker here.' : 'No unlinked habits. Only habits not linked as reinforcing any identity can be added as blockers; add a blocker by name below.'}
                 </p>
               )}
               <p className="text-xs text-gray-500">Or add by name:</p>
