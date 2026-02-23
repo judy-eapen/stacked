@@ -49,14 +49,25 @@ export default function HabitDetailPage() {
       setLoading(false)
       return
     }
-    const raw = data as HabitInfo & { identities: unknown }
+    const raw = data as Record<string, unknown>
+    const identitiesRel = raw.identities
+    let identityStatement: { statement: string } | null = null
+    if (identitiesRel && typeof identitiesRel === 'object') {
+      if (!Array.isArray(identitiesRel) && 'statement' in identitiesRel) {
+        const s = (identitiesRel as { statement: unknown }).statement
+        identityStatement = typeof s === 'string' ? { statement: s } : null
+      } else if (Array.isArray(identitiesRel) && identitiesRel[0] && typeof identitiesRel[0] === 'object' && 'statement' in identitiesRel[0]) {
+        const s = (identitiesRel[0] as { statement: unknown }).statement
+        identityStatement = typeof s === 'string' ? { statement: s } : null
+      }
+    }
     setHabit({
-      id: raw.id,
-      name: raw.name,
-      two_minute_version: raw.two_minute_version,
-      identity_id: raw.identity_id,
-      identities: Array.isArray(raw.identities) ? raw.identities[0] ?? null : raw.identities,
-      current_streak: raw.current_streak,
+      id: String(raw.id),
+      name: String(raw.name),
+      two_minute_version: raw.two_minute_version != null ? String(raw.two_minute_version) : null,
+      identity_id: raw.identity_id != null ? String(raw.identity_id) : null,
+      identities: identityStatement,
+      current_streak: Number(raw.current_streak) ?? 0,
     })
     setError(null)
     setLoading(false)
