@@ -6,14 +6,7 @@ import { AddToHomeBanner } from '@/components/add-to-home-banner'
 import { UserBlock } from '@/components/user-block'
 import { RedirectToOnboardingWhenEmpty } from '@/components/redirect-to-onboarding'
 import { GuidedTourWrapper } from '@/components/guided-tour-wrapper'
-
-const nav = [
-  { label: 'Today', href: '/dashboard/today' },
-  { label: 'Identities', href: '/dashboard/identities' },
-  { label: 'Habits', href: '/dashboard/habits' },
-  { label: 'Review', href: '/dashboard/review' },
-  { label: 'Partners', href: '/dashboard/partners' },
-]
+import { DashboardNav } from '@/components/dashboard-nav'
 
 export default async function DashboardLayout({
   children,
@@ -41,42 +34,14 @@ export default async function DashboardLayout({
 
   return (
     <div
-      className="min-h-screen flex"
+      className="min-h-screen flex flex-col"
       style={{
         background: 'linear-gradient(135deg, #faf8f5 0%, #f5f0e8 50%, #f0ebe0 100%)',
       }}
     >
-      {/* Sidebar */}
-      <aside className="hidden md:flex md:w-60 md:flex-col md:fixed md:inset-y-0 border-r border-gray-200/80 bg-white/70 backdrop-blur-sm">
-        <div className="flex h-14 items-center gap-2 px-5 border-b border-gray-200/80">
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="flex flex-col gap-0.5">
-              <span className="h-0.5 w-3 rounded-full bg-[#e87722]" />
-              <span className="h-0.5 w-4 rounded-full bg-[#e87722]" />
-              <span className="h-0.5 w-6 rounded-full bg-[#e87722]" />
-            </div>
-            <span className="font-bold tracking-tight text-gray-900">Stacked</span>
-          </Link>
-        </div>
-        <nav className="flex-1 p-3 space-y-0.5">
-          {nav.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="flex items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-[#e87722]/10 hover:text-gray-900"
-            >
-              <span>{item.label}</span>
-            </Link>
-          ))}
-        </nav>
-        <div className="p-3 border-t border-gray-200/80">
-          <UserBlock displayName={displayName} email={email} />
-        </div>
-      </aside>
-
-      {/* Mobile header */}
-      <header className="md:hidden flex items-center justify-between h-14 px-4 border-b border-gray-200/80 bg-white/90 backdrop-blur-sm sticky top-0 z-10">
-        <Link href="/dashboard" className="flex items-center gap-2">
+      {/* Top bar: logo, tabs, user */}
+      <header className="flex items-center justify-between gap-4 h-14 px-4 md:px-6 border-b border-gray-200/80 bg-white/90 backdrop-blur-sm sticky top-0 z-10 shrink-0">
+        <Link href="/dashboard" className="flex items-center gap-2 shrink-0">
           <div className="flex flex-col gap-0.5">
             <span className="h-0.5 w-3 rounded-full bg-[#e87722]" />
             <span className="h-0.5 w-4 rounded-full bg-[#e87722]" />
@@ -84,27 +49,16 @@ export default async function DashboardLayout({
           </div>
           <span className="font-bold tracking-tight text-gray-900">Stacked</span>
         </Link>
-        <nav className="flex gap-2">
-          <Link href="/dashboard/today" className="text-sm font-medium text-gray-600 hover:text-gray-900 px-3 py-2">
-            Today
-          </Link>
-          <Link href="/dashboard/identities" className="text-sm font-medium text-gray-600 hover:text-gray-900 px-3 py-2">
-            Identities
-          </Link>
-          <Link href="/dashboard/habits" className="text-sm font-medium text-gray-600 hover:text-gray-900 px-3 py-2">
-            Habits
-          </Link>
-          <Link href="/dashboard/review" className="text-sm font-medium text-gray-600 hover:text-gray-900 px-3 py-2">
-            Review
-          </Link>
-          <Link href="/dashboard/partners" className="text-sm font-medium text-gray-600 hover:text-gray-900 px-3 py-2">
-            Partners
-          </Link>
-        </nav>
+        <div className="flex-1 flex justify-center min-w-0 overflow-x-auto">
+          <DashboardNav />
+        </div>
+        <div className="shrink-0">
+          <UserBlock displayName={displayName} email={email} />
+        </div>
       </header>
 
       {/* Main content */}
-      <main className="flex-1 md:pl-60 min-h-screen">
+      <main className="flex-1 min-h-screen">
         <RedirectToOnboardingWhenEmpty tourCompletedAt={tourCompletedAt} />
         <div className="p-4 md:p-6 lg:p-8 max-w-3xl mx-auto">{children}</div>
       </main>

@@ -1290,6 +1290,79 @@ The scorecard in the app is a **diagnostic and reset tool**, not a daily tracker
 
 ---
 
+### Identities Page UI Refresh (Post–Phase 7)
+
+**Goal:** Redesign the Identities list page to match the approved v0-style design: header with persistent "+ Create identity" button, summary stats block (Identities count, Votes this week, Avg momentum), identity cards in a 2-column grid with statement, votes + trend, momentum bar, collapsible "Linked habits" (reinforcing pills + undermining pills), and card actions. All existing functionality must continue to work after the UI refresh.
+
+**Design reference:** `docs/requirements/identities-page-redesign.md`.
+
+**User Stories:**
+
+- US-Identities-UI-1: As a user on the Identities page, I see a clear header with title "Identity statements", subtitle with example, and a persistent orange "+ Create identity" button (top-right on desktop, sensible on mobile) so I can create an identity from any state.
+  - AC: Title and subtitle match current copy; "+ Create identity" is a button (not only a text link when identities exist); button opens the same create flow as today.
+- US-Identities-UI-2: As a user on the Identities page, I see three summary cards above the identity list: Identities (count), Votes this week (sum across identities, same logic as today), and Avg momentum (average of per-identity momentum %), so I get an at-a-glance scoreboard.
+  - AC: Cards use existing design system (rounded, card bg); labels "IDENTITIES", "VOTES THIS WEEK", "AVG MOMENTUM"; values computed from existing data (no backend changes); optional light highlight on Votes and Avg Momentum numbers.
+- US-Identities-UI-3: As a user on the Identities page, I see each identity in a card with: full statement (title), "X votes this week" and "+X vs last week" (green when positive), Momentum section (label, %, progress bar, helper text "How much you showed up this week vs. max possible (7 days × habits)."), collapsible "LINKED HABITS" (default expanded) with Reinforcing (N) as pills and "+ Add habit", Undermining (N) as pills and "+ Add blocker" (or "No blockers linked yet. + Add one"), and three actions: "+ Add reinforcing habit", "View & fix blockers", "View details".
+  - AC: 2-column grid on desktop, 1 column on mobile; momentum formula unchanged (votes_this_week / (7 × habit_count)); reinforcing/undermining show as pills (rounded tags); collapsible section has chevron; all links and routes unchanged.
+- US-Identities-UI-4: As a user on the Identities page, I can still create, edit, and delete identities; use "Add habit" / "View & fix blockers" / "View details"; and see the post-create "Want to add a habit?" prompt and the empty state when I have no identities.
+  - AC: Create flow (complete-the-sentence, min length, create then optional prompt) works; edit (statement only) and delete (with confirmation or current behavior) work; "Add reinforcing habit" → `/dashboard/habits?identity=...&mode=reinforce&new=1`; "View & fix blockers" → identity detail `?blockers=1`; "View details" → identity detail; post-create prompt and empty state behavior unchanged.
+
+**Backend / API:**
+
+- None. Same data sources: identities, habits (identity_id), habits_to_break; votes and momentum from existing helpers (`getThisWeekBounds`, `getLastWeekBounds`, `countVotesInRange`).
+
+**Frontend Tasks:**
+
+- Header: Title "Identity statements", subtitle with example, "+ Create identity" button (primary orange) top-right; on mobile, button remains visible (e.g. below subtitle or sticky).
+- Summary block: Three cards in a row (stack on small screens); Identities count, Votes this week (sum of votes in range across all identity habits), Avg momentum (average of per-identity momentum %); icons from lucide-react (e.g. Users, Calendar, BarChart2).
+- Identity cards: Grid (grid-cols-1 md:grid-cols-2); each card: statement as title, votes + trend (green "+X vs last week" when positive), momentum row (label + % + progress bar + helper text), collapsible "LINKED HABITS" (Reinforcing (N) with pills and "+ Add habit", Undermining (N) with pills and "+ Add blocker"), three action buttons; edit/delete controls (e.g. icon buttons or menu) on card.
+- Reinforcing pills: Show all linked habits as pills, or cap at 5–7 with "View all" linking to identity detail; undermining pills for blockers; "+ Add habit" / "+ Add blocker" use existing routes.
+- Empty state: Single CTA card when no identities; "Create your first identity" or "+ Create identity" opens same create flow.
+- Design system: Use existing app colors (primary orange), typography (font-heading / font-body if in use), spacing, border radius; lucide-react for icons.
+
+**Acceptance Criteria:**
+
+- Identities page matches the approved design: header with button, summary cards, 2-col identity cards with statement, votes/trend, momentum, collapsible linked habits (pills), and three card actions.
+- **All existing functionality preserved (no regressions):**
+  - Create identity (complete-the-sentence, min length, insert, optional post-create "Add habit" prompt).
+  - Edit identity statement (inline or modal; save/cancel).
+  - Delete identity (current behavior; no unintended data loss).
+  - "+ Add reinforcing habit" navigates to Habits with identity and mode=reinforce and new=1.
+  - "View & fix blockers" / "Add a blocking habit" navigates to identity detail with ?blockers=1 or to Habits with identity and mode=fix as per current behavior.
+  - "View details" navigates to identity detail.
+  - Post-create prompt ("Want to add a habit for this identity?" with "Create habit now" / "Skip for now") still appears and works.
+  - Empty state when no identities: message + "Create your first identity" (or equivalent) opens create flow.
+  - Votes this week and trend (vs last week) and momentum % use same formulas and data as current page.
+- No backend or schema changes; existing routes and query params unchanged.
+- Mobile-first: summary cards stack; identity cards single column on small screens; touch targets and layout usable at 375px.
+
+**Definition of Done:**
+
+- PRD section and Decision Log updated (this phase and D55).
+- Identities list page rebuilt with new layout and components; all behaviors above verified (create, edit, delete, links, prompt, empty state, metrics).
+- Identity detail page and Habits page unchanged in behavior; only links from Identities page point to them as today.
+
+**Dependencies:** Phase 1 (Identities list and detail exist). Today Page UI Refresh optional (design system may be shared).
+
+---
+
+### Dashboard navigation — top tabs with icons (Post–Phase 7)
+
+**Goal:** Dashboard uses a single top bar (no sidebar) with main nav as tabs on top. Tabs show the same icon set (lucide-react) and the selected tab is clearly indicated in orange.
+
+**Implemented:**
+
+- **Layout:** One sticky top bar: logo (left), nav tabs (center), user block (right). Sidebar removed; same layout on desktop and mobile. Main content full width below with existing max-width and padding.
+- **Tabs:** Today, Identities, Habits, Review, Partners. Each tab is an icon + label. Icons: Calendar (Today), Users (Identities), ListTodo (Habits), FileText (Review), UserPlus (Partners).
+- **Active state:** Selected tab uses orange background (`#e87722`) and white text; inactive tabs are gray with hover state. Active determined by current pathname (client component `DashboardNav` with `usePathname()`).
+- **Responsive:** Nav area scrolls horizontally on small screens if needed (`overflow-x-auto`).
+
+**Acceptance criteria:** Nav is always on top; all five sections have a consistent icon; active tab is orange; no regressions in navigation or user block.
+
+**Dependencies:** Phase 1 (dashboard and routes exist). Implemented alongside Today/Identities UI updates.
+
+---
+
 ## 8. Observability & Non-Functional Requirements
 
 ### Logging
@@ -1439,6 +1512,8 @@ These guidelines apply across all phases. They are cross-cutting UX patterns, no
 | D52 | Identity detail page | Same-page UX: identity + habits + blockers | Identity detail at /dashboard/identities/[identityId] shows scoreboard (statement, votes, trend, Momentum), full list of habits for that identity, and blockers section (add/edit habit to break) on one page. Identities list links to identity detail; CTAs "Add reinforcing habit" and "Add/View & fix blockers" go to identity detail (?add=1 or ?blockers=1). "Add reinforcing habit" from identity detail links to Habits page with identity preselected. Habits page remains single source of truth for habit create/edit; identity detail is the primary place to view and manage one identity and its blockers. | 2026-02-22 |
 | D53 | Phase 2–5 PRD gaps implemented | Past 7 days backfill; habit detail + calendar; graduation; share prompt; stack chain; explainers | Past 7 days backfill: Today page "Edit past days" with date picker and toggle completions; API /api/habits/today?date= supports last 7 days. Habit detail page at /dashboard/habits/[habitId] with 30-day completion grid (heatmap). GraduationPrompt component (21+ completions) on Review write and Today. Share check-in auto-prompt when all daily habits done (dismissible, localStorage per day). Phase 2: StackChainView on habit cards; concept explainers (Momentum, streak tooltip, 4 Laws subtitle on Habits). | 2026-02-22 |
 | D54 | Today Page UI refresh | Mobile-first redesign with This Week calendar and habit cards with weekly dots | Today page updated to match approved design: Outfit + Inter, oklch palette (cream, primary orange), header with date and progress bar, "This Week" horizontal day pills with completion dots, habit cards in grid with streak pills and 7-dot weekly row. API extended with week_completion per habit. See "Today Page UI Refresh" in Section 7. | 2026-02-22 |
+| D55 | Identities Page UI refresh | New phase: summary stats, 2-col cards, linked-habits pills, all behavior preserved | Identities list page redesigned to match v0-style: header with "+ Create identity" button, three summary cards (Identities, Votes this week, Avg momentum), identity cards in 2-col grid with statement, votes/trend, momentum bar, collapsible Linked habits (reinforcing/undermining pills), same three actions. No backend changes; create, edit, delete, all links, post-create prompt, and empty state must continue to work. See "Identities Page UI Refresh" in Section 7. | 2026-02-22 |
+| D56 | Dashboard nav: top tabs with icons | Single top bar, tabs on top, lucide icons, orange active | Dashboard layout updated: sidebar removed; single sticky top bar with logo, nav tabs (Today, Identities, Habits, Review, Partners), and user block. Each tab has a lucide-react icon (Calendar, Users, ListTodo, FileText, UserPlus). Active tab shown with orange background and white text. Implemented in `components/dashboard-nav.tsx` and `app/dashboard/layout.tsx`. See "Dashboard navigation — top tabs with icons" in Section 7. | 2026-02-22 |
 
 ---
 
