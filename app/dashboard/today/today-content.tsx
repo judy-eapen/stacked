@@ -549,7 +549,7 @@ export function TodayContent(props: TodayContentProps) {
           {showPastDays && (
             <div className="mt-4 space-y-3">
               <p className="font-body text-xs text-muted-foreground">
-                Select a date (last 7 days) to mark habits complete or incomplete.
+                Select a date (yesterday through 6 days ago) to mark habits complete or incomplete.
               </p>
               <div className="flex flex-wrap gap-2">
                 {getLast7Days().map((d) => {

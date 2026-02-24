@@ -806,13 +806,15 @@ function HabitCard({
   const saveEdit = () => {
     const db = trimDesignBuild(editDesignBuild)
     const intentionFromBuild = db?.obvious?.implementation_intention?.trim()
+    const twoMinRaw = (db?.easy?.two_minute_rule?.trim() ?? habit.two_minute_version ?? '').trim().slice(0, 200)
+    const temptationRaw = (db?.attractive?.temptation_bundling?.trim() ?? habit.temptation_bundle ?? '').trim().slice(0, 500)
     onUpdate({
       name: editName.trim().slice(0, 200) || habit.name,
       identity_id: editIdentityId || null,
       design_build: isEmptyDesignBuild(db ?? null) ? null : db,
       implementation_intention: intentionFromBuild ? { behavior: intentionFromBuild.slice(0, 200), time: undefined, location: undefined } : habit.implementation_intention,
-      two_minute_version: (db?.easy?.two_minute_rule?.trim()?.slice(0, 200)) ?? habit.two_minute_version,
-      temptation_bundle: (db?.attractive?.temptation_bundling?.trim()?.slice(0, 500)) ?? habit.temptation_bundle,
+      two_minute_version: twoMinRaw || null,
+      temptation_bundle: temptationRaw || null,
     })
   }
 

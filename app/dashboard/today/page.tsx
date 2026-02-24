@@ -49,10 +49,11 @@ export default function TodayPage() {
   const [pastDaysTogglingId, setPastDaysTogglingId] = useState(null as string | null)
   const [justCompletedId, setJustCompletedId] = useState(null as string | null)
 
+  /** Yesterday through 6 days ago (excludes today so we never show "0 days ago"). */
   function getLast7Days() {
     const out: string[] = []
     const d = new Date()
-    for (let i = 1; i <= 7; i++) {
+    for (let i = 1; i <= 6; i++) {
       const x = new Date(d)
       x.setDate(d.getDate() - i)
       out.push(x.toISOString().slice(0, 10))
@@ -133,6 +134,7 @@ export default function TodayPage() {
       return { ...prev, habits: nextHabits }
     })
     if (pastDaysDate) fetchPastDay(pastDaysDate)
+    fetchToday()
   }
 
   const fetchToday = useCallback(async () => {

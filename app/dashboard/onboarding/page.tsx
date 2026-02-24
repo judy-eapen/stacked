@@ -121,7 +121,7 @@ export default function OnboardingPage() {
       return
     }
     const name = habitName.trim().slice(0, 200)
-    const twoMin = habitTwoMin.trim().slice(0, 200)
+    const twoMin = habitTwoMin.trim().slice(0, 200) || null
     const { data: habitRow, error: insertErr } = await supabase
       .from('habits')
       .insert({

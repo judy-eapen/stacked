@@ -53,10 +53,11 @@ export default function ResetPage() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setSaving(false); return }
+    const twoMin = twoMinuteDraft.trim().slice(0, 200) || null
     const { error: err } = await supabase
       .from('habits')
       .update({
-        two_minute_version: twoMinuteDraft.trim().slice(0, 200),
+        two_minute_version: twoMin,
         current_streak: 0,
         updated_at: new Date().toISOString(),
       })
