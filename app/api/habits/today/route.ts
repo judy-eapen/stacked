@@ -47,6 +47,7 @@ export async function GET(request: Request) {
       name,
       two_minute_version,
       implementation_intention,
+      design_build,
       stack_anchor_scorecard_id,
       stack_anchor_habit_id,
       temptation_bundle,
@@ -150,6 +151,11 @@ export async function GET(request: Request) {
       name: string
       two_minute_version: string | null
       implementation_intention: { time?: string; location?: string; behavior?: string } | null
+      design_build: {
+        obvious?: { implementation_intention?: string }
+        attractive?: { temptation_bundling?: string; pair_with_enjoyment?: string }
+        easy?: { two_minute_rule?: string }
+      } | null
       stack_anchor_scorecard_id: string | null
       stack_anchor_habit_id: string | null
       temptation_bundle: string | null
@@ -209,6 +215,7 @@ export async function GET(request: Request) {
       identity_id: habit.identity_id,
       two_minute_version: habit.two_minute_version,
       implementation_intention: habit.implementation_intention,
+      design_build: habit.design_build ?? null,
       stack_context,
       temptation_bundle: habit.temptation_bundle,
       time_of_day,

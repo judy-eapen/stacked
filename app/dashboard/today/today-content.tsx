@@ -3,12 +3,18 @@
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { format, parseISO, startOfWeek, addDays, isSameDay } from 'date-fns'
-import { Share2, Check, ChevronDown, ChevronUp, Zap, X, Copy, Send } from 'lucide-react'
+import { Share2, Check, ChevronDown, ChevronUp, Zap, X, Copy, Send, Calendar } from 'lucide-react'
 import { GraduationPrompt } from '@/components/graduation-prompt'
 
 const WEEKDAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 
 type PartnerOption = { partner_id: string; display_name: string | null }
+
+export interface TodayContentHabitDesignBuild {
+  obvious?: { implementation_intention?: string }
+  attractive?: { temptation_bundling?: string; pair_with_enjoyment?: string }
+  easy?: { two_minute_rule?: string }
+}
 
 export interface TodayContentHabit {
   id: string
@@ -17,6 +23,7 @@ export interface TodayContentHabit {
   identity_id: string | null
   two_minute_version: string | null
   implementation_intention: { time?: string; location?: string; behavior?: string } | null
+  design_build?: TodayContentHabitDesignBuild | null
   stack_context: string | null
   temptation_bundle: string | null
   time_of_day: string
@@ -438,97 +445,117 @@ export function TodayContent(props: TodayContentProps) {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {habits.map((h) => (
-            <div
-              key={h.id}
-              className={`rounded-2xl bg-card border shadow-sm p-4 transition-all duration-200 hover:shadow-md ${
-                h.completed_today
-                  ? 'border-l-4 border-l-primary border-border'
-                  : 'border-border'
-              }`}
-            >
-              <div className="flex items-start gap-3">
-                <button
-                  type="button"
-                  onClick={() => onToggle(h)}
-                  disabled={togglingId === h.id}
-                  className={`mt-0.5 shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-                    justCompletedId === h.id ? 'animate-check-pop ' : ''
-                  }${
-                    h.completed_today
-                      ? 'bg-primary text-primary-foreground'
-                      : 'border-2 border-border hover:border-primary hover:bg-primary/10'
-                  }`}
-                  aria-label={h.completed_today ? 'Mark incomplete' : 'Mark complete'}
-                >
-                  {h.completed_today ? (
-                    <Check className="w-4 h-4" strokeWidth={3} />
-                  ) : null}
-                </button>
-                <div className="min-w-0 flex-1">
-                  <p
-                    className={`font-heading font-semibold ${
-                      h.completed_today ? 'text-muted-foreground line-through' : 'text-foreground'
+          {habits.map((h) => {
+            const step2 = (h.two_minute_version ?? h.design_build?.easy?.two_minute_rule ?? '').trim()
+            const step3 = (h.stack_context ?? h.design_build?.obvious?.implementation_intention ?? '').trim()
+            const step4 = (h.temptation_bundle ?? h.design_build?.attractive?.temptation_bundling ?? h.design_build?.attractive?.pair_with_enjoyment ?? h.identity ?? '').trim()
+            const hasDesignSteps = step2 || step3 || step4
+            return (
+              <div
+                key={h.id}
+                className={`rounded-2xl bg-card border shadow-sm p-4 transition-all duration-200 hover:shadow-md ${
+                  h.completed_today
+                    ? 'border-l-4 border-l-primary border-border'
+                    : 'border-border'
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <button
+                    type="button"
+                    onClick={() => onToggle(h)}
+                    disabled={togglingId === h.id}
+                    className={`mt-0.5 shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+                      justCompletedId === h.id ? 'animate-check-pop ' : ''
+                    }${
+                      h.completed_today
+                        ? 'bg-primary text-primary-foreground'
+                        : 'border-2 border-border hover:border-primary hover:bg-primary/10'
                     }`}
+                    aria-label={h.completed_today ? 'Mark incomplete' : 'Mark complete'}
                   >
-                    {h.name}
-                  </p>
-                  {h.two_minute_version && (
-                    <p className="font-body text-sm text-muted-foreground mt-0.5">
-                      {h.two_minute_version}
-                    </p>
-                  )}
-                  {h.stack_context && (
-                    <p className="font-body text-xs text-muted-foreground mt-0.5">{h.stack_context}</p>
-                  )}
-                  {h.consecutive_misses === 1 && !h.completed_today && (
-                    <p className="font-body text-sm text-amber-700 mt-1.5">
-                      You missed yesterday. Do it today and your streak continues.
-                    </p>
-                  )}
-                  {voteFeedback?.habitId === h.id && voteFeedback?.identity && (
-                    <p className="font-body text-sm font-medium text-primary mt-1">
-                      +1 vote for &ldquo;{voteFeedback.identity}&rdquo;
-                    </p>
-                  )}
-                  <div className="flex flex-wrap items-center gap-2 mt-2">
-                    <span
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium font-body ${
-                        h.current_streak > 0 ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'
+                    {h.completed_today ? (
+                      <Check className="w-4 h-4" strokeWidth={3} />
+                    ) : null}
+                  </button>
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className={`font-heading font-semibold ${
+                        h.completed_today ? 'text-muted-foreground line-through' : 'text-foreground'
                       }`}
                     >
-                      {h.current_streak > 0 && <Zap className="w-3 h-3" />}
-                      {h.current_streak} day{h.current_streak !== 1 ? 's' : ''}
-                    </span>
-                    {h.total_completions > 0 && (
-                      <span className="font-body text-xs text-muted-foreground">
-                        {h.total_completions} total
-                      </span>
-                    )}
-                  </div>
-                  <p className="font-body text-[11px] text-muted-foreground mt-0.5">
-                    One miss doesn&rsquo;t reset; two in a row do.
-                  </p>
-                  <div className="flex items-center gap-1 mt-2">
-                    {WEEKDAY_LETTERS.map((letter, i) => (
-                      <div key={i} className="flex flex-col items-center gap-0.5">
-                        <span className="font-body text-[10px] text-muted-foreground">{letter}</span>
-                        <div
-                          className={`w-5 h-5 rounded-full flex items-center justify-center ${
-                            h.week_completion?.[i] ? 'bg-primary text-primary-foreground' : 'bg-muted'
-                          }`}
-                        >
-                          {h.week_completion?.[i] ? (
-                            <Check className="w-2.5 h-2.5" strokeWidth={3} />
-                          ) : null}
-                        </div>
+                      {h.name}
+                    </p>
+                    {hasDesignSteps && (
+                      <div className="mt-1 space-y-0.5">
+                        {step2 ? (
+                          <p className="font-body text-sm text-foreground">{step2}</p>
+                        ) : null}
+                        {step3 ? (
+                          <p className="font-body text-sm text-muted-foreground italic">{step3}</p>
+                        ) : null}
+                        {step4 ? (
+                          <p className="font-body text-xs text-muted-foreground">{step4}</p>
+                        ) : null}
                       </div>
-                    ))}
+                    )}
+                    {h.consecutive_misses === 1 && !h.completed_today && (
+                      <p className="font-body text-sm text-amber-700 mt-1.5">
+                        You missed yesterday. Do it today and your streak continues.
+                      </p>
+                    )}
+                    {voteFeedback?.habitId === h.id && voteFeedback?.identity && (
+                      <p className="font-body text-sm font-medium text-primary mt-1">
+                        +1 vote for &ldquo;{voteFeedback.identity}&rdquo;
+                      </p>
+                    )}
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                      <span
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium font-body ${
+                          h.current_streak > 0 ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        {h.current_streak > 0 && <Zap className="w-3 h-3" />}
+                        {h.current_streak} day{h.current_streak !== 1 ? 's' : ''}
+                      </span>
+                      {h.total_completions > 0 && (
+                        <span className="font-body text-xs text-muted-foreground">
+                          {h.total_completions} total
+                        </span>
+                      )}
+                    </div>
+                    <p className="font-body text-[11px] text-muted-foreground mt-0.5">
+                      One miss doesn&rsquo;t reset; two in a row do.
+                    </p>
+                    <div className="flex items-center justify-between gap-2 mt-2">
+                      <div className="flex items-center gap-1">
+                        {WEEKDAY_LETTERS.map((letter, i) => (
+                          <div key={i} className="flex flex-col items-center gap-0.5">
+                            <span className="font-body text-[10px] text-muted-foreground">{letter}</span>
+                            <div
+                              className={`w-5 h-5 rounded-full flex items-center justify-center ${
+                                h.week_completion?.[i] ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                              }`}
+                            >
+                              {h.week_completion?.[i] ? (
+                                <Check className="w-2.5 h-2.5" strokeWidth={3} />
+                              ) : null}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <Link
+                        href={`/dashboard/habits/${h.id}`}
+                        className="shrink-0 inline-flex items-center gap-1 font-body text-xs text-muted-foreground hover:text-primary transition-colors"
+                      >
+                        <Calendar className="w-3.5 h-3.5" />
+                        30d
+                      </Link>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 

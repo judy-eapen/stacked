@@ -4,6 +4,12 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { parseISO, startOfWeek, addDays, differenceInDays } from 'date-fns'
 import { TodayContent } from './today-content'
 
+interface TodayHabitDesignBuild {
+  obvious?: { implementation_intention?: string }
+  attractive?: { temptation_bundling?: string; pair_with_enjoyment?: string }
+  easy?: { two_minute_rule?: string }
+}
+
 interface TodayHabit {
   id: string
   name: string
@@ -11,6 +17,7 @@ interface TodayHabit {
   identity_id: string | null
   two_minute_version: string | null
   implementation_intention: { time?: string; location?: string; behavior?: string } | null
+  design_build?: TodayHabitDesignBuild | null
   stack_context: string | null
   temptation_bundle: string | null
   time_of_day: string
