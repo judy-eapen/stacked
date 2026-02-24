@@ -35,6 +35,7 @@ interface Habit {
   is_active: boolean
   is_shared: boolean
   push_notification_enabled: boolean
+  email_reminder_time: string | null
   sort_order: number
   current_streak: number
   last_completed_date: string | null
@@ -187,6 +188,16 @@ function DesignBuildForm({ value, onChange }: { value: DesignBuild; onChange: (v
       </div>
     </div>
   )
+}
+
+function formatReminderTime(t: string): string {
+  const s = String(t).slice(0, 5)
+  const [h, m] = s.split(':').map((x) => parseInt(x, 10) || 0)
+  if (h === 0 && m === 0) return '12:00 AM'
+  if (h === 0) return `12:${String(m).padStart(2, '0')} AM`
+  if (h < 12) return `${h}:${String(m).padStart(2, '0')} AM`
+  if (h === 12) return `12:${String(m).padStart(2, '0')} PM`
+  return `${h - 12}:${String(m).padStart(2, '0')} PM`
 }
 
 function hasDesignFields(h: Habit): boolean {
@@ -998,14 +1009,18 @@ function HabitCard({
 }: HabitCardProps) {
   const [editName, setEditName] = useState(habit.name)
   const [editIdentityId, setEditIdentityId] = useState<string | null>(habit.identity_id)
+  const [editEmailReminderTime, setEditEmailReminderTime] = useState<string>(
+    habit.email_reminder_time ? String(habit.email_reminder_time).slice(0, 5) : ''
+  )
   const prevEditingRef = useRef(false)
   useEffect(() => {
     if (editingId === habit.id && !prevEditingRef.current) {
       setEditName(habit.name)
       setEditIdentityId(habit.identity_id)
+      setEditEmailReminderTime(habit.email_reminder_time ? String(habit.email_reminder_time).slice(0, 5) : '')
     }
     prevEditingRef.current = editingId === habit.id
-  }, [editingId, habit.id, habit.name, habit.identity_id])
+  }, [editingId, habit.id, habit.name, habit.identity_id, habit.email_reminder_time])
   const [editDesignBuild, setEditDesignBuild] = useState<DesignBuild>(() => ({
     ...EMPTY_DESIGN_BUILD,
     ...habit.design_build,
@@ -1021,6 +1036,7 @@ function HabitCard({
     const intentionFromBuild = db?.obvious?.implementation_intention?.trim()
     const twoMinRaw = (db?.easy?.two_minute_rule?.trim() ?? habit.two_minute_version ?? '').trim().slice(0, 200)
     const temptationRaw = (db?.attractive?.temptation_bundling?.trim() ?? habit.temptation_bundle ?? '').trim().slice(0, 500)
+    const emailTime = editEmailReminderTime.trim() ? editEmailReminderTime.trim().slice(0, 5) : null
     onUpdate({
       name: editName.trim().slice(0, 200) || habit.name,
       identity_id: editIdentityId || null,
@@ -1028,6 +1044,7 @@ function HabitCard({
       implementation_intention: intentionFromBuild ? { behavior: intentionFromBuild.slice(0, 200), time: undefined, location: undefined } : habit.implementation_intention,
       two_minute_version: twoMinRaw || null,
       temptation_bundle: temptationRaw || null,
+      email_reminder_time: emailTime,
     })
   }
 
@@ -1063,6 +1080,17 @@ function HabitCard({
             <span className="text-xs font-medium text-gray-700">Push reminders</span>
           </label>
           <div>
+            <label htmlFor={`email-reminder-${habit.id}`} className="font-body block text-xs font-medium text-muted-foreground mb-1">Email reminder at</label>
+            <input
+              id={`email-reminder-${habit.id}`}
+              type="time"
+              value={editEmailReminderTime}
+              onChange={(e) => setEditEmailReminderTime(e.target.value)}
+              className="font-body h-10 px-3 rounded-lg border border-border bg-card text-sm text-foreground"
+            />
+            <p className="text-xs text-muted-foreground mt-0.5">You’ll get an email at this time (your timezone from Settings) to check in on this habit. Leave empty for no email.</p>
+          </div>
+          <div>
             <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">4 laws: build this habit</p>
             <DesignBuildForm value={editDesignBuild} onChange={setEditDesignBuild} />
           </div>
@@ -1082,6 +1110,11 @@ function HabitCard({
               {sharedWithNames.length > 0 && (
                 <p className="font-body text-xs text-muted-foreground mt-0.5">
                   Shared with: {sharedWithNames.join(', ')}
+                </p>
+              )}
+              {habit.email_reminder_time && (
+                <p className="font-body text-xs text-muted-foreground mt-0.5">
+                  Email reminder at {formatReminderTime(habit.email_reminder_time)}
                 </p>
               )}
               {(habit.current_streak > 0) && (
@@ -1127,7 +1160,7 @@ function HabitCard({
               href="/dashboard/partners"
               className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 py-1.5 font-body text-xs font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-primary/10"
             >
-              <Users className="h-3.5 w-3.5" /> {sharedWithNames.length > 0 ? `Shared with ${sharedWithNames.length}` : 'Share with partners'}
+              <Users className="h-3.5 w-3.5" /> {sharedWithNames.length > 0 ? `Shared with ${sharedWithNames.join(', ')}` : 'Share with partners'}
             </Link>
             <button
               type="button"

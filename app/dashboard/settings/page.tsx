@@ -268,7 +268,7 @@ export default function SettingsPage() {
               onChange={(e) => setEmailReminderTime(e.target.value)}
               className="h-10 px-3 rounded-lg border border-gray-200 text-sm"
             />
-            <p className="text-xs text-gray-500 mt-1">Reminders are sent once per day.</p>
+            <p className="text-xs text-gray-500 mt-1">Daily digest once per day. You can also set a specific email reminder time per habit on the Habits page (Edit → Email reminder at).</p>
           </div>
         )}
         <div className="mb-3">
