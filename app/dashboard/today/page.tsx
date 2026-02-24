@@ -102,8 +102,9 @@ export default function TodayPage() {
     }
     setData((prev) => {
       if (!prev) return prev
-      const weekStart = startOfWeek(parseISO(prev.date), { weekStartsOn: 1 })
-      const selectedDay = parseISO(selectedDate)
+      const todayAtNoon = new Date(prev.date + 'T12:00:00')
+      const weekStart = startOfWeek(todayAtNoon, { weekStartsOn: 1 })
+      const selectedDay = new Date(selectedDate + 'T12:00:00')
       const dayIndex = differenceInDays(selectedDay, weekStart)
       if (dayIndex < 0 || dayIndex > 6) return prev
       const defaultWeek = [false, false, false, false, false, false, false]
