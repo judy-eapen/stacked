@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import {
   UserPlus,
@@ -20,7 +20,10 @@ type Partner = {
   avatar_url: string | null
   accepted_at: string | null
   last_active: string | null
+  shared_habit_ids: string[]
 }
+
+type MyHabit = { id: string; name: string }
 
 type PendingInvite = {
   id: string
@@ -53,6 +56,8 @@ type ApiResponse = {
   shared_habits_count: number
   shared_habits: SharedHabit[]
   received_checkins?: ReceivedCheckin[]
+  my_habits?: MyHabit[]
+  habit_shares_by_habit?: Record<string, { partner_id: string; display_name: string | null }[]>
 }
 
 function daysAgo(dateStr: string): number {
@@ -92,9 +97,11 @@ export default function PartnersPage() {
   const [removingId, setRemovingId] = useState<string | null>(null)
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null)
   const [cancelInviteId, setCancelInviteId] = useState<string | null>(null)
+  const [partnerSelectedHabits, setPartnerSelectedHabits] = useState<Record<string, Set<string>>>({})
+  const [savingPartnerId, setSavingPartnerId] = useState<string | null>(null)
 
-  useEffect(() => {
-    fetch('/api/partners', { credentials: 'include' })
+  const fetchPartners = useCallback(() => {
+    return fetch('/api/partners', { credentials: 'include' })
       .then((r) => r.json())
       .then((d) => {
         setData({
@@ -103,11 +110,17 @@ export default function PartnersPage() {
           shared_habits_count: d.shared_habits_count ?? 0,
           shared_habits: d.shared_habits ?? [],
           received_checkins: d.received_checkins ?? [],
+          my_habits: d.my_habits ?? [],
+          habit_shares_by_habit: d.habit_shares_by_habit ?? {},
         })
       })
-      .catch(() => setData({ partners: [], pending_invites: [], shared_habits_count: 0, shared_habits: [], received_checkins: [] }))
-      .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    fetchPartners()
+      .catch(() => setData({ partners: [], pending_invites: [], shared_habits_count: 0, shared_habits: [], received_checkins: [], my_habits: [], habit_shares_by_habit: {} }))
+      .finally(() => setLoading(false))
+  }, [fetchPartners])
 
   async function handleInvite() {
     setError(null)
@@ -125,10 +138,7 @@ export default function PartnersPage() {
         ? `${window.location.origin}/invite/${body.invite_token}`
         : body.invite_url || ''
     setInviteUrl(url)
-    fetch('/api/partners', { credentials: 'include' })
-      .then((r) => r.json())
-      .then((d) => setData({ partners: d.partners ?? [], pending_invites: d.pending_invites ?? [], shared_habits_count: d.shared_habits_count ?? 0, shared_habits: d.shared_habits ?? [] }))
-      .catch(() => {})
+    fetchPartners().catch(() => {})
   }
 
   function copyInviteUrl(url: string) {
@@ -156,9 +166,6 @@ export default function PartnersPage() {
     setConfirmRemoveId(null)
     if (res.ok && data) setData({ ...data, partners: data.partners.filter((p) => p.partnership_id !== partnershipId) })
   }
-
-  const completedToday = data?.shared_habits?.filter((h) => h.completed_today).length ?? 0
-  const totalShared = data?.shared_habits?.length ?? 0
 
   if (loading) {
     return (
@@ -290,7 +297,8 @@ export default function PartnersPage() {
                 const isExpanded = expandedPartnerId === partner.partner_id
                 const lastActive = partner.last_active ? daysAgo(partner.last_active) : null
                 const activeText = lastActive !== null ? (lastActive === 0 ? 'active today' : lastActive === 1 ? 'active 1 day ago' : `active ${lastActive} days ago`) : 'no activity yet'
-                const sharedCount = data.shared_habits?.length ?? 0
+                const sharedCount = partner.shared_habit_ids?.length ?? 0
+                const selectedSet = partnerSelectedHabits[partner.partner_id] ?? new Set(partner.shared_habit_ids ?? [])
                 return (
                   <li
                     key={partner.partnership_id}
@@ -322,14 +330,18 @@ export default function PartnersPage() {
                             href={`/dashboard/partners/${partner.partner_id}`}
                             className="font-body text-xs font-medium text-primary hover:underline"
                           >
-                            Manage visibility
+                            View their shared habits
                           </Link>
                           <button
                             type="button"
-                            onClick={() => setExpandedPartnerId(isExpanded ? null : partner.partner_id)}
+                            onClick={() => {
+                              setExpandedPartnerId(isExpanded ? null : partner.partner_id)
+                              if (!isExpanded && !partnerSelectedHabits[partner.partner_id])
+                                setPartnerSelectedHabits((prev) => ({ ...prev, [partner.partner_id]: new Set(partner.shared_habit_ids ?? []) }))
+                            }}
                             className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2 py-1 font-body text-xs font-medium text-foreground hover:bg-muted/50"
                           >
-                            {completedToday}/{totalShared} today
+                            {isExpanded ? 'Hide habits' : 'Select habits to share'}
                             {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                           </button>
                           <button
@@ -343,39 +355,62 @@ export default function PartnersPage() {
                         </div>
                       </div>
                     </div>
-                    {isExpanded && data?.shared_habits && data.shared_habits.length > 0 && (
-                      <ul className="mt-4 space-y-2 border-t border-border pt-4">
-                        {data.shared_habits.map((h) => (
-                          <li key={h.id} className="flex items-start gap-2">
-                            <span className="shrink-0 mt-0.5">
-                              {h.completed_today ? (
-                                <Check className="h-4 w-4 text-primary" />
-                              ) : (
-                                <Circle className="h-4 w-4 text-muted-foreground/60" />
-                              )}
-                            </span>
-                            <div className="min-w-0 flex-1">
-                              <p className="font-body text-sm font-medium text-foreground">{h.name}</p>
-                              {h.identity && (
-                                <p className="font-body text-xs text-muted-foreground">{h.identity}</p>
-                              )}
-                              <div className="mt-1 flex items-center gap-1">
-                                {DAY_LABELS.map((label, i) => (
-                                  <span
-                                    key={i}
-                                    className={h.week_completion[i] ? 'text-primary font-medium' : 'text-muted-foreground/60'}
-                                  >
-                                    {label}
-                                  </span>
-                                ))}
-                                <span className="ml-2 inline-flex rounded-full bg-primary/15 px-1.5 py-0.5 font-body text-xs font-medium text-primary">
-                                  {h.current_streak}
-                                </span>
-                              </div>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
+                    {isExpanded && (
+                      <div className="mt-4 border-t border-border pt-4 space-y-3">
+                        <p className="font-body text-sm font-medium text-foreground">
+                          Select which habits to share with {partner.display_name || 'this partner'}
+                        </p>
+                        {data?.my_habits && data.my_habits.length > 0 ? (
+                          <>
+                            <ul className="space-y-2">
+                              {data.my_habits.map((h) => (
+                                <li key={h.id} className="flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    id={`share-${partner.partner_id}-${h.id}`}
+                                    checked={selectedSet.has(h.id)}
+                                    onChange={() => {
+                                      setPartnerSelectedHabits((prev) => {
+                                        const next = new Set(prev[partner.partner_id] ?? [])
+                                        if (next.has(h.id)) next.delete(h.id)
+                                        else next.add(h.id)
+                                        return { ...prev, [partner.partner_id]: next }
+                                      })
+                                    }}
+                                    className="rounded border-border text-primary focus:ring-primary"
+                                  />
+                                  <label htmlFor={`share-${partner.partner_id}-${h.id}`} className="font-body text-sm text-foreground cursor-pointer">
+                                    {h.name}
+                                  </label>
+                                </li>
+                              ))}
+                            </ul>
+                            <button
+                              type="button"
+                              disabled={savingPartnerId === partner.partner_id}
+                              onClick={async () => {
+                                setSavingPartnerId(partner.partner_id)
+                                try {
+                                  const res = await fetch(`/api/partners/${partner.partner_id}/shared`, {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    credentials: 'include',
+                                    body: JSON.stringify({ habit_ids: [...selectedSet] }),
+                                  })
+                                  if (res.ok) await fetchPartners()
+                                } finally {
+                                  setSavingPartnerId(null)
+                                }
+                              }}
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 font-body text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                            >
+                              {savingPartnerId === partner.partner_id ? 'Saving…' : 'Save'}
+                            </button>
+                          </>
+                        ) : (
+                          <p className="font-body text-xs text-muted-foreground">No habits yet. Add habits on the Habits page first.</p>
+                        )}
+                      </div>
                     )}
                   </li>
                 )
@@ -420,7 +455,7 @@ export default function PartnersPage() {
             Partners can <strong className="text-foreground">only</strong> see the specific habits you choose to share. They see whether you checked in and your streak — nothing else.
           </p>
           <p className="font-body text-sm text-muted-foreground mt-2">
-            You can hide or remove any shared habit at any time using <Link href="/dashboard/habits" className="font-medium text-primary hover:underline">Manage visibility</Link> on each partner.
+            Choose which habits to share per partner above (Select habits to share). On the Habits page you will see &ldquo;Shared with: [names]&rdquo; for each habit.
           </p>
         </div>
         <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">

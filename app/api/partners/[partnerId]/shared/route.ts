@@ -52,13 +52,19 @@ export async function GET(
   weekEnd.setDate(weekEnd.getDate() + 6)
   const weekEndStr = toDateString(weekEnd)
 
+  const { data: shareRows } = await supabase
+    .from('habit_partner_shares')
+    .select('habit_id')
+    .eq('partner_id', user.id)
+  const sharedHabitIds = (shareRows ?? []).map((r: { habit_id: string }) => r.habit_id)
+
   const { data: habits, error: habitsError } = await supabase
     .from('habits')
     .select('id, name, identity_id, frequency, custom_days, current_streak, identities(statement)')
     .eq('user_id', partnerId)
-    .eq('is_shared', true)
     .eq('is_active', true)
     .is('archived_at', null)
+    .in('id', sharedHabitIds.length > 0 ? sharedHabitIds : ['00000000-0000-0000-0000-000000000000'])
     .order('sort_order', { ascending: true })
 
   if (habitsError) {
@@ -258,4 +264,61 @@ export async function GET(
       : null,
     last_active: lastActiveRes.data?.completed_date ?? null,
   })
+}
+
+/** Update which habits the current user shares with this partner. Body: { habit_ids: string[] } */
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<{ partnerId: string }> }
+) {
+  const { partnerId } = await params
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const { data: partnership } = await supabase
+    .from('partnerships')
+    .select('id')
+    .or(`and(user_id.eq.${user.id},partner_id.eq.${partnerId}),and(user_id.eq.${partnerId},partner_id.eq.${user.id})`)
+    .eq('status', 'accepted')
+    .maybeSingle()
+
+  if (!partnership) {
+    return NextResponse.json({ error: 'No active partnership with this partner' }, { status: 403 })
+  }
+
+  let body: { habit_ids?: string[] }
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+  }
+  const habitIds = Array.isArray(body.habit_ids) ? body.habit_ids : []
+
+  const { data: myHabits } = await supabase
+    .from('habits')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('is_active', true)
+    .is('archived_at', null)
+  const myHabitIds = new Set((myHabits ?? []).map((h: { id: string }) => h.id))
+  const validIds = habitIds.filter((id) => myHabitIds.has(id))
+
+  await supabase
+    .from('habit_partner_shares')
+    .delete()
+    .eq('partner_id', partnerId)
+    .in('habit_id', myHabitIds.size > 0 ? [...myHabitIds] : ['00000000-0000-0000-0000-000000000000'])
+
+  if (validIds.length > 0) {
+    await supabase.from('habit_partner_shares').insert(
+      validIds.map((habit_id) => ({ habit_id, partner_id: partnerId }))
+    )
+  }
+
+  return NextResponse.json({ ok: true, shared_habit_ids: validIds })
 }

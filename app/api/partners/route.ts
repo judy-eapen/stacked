@@ -64,6 +64,42 @@ export async function GET(request: Request) {
     }
   })
 
+  let my_habits: { id: string; name: string }[] = []
+  const shared_habit_ids_by_partner: Record<string, string[]> = {}
+  let habit_shares_by_habit: Record<string, { partner_id: string; display_name: string | null }[]> = {}
+
+  const { data: myHabitRows } = await supabase
+    .from('habits')
+    .select('id, name')
+    .eq('user_id', user.id)
+    .eq('is_active', true)
+    .is('archived_at', null)
+    .order('sort_order', { ascending: true })
+  my_habits = (myHabitRows ?? []).map((h: { id: string; name: string }) => ({ id: h.id, name: h.name }))
+
+  try {
+    const { data: shareRows } = await supabase
+      .from('habit_partner_shares')
+      .select('habit_id, partner_id')
+      .in('habit_id', my_habits.map((h) => h.id))
+    for (const row of shareRows ?? []) {
+      const pid = row.partner_id
+      if (!shared_habit_ids_by_partner[pid]) shared_habit_ids_by_partner[pid] = []
+      if (!shared_habit_ids_by_partner[pid].includes(row.habit_id)) shared_habit_ids_by_partner[pid].push(row.habit_id)
+      const hid = row.habit_id
+      if (!habit_shares_by_habit[hid]) habit_shares_by_habit[hid] = []
+      const prof = profileMap[pid]
+      habit_shares_by_habit[hid].push({ partner_id: pid, display_name: prof?.display_name ?? null })
+    }
+  } catch {
+    // table might not exist yet
+  }
+
+  const partnersWithSharedIds = partners.map((p) => ({
+    ...p,
+    shared_habit_ids: shared_habit_ids_by_partner[p.partner_id] ?? [],
+  }))
+
   let pending_invites: { id: string; created_at: string; invite_url: string }[] = []
   let shared_habits_count = 0
   let shared_habits: {
@@ -94,15 +130,6 @@ export async function GET(request: Request) {
       invite_url: origin ? `${origin}/invite/${r.invite_token}` : `/invite/${r.invite_token}`,
     }))
 
-    const { count } = await supabase
-      .from('habits')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .eq('is_shared', true)
-      .eq('is_active', true)
-      .is('archived_at', null)
-    shared_habits_count = count ?? 0
-
     if (otherIds.length > 0) {
       const { data: lastActiveRows } = await supabase
         .from('habit_completions')
@@ -123,14 +150,17 @@ export async function GET(request: Request) {
     weekEnd.setDate(weekEnd.getDate() + 6)
     const weekEndStr = toDateString(weekEnd)
 
+    const sharedHabitIdsFromTable =
+      Object.keys(habit_shares_by_habit).length > 0 ? Object.keys(habit_shares_by_habit) : []
     const { data: sharedHabitRows } = await supabase
       .from('habits')
       .select('id, name, identity_id, current_streak, identities(statement)')
       .eq('user_id', user.id)
-      .eq('is_shared', true)
       .eq('is_active', true)
       .is('archived_at', null)
+      .in('id', sharedHabitIdsFromTable.length > 0 ? sharedHabitIdsFromTable : ['00000000-0000-0000-0000-000000000000'])
       .order('sort_order', { ascending: true })
+    shared_habits_count = sharedHabitRows?.length ?? 0
 
     if (sharedHabitRows && sharedHabitRows.length > 0) {
       const habitIds = sharedHabitRows.map((h: { id: string }) => h.id)
@@ -173,7 +203,7 @@ export async function GET(request: Request) {
     }
   }
 
-  const partnersWithLastActive = partners.map((p) => ({
+  const partnersWithLastActive = partnersWithSharedIds.map((p) => ({
     ...p,
     last_active: last_active_by_partner[p.partner_id] ?? null,
   }))
@@ -224,5 +254,7 @@ export async function GET(request: Request) {
     shared_habits_count,
     shared_habits,
     received_checkins,
+    my_habits,
+    habit_shares_by_habit,
   })
 }

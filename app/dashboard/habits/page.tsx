@@ -233,6 +233,7 @@ export default function HabitsPage() {
   const [expandedCalendarHabitId, setExpandedCalendarHabitId] = useState<string | null>(null)
   const [calendarCompletions, setCalendarCompletions] = useState<Record<string, Set<string>>>({})
   const [calendarLoading, setCalendarLoading] = useState<string | null>(null)
+  const [habitSharesByHabit, setHabitSharesByHabit] = useState<Record<string, { partner_id: string; display_name: string | null }[]>>({})
 
   const fetchAll = useCallback(async () => {
     const supabase = createClient()
@@ -262,6 +263,13 @@ export default function HabitsPage() {
   useEffect(() => {
     fetchAll().finally(() => setLoading(false))
   }, [fetchAll])
+
+  useEffect(() => {
+    fetch('/api/partners', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => setHabitSharesByHabit(d.habit_shares_by_habit ?? {}))
+      .catch(() => {})
+  }, [habits.length])
 
   useEffect(() => {
     if (!expandedCalendarHabitId) return
@@ -852,6 +860,7 @@ export default function HabitsPage() {
                           calendarCompletions={calendarCompletions}
                           calendarLoading={calendarLoading}
                           onToggleCalendar={(id) => setExpandedCalendarHabitId((prev) => (prev === id ? null : id))}
+                          sharedWithNames={(habitSharesByHabit[h.id] ?? []).map((s) => s.display_name || 'Partner')}
                         />
                       ))}
                     </div>
@@ -934,6 +943,7 @@ export default function HabitsPage() {
                     calendarCompletions={calendarCompletions}
                     calendarLoading={calendarLoading}
                     onToggleCalendar={(id) => setExpandedCalendarHabitId((prev) => (prev === id ? null : id))}
+                    sharedWithNames={(habitSharesByHabit[h.id] ?? []).map((s) => s.display_name || 'Partner')}
                   />
                 ))}
               </div>
@@ -964,6 +974,7 @@ interface HabitCardProps {
   calendarCompletions: Record<string, Set<string>>
   calendarLoading: string | null
   onToggleCalendar: (habitId: string) => void
+  sharedWithNames: string[]
 }
 
 function HabitCard({
@@ -983,6 +994,7 @@ function HabitCard({
   calendarCompletions,
   calendarLoading,
   onToggleCalendar,
+  sharedWithNames,
 }: HabitCardProps) {
   const [editName, setEditName] = useState(habit.name)
   const [editIdentityId, setEditIdentityId] = useState<string | null>(habit.identity_id)
@@ -1044,15 +1056,6 @@ function HabitCard({
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
-              checked={habit.is_shared}
-              onChange={(e) => onUpdate({ is_shared: e.target.checked })}
-              className="rounded border-gray-300 text-[#e87722] focus:ring-[#e87722]"
-            />
-            <span className="text-xs font-medium text-gray-700">Share with partners</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
               checked={habit.push_notification_enabled ?? false}
               onChange={(e) => onUpdate({ push_notification_enabled: e.target.checked })}
               className="rounded border-gray-300 text-[#e87722] focus:ring-[#e87722]"
@@ -1076,6 +1079,11 @@ function HabitCard({
                 {habit.name}
               </Link>
               {identityStatement && <p className="font-body text-xs text-muted-foreground mt-0.5">{identityStatement}</p>}
+              {sharedWithNames.length > 0 && (
+                <p className="font-body text-xs text-muted-foreground mt-0.5">
+                  Shared with: {sharedWithNames.join(', ')}
+                </p>
+              )}
               {(habit.current_streak > 0) && (
                 <span className="inline-flex items-center gap-1.5 mt-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r from-amber-400/20 to-orange-500/20 border border-amber-400/40 text-amber-800 dark:text-amber-200 font-body text-xs font-semibold">
                   <Flame className="h-3.5 w-3.5 text-orange-500" />
@@ -1115,15 +1123,12 @@ function HabitCard({
             >
               <Pencil className="h-3.5 w-3.5" /> Edit
             </button>
-            <button
-              type="button"
-              onClick={() => onUpdate({ is_shared: !habit.is_shared })}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-body text-xs font-medium transition-colors ${
-                habit.is_shared ? 'border-primary/50 bg-primary/15 text-primary' : 'border-border bg-muted/50 text-foreground hover:border-primary/40 hover:bg-primary/10'
-              }`}
+            <Link
+              href="/dashboard/partners"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 py-1.5 font-body text-xs font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-primary/10"
             >
-              <Users className="h-3.5 w-3.5" /> {habit.is_shared ? 'Shared' : 'Share'}
-            </button>
+              <Users className="h-3.5 w-3.5" /> {sharedWithNames.length > 0 ? `Shared with ${sharedWithNames.length}` : 'Share with partners'}
+            </Link>
             <button
               type="button"
               onClick={() => onUpdate({ push_notification_enabled: !(habit.push_notification_enabled ?? false) })}
