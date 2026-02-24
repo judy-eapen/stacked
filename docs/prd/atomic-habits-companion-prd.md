@@ -1514,6 +1514,32 @@ Before implementation, please confirm the following. Anything you want to add, d
 
 **Dependencies:** Phase 5 (partnerships, shared habits). Design system from other refreshes.
 
+---
+
+### Landing Page Redesign (Post–Phase 7)
+
+**Goal:** Replace the current landing page with a marketing-style layout that matches the approved design: header with nav (Philosophy, Features, How It Works, Beta) and **Sign up** / **Log in** (same auth flows as current app), hero with "Private Beta" pill and IDENTITY card, philosophy block, Core Concepts (4 cards), How It Works (3 steps), Early Access CTA, and footer. Auth remains via existing /signup and /login; no new auth behavior.
+
+**Proposed changes (summary)**
+
+| # | Change | Notes |
+|---|--------|------|
+| 1 | Header: Stacked logo, nav links (Philosophy, Features, How It Works, Beta) scrolling to sections; **Log in** (→ /login) and **Sign up** (→ /signup) on the right. | Same auth as current app. |
+| 2 | Hero: "Private Beta" pill, headline "Become the type of person who keeps promises to themselves.", supporting copy, "Request Early Access" (→ /signup) and "See How It Works" (→ #how-it-works); right side: IDENTITY card (progress bar, habit list, "Daily scorecard 2/4 completed"). | Static mock card. |
+| 3 | Philosophy: Centered block — "Habits are not tasks. They are votes for who you are becoming." + paragraph. | |
+| 4 | Core Concepts: "CORE CONCEPTS" / "Built on proven principles" + 4 cards (Identity System, Habit Stacking, Meaningful Streaks, Daily Scorecard) with icons and descriptions. | |
+| 5 | How It Works: "HOW IT WORKS" / "Three steps to identity change" + 3 numbered steps (Choose an identity, Attach small daily habits, Show up consistently). | |
+| 6 | Early Access: "EARLY ACCESS" / "Built with a small group." + copy + "Join the Beta" (→ /signup) + "No spam. We respect your inbox." | No separate email capture; CTA goes to signup. |
+| 7 | Footer: Stacked, links (About, Privacy, Terms, Contact). Placeholder # or real routes as needed. | |
+
+**Acceptance criteria:** Landing matches approved layout and copy; Sign up and Log in use existing /signup and /login; all section anchors work; responsive.
+
+**Definition of Done:** PRD and Decision Log updated. Landing page rebuilt; auth unchanged.
+
+**Dependencies:** None. Implemented 2026-02-22.
+
+---
+
 **Implementation notes (built 2026-02-22):** Partners tab redesigned: two-column layout (main + sidebar). Header "Accountability Partners" with subtitle and orange "Invite Partner" button. Three summary cards: Active Partners, Shared Habits, Pending Invites. PENDING INVITES: dashed cards with "Sent X days ago", Copy link, Cancel (PATCH partnership to status=removed). YOUR PARTNERS: card per partner with avatar (initials), name, "N shared habits — active X days ago", "Partner since [date]", Manage visibility link, Remove (click twice to confirm); expandable "X/Y today" with shared habits list (check/circle, name, identity, MTWTFSS dots, streak pill). Sidebar: How Partners Work (4 steps), Your Privacy (with link to habits), James Clear quote. API GET /api/partners extended: returns pending_invites (id, created_at, invite_url), shared_habits_count, shared_habits (id, name, identity, current_streak, completed_today, week_completion), and per-partner last_active. PATCH /api/partnerships/[id] allows canceling pending invites (status→removed). No schema change.
 
 ---
@@ -1672,6 +1698,7 @@ These guidelines apply across all phases. They are cross-cutting UX patterns, no
 | D57 | Habits Page UI refresh | New phase: header + button, stats, search, 2-col grid, all behavior preserved | Habits list page to be redesigned to match v0-style: header with "+ Add habit" button, three stat chips (Active, On streak, Identities), search bar, identity-grouped sections, habit cards in 2-col grid. Create, edit, archive, delete, reminders, shared, contract, 4 Laws, view calendar, blockers flow unchanged. See "Habits Page UI Refresh" in Section 7; proposed changes listed for product confirmation before implementation. | 2026-02-22 |
 | D58 | Review Page UI refresh | Two-column facelift: habit cards, 4-prompt reflection, Wins & Needs attention, Atomic Habits insight | Implemented on /dashboard/review/write: two-column layout, habit cards with week_completion (M–S), needs-attention styling, 4-prompt reflection grid, Wins & Needs attention + Atomic Habits insight. API extended with week_completion, scheduled_days, completed_count. Hub refreshed; "Weekly review" → write, "Rate & fix" → weekly. See "Review Page UI Refresh" in Section 7 and implementation notes there. | 2026-02-22 |
 | D59 | Partners Page UI refresh | Summary cards, Pending Invites, partner cards with expandable habits and week dots, sidebar | Implemented: header + "Invite Partner" button, three summary cards, Pending Invites (dashed cards, Copy link, Cancel), Your Partners with avatar, last_active, expandable "X/Y today" and shared habits with MTWTFSS dots, sidebar. API extended with pending_invites, shared_habits, last_active. See "Partners Page UI Refresh" in Section 7 and implementation notes there. | 2026-02-22 |
+| D60 | Landing page redesign | Marketing layout with hero, philosophy, core concepts, how it works, early access; Sign up / Log in in header | Landing page rebuilt to match approved design: header (Stacked, Philosophy/Features/How It Works/Beta, Log in, Sign up), hero with Private Beta pill and IDENTITY card, philosophy block, Core Concepts (4 cards), How It Works (3 steps), Early Access CTA, footer. Sign up and Log in link to existing /signup and /login. See "Landing Page Redesign" in Section 7. | 2026-02-22 |
 
 ---
 
