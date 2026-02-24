@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { parseISO, startOfWeek, addDays } from 'date-fns'
+import { parseISO, startOfWeek, addDays, differenceInDays } from 'date-fns'
 import { TodayContent } from './today-content'
 
 interface TodayHabit {
@@ -100,14 +100,41 @@ export default function TodayPage() {
       if (pastDaysDate) fetchPastDay(pastDaysDate)
       return
     }
+    setData((prev) => {
+      if (!prev) return prev
+      const weekStart = startOfWeek(parseISO(prev.date), { weekStartsOn: 1 })
+      const selectedDay = parseISO(selectedDate)
+      const dayIndex = differenceInDays(selectedDay, weekStart)
+      if (dayIndex < 0 || dayIndex > 6) return prev
+      const defaultWeek = [false, false, false, false, false, false, false]
+      return {
+        ...prev,
+        habits: prev.habits.map((h) => {
+          if (h.id !== habit.id) return h
+          const wc = [...(h.week_completion ?? defaultWeek)]
+          wc[dayIndex] = nextCompleted
+          const isTogglingToday = selectedDate === prev.date
+          return {
+            ...h,
+            week_completion: wc,
+            ...(isTogglingToday && { completed_today: nextCompleted }),
+          }
+        }),
+      }
+    })
     if (pastDaysDate) fetchPastDay(pastDaysDate)
-    await fetchToday()
+    const localDateStr = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`
+    const refetchRes = await fetch(`/api/habits/today?date=${localDateStr}&_=${Date.now()}`, { credentials: 'include', cache: 'no-store' })
+    if (refetchRes.ok) {
+      const json = await refetchRes.json()
+      setData(json)
+    }
   }
 
   const fetchToday = useCallback(async () => {
     const now = new Date()
     const localDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-    const res = await fetch(`/api/habits/today?date=${localDateStr}`, { credentials: 'include', cache: 'no-store' })
+    const res = await fetch(`/api/habits/today?date=${localDateStr}&_=${Date.now()}`, { credentials: 'include', cache: 'no-store' })
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
       setError(err.error || res.statusText)
