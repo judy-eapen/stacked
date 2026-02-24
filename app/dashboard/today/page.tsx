@@ -41,6 +41,7 @@ export default function TodayPage() {
   const [identityVoteSummary, setIdentityVoteSummary] = useState(null as IdentityVoteSummary | null)
   const [shareCopied, setShareCopied] = useState(false)
   const [sharePromptDismissed, setSharePromptDismissed] = useState(false)
+  const [showShareModal, setShowShareModal] = useState(false)
   const [showPastDays, setShowPastDays] = useState(false)
   const [pastDaysDate, setPastDaysDate] = useState(null as string | null)
   const [pastDaysData, setPastDaysData] = useState(null as TodayData | null)
@@ -292,8 +293,8 @@ export default function TodayPage() {
   const weekDates = [0, 1, 2, 3, 4, 5, 6].map((i) => addDays(weekStart, i))
   const showWelcome = data && data.days_since_last_visit >= 7 && !dismissedWelcome
 
-  function shareCheckIn() {
-    if (!data) return
+  function buildShareText(): string {
+    if (!data) return ''
     const completed = habits.filter((h) => h.completed_today)
     const lines: string[] = [
       `Stacked check-in · ${data.date}`,
@@ -314,12 +315,10 @@ export default function TodayPage() {
     }
     const origin = typeof window !== 'undefined' ? window.location.origin : ''
     if (origin) lines.push('', origin)
-    const text = lines.join('\n')
-    navigator.clipboard.writeText(text).then(() => {
-      setShareCopied(true)
-      setTimeout(() => setShareCopied(false), 2000)
-    })
+    return lines.join('\n')
   }
+
+  const shareText = buildShareText()
 
   if (loading) {
     return (
@@ -360,6 +359,16 @@ export default function TodayPage() {
       identityVoteSummary={identityVoteSummary}
       shareCopied={shareCopied}
       sharePromptDismissed={sharePromptDismissed}
+      showShareModal={showShareModal}
+      shareText={shareText}
+      checkinDate={data?.date ?? ''}
+      onOpenShareModal={() => setShowShareModal(true)}
+      onCloseShareModal={() => setShowShareModal(false)}
+      onCopyShare={() => {
+        setShareCopied(true)
+        setTimeout(() => setShareCopied(false), 2000)
+      }}
+      onDismissSharePrompt={dismissSharePrompt}
       togglingId={togglingId}
       justCompletedId={justCompletedId}
       voteFeedback={voteFeedback}
@@ -369,8 +378,6 @@ export default function TodayPage() {
       pastDaysLoading={pastDaysLoading}
       pastDaysTogglingId={pastDaysTogglingId}
       getLast7Days={getLast7Days}
-      onShareCheckIn={shareCheckIn}
-      onDismissSharePrompt={dismissSharePrompt}
       onDismissWelcome={() => setDismissedWelcome(true)}
       onDismissCelebration={() => {
         setShowCelebration(false)

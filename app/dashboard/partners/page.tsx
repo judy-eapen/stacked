@@ -37,11 +37,22 @@ type SharedHabit = {
   week_completion: boolean[]
 }
 
+type ReceivedCheckin = {
+  id: string
+  sender_id: string
+  sender_name: string | null
+  checkin_date: string
+  personal_message: string | null
+  summary_text: string
+  created_at: string
+}
+
 type ApiResponse = {
   partners: Partner[]
   pending_invites: PendingInvite[]
   shared_habits_count: number
   shared_habits: SharedHabit[]
+  received_checkins?: ReceivedCheckin[]
 }
 
 function daysAgo(dateStr: string): number {
@@ -91,9 +102,10 @@ export default function PartnersPage() {
           pending_invites: d.pending_invites ?? [],
           shared_habits_count: d.shared_habits_count ?? 0,
           shared_habits: d.shared_habits ?? [],
+          received_checkins: d.received_checkins ?? [],
         })
       })
-      .catch(() => setData({ partners: [], pending_invites: [], shared_habits_count: 0, shared_habits: [] }))
+      .catch(() => setData({ partners: [], pending_invites: [], shared_habits_count: 0, shared_habits: [], received_checkins: [] }))
       .finally(() => setLoading(false))
   }, [])
 
@@ -374,6 +386,25 @@ export default function PartnersPage() {
       </div>
 
       <div className="space-y-4">
+        {data?.received_checkins && data.received_checkins.length > 0 && (
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <h2 className="font-heading text-sm font-semibold text-foreground mb-3">Check-ins from partners</h2>
+            <ul className="space-y-3">
+              {data.received_checkins.map((c) => (
+                <li key={c.id} className="font-body text-sm border-b border-border pb-3 last:border-0 last:pb-0">
+                  <p className="font-medium text-foreground">{c.sender_name || 'Partner'}</p>
+                  <p className="text-muted-foreground text-xs mt-0.5">{c.checkin_date}</p>
+                  {c.personal_message && (
+                    <p className="text-foreground mt-1 italic">&ldquo;{c.personal_message}&rdquo;</p>
+                  )}
+                  <pre className="mt-1 whitespace-pre-wrap break-words text-xs text-muted-foreground bg-muted/50 rounded p-2 max-h-24 overflow-y-auto">
+                    {c.summary_text}
+                  </pre>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
           <h2 className="font-heading text-sm font-semibold text-foreground mb-3">How Partners Work</h2>
           <ol className="font-body text-sm text-muted-foreground space-y-2 list-decimal list-inside">

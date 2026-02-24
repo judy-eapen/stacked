@@ -178,10 +178,51 @@ export async function GET(request: Request) {
     last_active: last_active_by_partner[p.partner_id] ?? null,
   }))
 
+  let received_checkins: {
+    id: string
+    sender_id: string
+    sender_name: string | null
+    checkin_date: string
+    personal_message: string | null
+    summary_text: string
+    created_at: string
+  }[] = []
+  try {
+    const { data: shareRows } = await supabase
+      .from('partner_checkin_shares')
+      .select('id, sender_id, checkin_date, personal_message, summary_text, created_at')
+      .eq('recipient_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(20)
+    if (shareRows && shareRows.length > 0) {
+      const senderIds = [...new Set(shareRows.map((r: { sender_id: string }) => r.sender_id))]
+      const { data: senderProfiles } = await supabase
+        .from('profiles')
+        .select('id, display_name')
+        .in('id', senderIds)
+      const senderNames: Record<string, string | null> = {}
+      for (const p of senderProfiles ?? []) {
+        senderNames[p.id] = p.display_name ?? null
+      }
+      received_checkins = shareRows.map((r: { id: string; sender_id: string; checkin_date: string; personal_message: string | null; summary_text: string; created_at: string }) => ({
+        id: r.id,
+        sender_id: r.sender_id,
+        sender_name: senderNames[r.sender_id] ?? null,
+        checkin_date: r.checkin_date,
+        personal_message: r.personal_message,
+        summary_text: r.summary_text,
+        created_at: r.created_at,
+      }))
+    }
+  } catch {
+    // table might not exist yet
+  }
+
   return NextResponse.json({
     partners: partnersWithLastActive,
     pending_invites,
     shared_habits_count,
     shared_habits,
+    received_checkins,
   })
 }

@@ -1,12 +1,14 @@
 'use client'
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { format, parseISO, startOfWeek, addDays, isSameDay } from 'date-fns'
-import { Share2, Check, ChevronDown, ChevronUp, Zap } from 'lucide-react'
+import { Share2, Check, ChevronDown, ChevronUp, Zap, X, Copy, Send } from 'lucide-react'
 import { GraduationPrompt } from '@/components/graduation-prompt'
 
 const WEEKDAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
+
+type PartnerOption = { partner_id: string; display_name: string | null }
 
 export interface TodayContentHabit {
   id: string
@@ -52,7 +54,12 @@ export interface TodayContentProps {
   pastDaysLoading: boolean
   pastDaysTogglingId: string | null
   getLast7Days: () => string[]
-  onShareCheckIn: () => void
+  showShareModal: boolean
+  shareText: string
+  checkinDate: string
+  onOpenShareModal: () => void
+  onCloseShareModal: () => void
+  onCopyShare: (text: string) => void
   onDismissSharePrompt: () => void
   onDismissWelcome: () => void
   onDismissCelebration: () => void
@@ -84,7 +91,12 @@ export function TodayContent(props: TodayContentProps) {
     pastDaysLoading,
     pastDaysTogglingId,
     getLast7Days,
-    onShareCheckIn,
+    showShareModal,
+    shareText,
+    checkinDate,
+    onOpenShareModal,
+    onCloseShareModal,
+    onCopyShare,
     onDismissSharePrompt,
     onDismissWelcome,
     onDismissCelebration,
@@ -100,8 +112,140 @@ export function TodayContent(props: TodayContentProps) {
     (daysSinceLastVisit >= 3 ||
       habits.some((h) => h.current_streak === 0 && h.consecutive_misses >= 2))
 
+  const [sharePersonalMessage, setSharePersonalMessage] = useState('')
+  const [shareModalCopied, setShareModalCopied] = useState(false)
+  const [sharePartners, setSharePartners] = useState<PartnerOption[]>([])
+  const [shareSendingId, setShareSendingId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!showShareModal) return
+    fetch('/api/partners', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => {
+        const list = (d.partners ?? []).map((p: { partner_id: string; display_name: string | null }) => ({
+          partner_id: p.partner_id,
+          display_name: p.display_name ?? null,
+        }))
+        setSharePartners(list)
+      })
+      .catch(() => setSharePartners([]))
+  }, [showShareModal])
+
+  const shareFullText = sharePersonalMessage.trim()
+    ? sharePersonalMessage.trim() + '\n\n' + shareText
+    : shareText
+
+  function handleCopyShare() {
+    navigator.clipboard.writeText(shareFullText).then(() => {
+      setShareModalCopied(true)
+      onCopyShare(shareFullText)
+      setTimeout(() => setShareModalCopied(false), 2000)
+    })
+  }
+
+  async function handleSendToPartner(partnerId: string) {
+    setShareSendingId(partnerId)
+    try {
+      const res = await fetch('/api/partners/send-checkin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          partner_id: partnerId,
+          checkin_date: checkinDate,
+          personal_message: sharePersonalMessage.trim() || null,
+          summary_text: shareText,
+        }),
+      })
+      if (res.ok) onCloseShareModal()
+    } finally {
+      setShareSendingId(null)
+    }
+  }
+
   return (
     <div className="bg-background min-h-screen -mx-4 md:-mx-6 lg:-mx-8 px-4 md:px-6 lg:px-8 py-6 space-y-6">
+      {showShareModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" aria-modal="true" role="dialog">
+          <div className="bg-card border border-border rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-heading text-lg font-bold text-foreground">Share your check-in</h2>
+              <button
+                type="button"
+                onClick={onCloseShareModal}
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="font-body text-sm text-muted-foreground">Add an optional message, then copy or send to a partner.</p>
+            <div className="space-y-1">
+              <label htmlFor="share-message" className="font-body text-xs font-medium text-foreground block">
+                Personal message (optional)
+              </label>
+              <textarea
+                id="share-message"
+                value={sharePersonalMessage}
+                onChange={(e) => setSharePersonalMessage(e.target.value)}
+                placeholder="e.g. Crushed it today!"
+                className="font-body text-sm w-full rounded-lg border border-border bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                rows={2}
+              />
+            </div>
+            <div className="space-y-1">
+              <label htmlFor="share-preview" className="font-body text-xs font-medium text-foreground block">
+                What will be shared (preview)
+              </label>
+              <pre
+                id="share-preview"
+                className="font-body text-sm text-foreground bg-muted/50 border border-border rounded-lg p-3 whitespace-pre-wrap break-words max-h-40 overflow-y-auto"
+              >
+                {shareFullText}
+              </pre>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleCopyShare}
+                className="inline-flex items-center gap-2 h-10 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-semibold font-body hover:opacity-90 transition-opacity"
+              >
+                <Copy className="w-4 h-4" />
+                {shareModalCopied ? 'Copied' : 'Copy to clipboard'}
+              </button>
+            </div>
+            {sharePartners.length > 0 && (
+              <div className="pt-3 border-t border-border space-y-2">
+                <p className="font-body text-sm font-medium text-foreground">Send to a partner</p>
+                <p className="font-body text-xs text-muted-foreground">They will see this check-in in the app.</p>
+                <ul className="space-y-2">
+                  {sharePartners.map((p) => (
+                    <li key={p.partner_id} className="flex items-center justify-between gap-2">
+                      <span className="font-body text-sm text-foreground truncate">
+                        {p.display_name || 'Partner'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleSendToPartner(p.partner_id)}
+                        disabled={shareSendingId === p.partner_id}
+                        className="shrink-0 inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border text-sm font-medium font-body bg-card hover:bg-muted transition-colors disabled:opacity-50"
+                      >
+                        {shareSendingId === p.partner_id ? (
+                          <>Sending…</>
+                        ) : (
+                          <>
+                            <Send className="w-3.5 h-3.5" /> Send
+                          </>
+                        )}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       {showStrugglingBanner && (
         <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3">
           <p className="font-body text-sm text-amber-900">
@@ -127,7 +271,7 @@ export function TodayContent(props: TodayContentProps) {
           </div>
           <button
             type="button"
-            onClick={onShareCheckIn}
+            onClick={onOpenShareModal}
             className="flex items-center gap-1.5 text-foreground hover:text-primary font-body text-sm font-medium shrink-0"
           >
             <Share2 className="w-4 h-4" />
@@ -259,10 +403,10 @@ export function TodayContent(props: TodayContentProps) {
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={() => { onShareCheckIn(); onDismissSharePrompt(); }}
+                  onClick={() => { onOpenShareModal(); onDismissSharePrompt(); }}
                   className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-semibold font-body shadow-sm hover:opacity-90 transition-opacity"
                 >
-                  {shareCopied ? 'Copied' : 'Copy summary'}
+                  Share
                 </button>
                 <button
                   type="button"
