@@ -56,7 +56,7 @@ export async function GET(request: Request) {
     {}
   )
 
-  const partners = acceptedRows.map((r) => {
+  const partnersRaw = acceptedRows.map((r) => {
     const otherId = r.user_id === user.id ? r.partner_id : r.user_id
     const p = profileMap[otherId]
     return {
@@ -67,6 +67,12 @@ export async function GET(request: Request) {
       avatar_url: p?.avatar_url ?? null,
       accepted_at: r.accepted_at ?? null,
     }
+  })
+  const seenPartnerIds = new Set<string>()
+  const partners = partnersRaw.filter((p) => {
+    if (seenPartnerIds.has(p.partner_id)) return false
+    seenPartnerIds.add(p.partner_id)
+    return true
   })
 
   let my_habits: { id: string; name: string }[] = []

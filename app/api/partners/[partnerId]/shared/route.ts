@@ -25,8 +25,7 @@ export async function GET(
   const { data: partnership } = await supabase
     .from('partnerships')
     .select('id')
-    .eq('user_id', partnerId)
-    .eq('partner_id', user.id)
+    .or(`and(user_id.eq.${partnerId},partner_id.eq.${user.id}),and(user_id.eq.${user.id},partner_id.eq.${partnerId})`)
     .eq('status', 'accepted')
     .maybeSingle()
 
