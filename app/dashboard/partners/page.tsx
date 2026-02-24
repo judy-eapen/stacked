@@ -175,7 +175,7 @@ export default function PartnersPage() {
         }))
       })
       .catch(() => {})
-      .finally(() => setPartnerViewLoading((prev) => ({ ...prev, [expandedPartnerId]: false }))
+      .finally(() => setPartnerViewLoading((prev) => ({ ...prev, [expandedPartnerId]: false })))
   }, [expandedPartnerId, partnerViewIdsKey])
 
   async function handleInvite() {
