@@ -147,6 +147,8 @@ export function TodayContent(props: TodayContentProps) {
       .catch(() => {})
       .finally(() => setThirtyDayLoading(null))
   }, [expanded30dHabitId])
+
+  useEffect(() => {
     if (!showShareModal) return
     fetch('/api/partners', { credentials: 'include' })
       .then((r) => r.json())
