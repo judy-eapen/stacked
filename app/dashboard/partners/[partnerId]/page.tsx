@@ -154,24 +154,30 @@ export default function PartnerViewPage() {
                   <span>{h.completions_this_week} this week</span>
                 </div>
                 <div className="mt-3 pt-3 border-t border-gray-100">
-                  <p className="text-[10px] text-gray-400 mb-1.5">Last 30 days</p>
+                  <p className="font-body text-[10px] text-muted-foreground mb-1.5">Last 30 days</p>
                   <div
                     className="grid gap-0.5 max-w-[200px]"
                     style={{ gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' }}
                   >
                     {cells.map((dateStr) => {
                       const completed = completedSet.has(dateStr)
+                      const todayStr = new Date().toISOString().slice(0, 10)
+                      const isToday = dateStr === todayStr
                       return (
                         <div
                           key={dateStr}
-                          className={`aspect-square rounded-[3px] border ${
-                            completed
-                              ? 'bg-emerald-500 border-emerald-600'
-                              : 'bg-gray-100 border-gray-200'
-                          }`}
                           title={dateStr}
                           aria-label={completed ? `${dateStr} completed` : dateStr}
-                        />
+                          className={`aspect-square rounded flex items-center justify-center text-[9px] font-body ${
+                            completed
+                              ? 'bg-primary text-primary-foreground'
+                              : isToday
+                                ? 'bg-muted text-foreground ring-1 ring-primary'
+                                : 'bg-muted/50 text-muted-foreground'
+                          }`}
+                        >
+                          {new Date(dateStr + 'T12:00:00').getDate()}
+                        </div>
                       )
                     })}
                   </div>

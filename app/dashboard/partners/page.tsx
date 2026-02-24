@@ -502,15 +502,23 @@ export default function PartnersPage() {
                                             >
                                               {cells.map((dateStr) => {
                                                 const completed = completedDates.has(dateStr)
+                                                const todayStr = new Date().toISOString().slice(0, 10)
+                                                const isToday = dateStr === todayStr
                                                 return (
                                                   <div
                                                     key={dateStr}
-                                                    className={`aspect-square rounded-[3px] border ${
-                                                      completed ? 'bg-emerald-500 border-emerald-600' : 'bg-muted border-border'
-                                                    }`}
                                                     title={dateStr}
                                                     aria-label={completed ? `${dateStr} completed` : dateStr}
-                                                  />
+                                                    className={`aspect-square rounded flex items-center justify-center text-[9px] font-body ${
+                                                      completed
+                                                        ? 'bg-primary text-primary-foreground'
+                                                        : isToday
+                                                          ? 'bg-muted text-foreground ring-1 ring-primary'
+                                                          : 'bg-muted/50 text-muted-foreground'
+                                                    }`}
+                                                  >
+                                                    {new Date(dateStr + 'T12:00:00').getDate()}
+                                                  </div>
                                                 )
                                               })}
                                             </div>
