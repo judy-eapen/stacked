@@ -566,7 +566,7 @@ export default function PartnersPage() {
         <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
           <h2 className="font-heading text-sm font-semibold text-foreground mb-3">How Partners Work</h2>
           <ol className="font-body text-sm text-muted-foreground space-y-2 list-decimal list-inside">
-            <li><strong className="text-foreground">Invite by email</strong> — Send an invite with a personal link</li>
+            <li><strong className="text-foreground">Copy and send the invite link</strong> — Share it with anyone over text, email, etc.</li>
             <li><strong className="text-foreground">Choose what to share</strong> — Pick specific habits they can see</li>
             <li><strong className="text-foreground">They see your streaks</strong> — View-only access to your check-ins</li>
             <li><strong className="text-foreground">Stay accountable</strong> — Check in regularly; they will notice</li>

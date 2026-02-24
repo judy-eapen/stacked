@@ -22,13 +22,14 @@ export async function GET(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { data: partnership } = await supabase
+  const { data: partnershipRows } = await supabase
     .from('partnerships')
     .select('id')
     .or(`and(user_id.eq.${partnerId},partner_id.eq.${user.id}),and(user_id.eq.${user.id},partner_id.eq.${partnerId})`)
     .eq('status', 'accepted')
-    .maybeSingle()
+    .limit(1)
 
+  const partnership = partnershipRows?.[0]
   if (!partnership) {
     return NextResponse.json({ error: 'No active partnership with this user' }, { status: 403 })
   }
