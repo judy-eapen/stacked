@@ -25,11 +25,12 @@ export default async function DashboardLayout({
   const displayName = (profile?.display_name ?? '').trim()
   const email = user.email ?? ''
   const tourCompletedAt = profile?.tour_completed_at ?? null
-  const { count: identitiesCount } = await supabase
-    .from('identities')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', user.id)
+  const [{ count: identitiesCount }, { count: habitsCount }] = await Promise.all([
+    supabase.from('identities').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+    supabase.from('habits').select('*', { count: 'exact', head: true }).eq('user_id', user.id).is('archived_at', null),
+  ])
   const hasIdentities = (identitiesCount ?? 0) > 0
+  const hasHabits = (habitsCount ?? 0) > 0
 
   return (
     <div
@@ -42,7 +43,7 @@ export default async function DashboardLayout({
 
       {/* Main content */}
       <main className="flex-1 min-h-screen">
-        <RedirectToOnboardingWhenEmpty tourCompletedAt={tourCompletedAt} />
+        <RedirectToOnboardingWhenEmpty tourCompletedAt={tourCompletedAt} hasIdentities={hasIdentities} hasHabits={hasHabits} />
         <div className="p-4 md:p-6 lg:p-8 max-w-6xl mx-auto w-full">{children}</div>
       </main>
 
