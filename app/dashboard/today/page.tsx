@@ -101,6 +101,7 @@ export default function TodayPage() {
       return
     }
     if (pastDaysDate) fetchPastDay(pastDaysDate)
+    fetchToday()
   }
 
   const fetchToday = useCallback(async () => {

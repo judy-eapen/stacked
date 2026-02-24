@@ -162,13 +162,13 @@ export function TodayContent(props: TodayContentProps) {
       {habits.length > 0 ? (
         <div className="rounded-2xl bg-card border border-border shadow-sm p-4">
           <h2 className="font-heading font-semibold text-foreground mb-3">This Week</h2>
-          <div className="flex gap-2 overflow-x-auto pb-1">
+          <div className="grid grid-cols-7 gap-2 w-full">
             {weekDates.map((d, i) => {
               const isToday = isSameDay(d, todayDate)
               return (
                 <div
                   key={d.toISOString()}
-                  className={`shrink-0 flex flex-col items-center rounded-lg px-3 py-2 min-w-[56px] ${
+                  className={`flex flex-col items-center justify-center rounded-lg py-3 px-1 min-w-0 ${
                     isToday ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-foreground'
                   }`}
                 >
