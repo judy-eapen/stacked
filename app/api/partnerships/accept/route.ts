@@ -65,15 +65,53 @@ export async function POST(request: Request) {
     )
   }
 
-  const { data: existing } = await supabase
+  // Avoid duplicate (user_id, partner_id): at most one row can have that pair (unique index).
+  const { data: anyExisting } = await supabase
     .from('partnerships')
-    .select('id')
+    .select('id, status')
     .eq('user_id', row.user_id)
     .eq('partner_id', user.id)
-    .eq('status', 'accepted')
-    .maybeSingle()
-  if (existing) {
-    return NextResponse.json({ error: 'Partnership already exists' }, { status: 409 })
+    .limit(2)
+  const otherRow = anyExisting?.find((r) => r.id !== row.id)
+  if (otherRow?.status === 'accepted') {
+    const { data: inviter } = await supabase
+      .from('profiles')
+      .select('display_name')
+      .eq('id', row.user_id)
+      .single()
+    return NextResponse.json(
+      {
+        partnership_id: otherRow.id,
+        user_display_name: inviter?.display_name ?? null,
+        status: 'accepted',
+      },
+      { status: 200 }
+    )
+  }
+  // If other row is removed: reuse it instead of updating current row (so we don’t create two rows with same pair).
+  if (otherRow?.status === 'removed') {
+    const { error: reactivateError } = await supabase
+      .from('partnerships')
+      .update({
+        status: 'accepted',
+        accepted_at: new Date().toISOString(),
+      })
+      .eq('id', otherRow.id)
+    if (!reactivateError) {
+      const { data: inviter } = await supabase
+        .from('profiles')
+        .select('display_name')
+        .eq('id', row.user_id)
+        .single()
+      return NextResponse.json(
+        {
+          partnership_id: otherRow.id,
+          user_display_name: inviter?.display_name ?? null,
+          status: 'accepted',
+        },
+        { status: 200 }
+      )
+    }
   }
 
   const { error: updateError } = await supabase
@@ -86,6 +124,31 @@ export async function POST(request: Request) {
     .eq('id', row.id)
 
   if (updateError) {
+    if (updateError.code === '23505' && updateError.message?.includes('idx_partnerships_user_partner')) {
+      // Another row (e.g. from a second invite) already has this pair; treat as already accepted
+      const { data: other } = await supabase
+        .from('partnerships')
+        .select('id')
+        .eq('user_id', row.user_id)
+        .eq('partner_id', user.id)
+        .eq('status', 'accepted')
+        .maybeSingle()
+      if (other) {
+        const { data: inviter } = await supabase
+          .from('profiles')
+          .select('display_name')
+          .eq('id', row.user_id)
+          .single()
+        return NextResponse.json(
+          {
+            partnership_id: other.id,
+            user_display_name: inviter?.display_name ?? null,
+            status: 'accepted',
+          },
+          { status: 200 }
+        )
+      }
+    }
     return NextResponse.json({ error: updateError.message }, { status: 500 })
   }
 
