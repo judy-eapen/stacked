@@ -8,7 +8,7 @@ import type { DesignBuild } from '@/lib/db-types'
 import { DesignBreakForm, EMPTY_DESIGN_BREAK, trimDesignBreak } from '@/components/DesignBreakForm'
 import { StackChainView } from '@/components/stack-chain-view'
 import type { DesignBreak } from '@/lib/db-types'
-import { Plus, Trash2, Bell, Users, FileSignature, Sparkles, Pencil, Calendar, TrendingUp, MinusCircle } from 'lucide-react'
+import { Plus, Trash2, Bell, Users, FileSignature, Sparkles, Pencil, Calendar, TrendingUp, MinusCircle, Flame } from 'lucide-react'
 
 type HabitFrequency = 'daily' | 'weekdays' | 'weekends' | 'custom'
 
@@ -1030,10 +1030,15 @@ function HabitCard({
         <>
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
-              <p className="font-heading font-medium text-foreground">{habit.name}</p>
+              <Link href={`/dashboard/habits/${habit.id}`} className="font-heading font-medium text-foreground hover:text-primary">
+                {habit.name}
+              </Link>
               {identityStatement && <p className="font-body text-xs text-muted-foreground mt-0.5">{identityStatement}</p>}
               {(habit.current_streak > 0) && (
-                <p className="font-body text-xs text-muted-foreground mt-0.5">{habit.current_streak} day streak</p>
+                <span className="inline-flex items-center gap-1.5 mt-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r from-amber-400/20 to-orange-500/20 border border-amber-400/40 text-amber-800 dark:text-amber-200 font-body text-xs font-semibold">
+                  <Flame className="h-3.5 w-3.5 text-orange-500" />
+                  {habit.current_streak} day{habit.current_streak !== 1 ? 's' : ''} streak
+                </span>
               )}
               {stackLabel && <StackChainView anchorLabel={stackLabel.replace(/^After "/, '').replace(/"$/, '')} habitName={habit.name} className="mt-1" />}
               {intention && <p className="font-body text-xs text-muted-foreground mt-0.5">{intention}</p>}
@@ -1046,30 +1051,43 @@ function HabitCard({
               </button>
             </div>
           </div>
-          <div className="mt-2 flex items-center gap-3 flex-wrap">
-            <Link href={`/dashboard/habits/${habit.id}`} className="font-body inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-primary" aria-label="View calendar">
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link
+              href={`/dashboard/habits/${habit.id}`}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 py-1.5 font-body text-xs font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-primary/10"
+              aria-label="View calendar"
+            >
               <Calendar className="h-3.5 w-3.5" /> View calendar
             </Link>
-            <button type="button" onClick={() => setEditingId(habit.id)} className="font-body inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground" aria-label="Edit">
+            <button
+              type="button"
+              onClick={() => setEditingId(habit.id)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 py-1.5 font-body text-xs font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-primary/10"
+              aria-label="Edit"
+            >
               <Pencil className="h-3.5 w-3.5" /> Edit
             </button>
             <button
               type="button"
               onClick={() => onUpdate({ is_shared: !habit.is_shared })}
-              className={`font-body inline-flex items-center gap-1 text-xs font-medium ${habit.is_shared ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-body text-xs font-medium transition-colors ${
+                habit.is_shared ? 'border-primary/50 bg-primary/15 text-primary' : 'border-border bg-muted/50 text-foreground hover:border-primary/40 hover:bg-primary/10'
+              }`}
             >
               <Users className="h-3.5 w-3.5" /> {habit.is_shared ? 'Shared' : 'Share'}
             </button>
             <button
               type="button"
               onClick={() => onUpdate({ push_notification_enabled: !(habit.push_notification_enabled ?? false) })}
-              className={`font-body inline-flex items-center gap-1 text-xs font-medium ${habit.push_notification_enabled ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-body text-xs font-medium transition-colors ${
+                habit.push_notification_enabled ? 'border-primary/50 bg-primary/15 text-primary' : 'border-border bg-muted/50 text-foreground hover:border-primary/40 hover:bg-primary/10'
+              }`}
             >
               <Bell className="h-3.5 w-3.5" /> {habit.push_notification_enabled ? 'Reminders on' : 'Reminders'}
             </button>
             <Link
               href={`/dashboard/habits/${habit.id}/contract`}
-              className="font-body inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-primary"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 py-1.5 font-body text-xs font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-primary/10"
             >
               <FileSignature className="h-3.5 w-3.5" /> Contract
             </Link>
@@ -1078,13 +1096,17 @@ function HabitCard({
             <button
               type="button"
               onClick={() => onUpdate({ identity_id: linkToIdentityId })}
-              className="mt-2 inline-flex h-9 items-center justify-center rounded-lg bg-primary px-3 font-body text-sm font-medium text-primary-foreground hover:opacity-90"
+              className="mt-3 inline-flex h-9 items-center justify-center rounded-full bg-primary px-4 font-body text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
             >
               Add to identity
             </button>
           )}
           {!hasDesignFields && (
-            <button type="button" onClick={() => setEditingId(habit.id)} className="mt-2 font-body inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+            <button
+              type="button"
+              onClick={() => setEditingId(habit.id)}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-primary/50 bg-primary/10 px-3 py-1.5 font-body text-xs font-medium text-primary transition-colors hover:bg-primary/15"
+            >
               <Sparkles className="h-3.5 w-3.5" /> Design this habit
             </button>
           )}
@@ -1166,24 +1188,32 @@ function BlockerCard({
                 <p className="font-body text-sm text-red-900/90">{strategySummary}</p>
               </div>
             ) : null}
-            <div className="mt-3 flex items-center gap-3 flex-wrap">
+            <div className="mt-3 flex flex-wrap gap-2">
               <Link
                 href={`/dashboard/identities/${blocker.identity_id}?blockers=1`}
-                className="font-body inline-flex items-center gap-1 text-xs font-medium text-red-700 hover:text-red-800"
+                className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50/80 px-3 py-1.5 font-body text-xs font-medium text-red-800 transition-colors hover:border-red-400 hover:bg-red-100"
               >
                 <Users className="h-3.5 w-3.5" /> View on identity
               </Link>
-              <button type="button" onClick={() => { setEditingBlockerId(blocker.id); setDraftName(blocker.name); setDraftDesign({ ...EMPTY_DESIGN_BREAK, ...blocker.design_break }); }} className="font-body inline-flex items-center gap-1 text-xs font-medium text-red-700 hover:text-red-800">
+              <button
+                type="button"
+                onClick={() => { setEditingBlockerId(blocker.id); setDraftName(blocker.name); setDraftDesign({ ...EMPTY_DESIGN_BREAK, ...blocker.design_break }); }}
+                className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50/80 px-3 py-1.5 font-body text-xs font-medium text-red-800 transition-colors hover:border-red-400 hover:bg-red-100"
+              >
                 <Pencil className="h-3.5 w-3.5" /> Edit
               </button>
               {blocker.habit_id && (
-                <Link href={`/dashboard/habits/${blocker.habit_id}`} className="font-body inline-flex items-center gap-1 text-xs font-medium text-red-700 hover:text-red-800" aria-label="View calendar">
+                <Link
+                  href={`/dashboard/habits/${blocker.habit_id}`}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50/80 px-3 py-1.5 font-body text-xs font-medium text-red-800 transition-colors hover:border-red-400 hover:bg-red-100"
+                  aria-label="View calendar"
+                >
                   <Calendar className="h-3.5 w-3.5" /> View calendar
                 </Link>
               )}
               <Link
                 href={`/dashboard/identities/${blocker.identity_id}?blockers=1`}
-                className="font-body inline-flex items-center gap-1 text-xs font-medium text-red-700 hover:text-red-800"
+                className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50/80 px-3 py-1.5 font-body text-xs font-medium text-red-800 transition-colors hover:border-red-400 hover:bg-red-100"
               >
                 <FileSignature className="h-3.5 w-3.5" /> Contract
               </Link>
@@ -1192,7 +1222,7 @@ function BlockerCard({
               <button
                 type="button"
                 onClick={() => { setEditingBlockerId(blocker.id); setDraftName(blocker.name); setDraftDesign({ ...EMPTY_DESIGN_BREAK, ...blocker.design_break }); }}
-                className="mt-2 font-body inline-flex items-center gap-1 text-xs font-medium text-red-700 hover:underline"
+                className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-red-400 bg-red-100/80 px-3 py-1.5 font-body text-xs font-medium text-red-800 transition-colors hover:bg-red-200"
               >
                 <Sparkles className="h-3.5 w-3.5" /> Design this habit
               </button>

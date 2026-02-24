@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { format, parseISO, startOfWeek, addDays, isSameDay } from 'date-fns'
-import { Share2, Check, ChevronDown, ChevronUp, Zap, X, Copy, Send, Calendar } from 'lucide-react'
+import { Share2, Check, ChevronDown, ChevronUp, Flame, X, Copy, Send, Calendar } from 'lucide-react'
 import { GraduationPrompt } from '@/components/graduation-prompt'
 
 const WEEKDAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
@@ -535,11 +535,15 @@ export function TodayContent(props: TodayContentProps) {
                     )}
                     <div className="flex flex-wrap items-center gap-2 mt-2">
                       <span
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium font-body ${
-                          h.current_streak > 0 ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold font-body ${
+                          h.current_streak > 0
+                            ? 'bg-gradient-to-r from-amber-400/20 to-orange-500/20 border border-amber-400/40 text-amber-800'
+                            : 'bg-muted text-muted-foreground'
                         }`}
                       >
-                        {h.current_streak > 0 && <Zap className="w-3 h-3" />}
+                        {h.current_streak > 0 && (
+                          <Flame className="w-3.5 h-3.5 text-orange-500" />
+                        )}
                         {h.current_streak} day{h.current_streak !== 1 ? 's' : ''}
                       </span>
                       {h.total_completions > 0 && (
