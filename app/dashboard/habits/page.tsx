@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { format } from 'date-fns'
 import { createClient } from '@/lib/supabase/client'
 import type { DesignBuild } from '@/lib/db-types'
 import { DesignBreakForm, EMPTY_DESIGN_BREAK, trimDesignBreak } from '@/components/DesignBreakForm'
@@ -229,6 +230,9 @@ export default function HabitsPage() {
   const [editingBlockerId, setEditingBlockerId] = useState<string | null>(null)
   const [addingBlockerHabitId, setAddingBlockerHabitId] = useState<string | null>(null)
   const [habitFilter, setHabitFilter] = useState<'all' | 'reinforcing' | 'blocking'>('all')
+  const [expandedCalendarHabitId, setExpandedCalendarHabitId] = useState<string | null>(null)
+  const [calendarCompletions, setCalendarCompletions] = useState<Record<string, Set<string>>>({})
+  const [calendarLoading, setCalendarLoading] = useState<string | null>(null)
 
   const fetchAll = useCallback(async () => {
     const supabase = createClient()
@@ -258,6 +262,28 @@ export default function HabitsPage() {
   useEffect(() => {
     fetchAll().finally(() => setLoading(false))
   }, [fetchAll])
+
+  useEffect(() => {
+    if (!expandedCalendarHabitId) return
+    if (calendarCompletions[expandedCalendarHabitId]) return
+    const to = new Date()
+    const from = new Date()
+    from.setDate(from.getDate() - 29)
+    const fromStr = from.toISOString().slice(0, 10)
+    const toStr = to.toISOString().slice(0, 10)
+    setCalendarLoading(expandedCalendarHabitId)
+    fetch(`/api/habits/${expandedCalendarHabitId}/streaks?from=${fromStr}&to=${toStr}`, { credentials: 'include' })
+      .then((r) => r.json())
+      .then((data) => {
+        const dates = (data.completions ?? [])
+          .filter((c: { completed: boolean }) => c.completed)
+          .map((c: { date: string }) => c.date)
+        const set: Set<string> = new Set(dates)
+        setCalendarCompletions((prev) => ({ ...prev, [expandedCalendarHabitId]: set }))
+      })
+      .catch(() => {})
+      .finally(() => setCalendarLoading(null))
+  }, [expandedCalendarHabitId])
 
   const identityParam = searchParams.get('identity')
   const modeParam = searchParams.get('mode')
@@ -822,6 +848,10 @@ export default function HabitsPage() {
                           setEditingId={setEditingId}
                           onUpdate={(updates) => updateHabit(h.id, updates)}
                           onDelete={() => deleteHabit(h.id)}
+                          expandedCalendarHabitId={expandedCalendarHabitId}
+                          calendarCompletions={calendarCompletions}
+                          calendarLoading={calendarLoading}
+                          onToggleCalendar={(id) => setExpandedCalendarHabitId((prev) => (prev === id ? null : id))}
                         />
                       ))}
                     </div>
@@ -900,6 +930,10 @@ export default function HabitsPage() {
                     setEditingId={setEditingId}
                     onUpdate={(updates) => updateHabit(h.id, updates)}
                     onDelete={() => deleteHabit(h.id)}
+                    expandedCalendarHabitId={expandedCalendarHabitId}
+                    calendarCompletions={calendarCompletions}
+                    calendarLoading={calendarLoading}
+                    onToggleCalendar={(id) => setExpandedCalendarHabitId((prev) => (prev === id ? null : id))}
                   />
                 ))}
               </div>
@@ -926,6 +960,10 @@ interface HabitCardProps {
   setEditingId: (id: string | null) => void
   onUpdate: (updates: Partial<Habit>) => void
   onDelete: () => void
+  expandedCalendarHabitId: string | null
+  calendarCompletions: Record<string, Set<string>>
+  calendarLoading: string | null
+  onToggleCalendar: (habitId: string) => void
 }
 
 function HabitCard({
@@ -941,6 +979,10 @@ function HabitCard({
   setEditingId,
   onUpdate,
   onDelete,
+  expandedCalendarHabitId,
+  calendarCompletions,
+  calendarLoading,
+  onToggleCalendar,
 }: HabitCardProps) {
   const [editName, setEditName] = useState(habit.name)
   const [editIdentityId, setEditIdentityId] = useState<string | null>(habit.identity_id)
@@ -1052,13 +1094,19 @@ function HabitCard({
             </div>
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
-            <Link
-              href={`/dashboard/habits/${habit.id}`}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 py-1.5 font-body text-xs font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-primary/10"
+            <button
+              type="button"
+              onClick={() => onToggleCalendar(habit.id)}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-body text-xs font-medium transition-colors ${
+                expandedCalendarHabitId === habit.id
+                  ? 'border-primary/50 bg-primary/15 text-primary'
+                  : 'border-border bg-muted/50 text-foreground hover:border-primary/40 hover:bg-primary/10'
+              }`}
               aria-label="View calendar"
+              aria-expanded={expandedCalendarHabitId === habit.id}
             >
-              <Calendar className="h-3.5 w-3.5" /> View calendar
-            </Link>
+              <Calendar className="h-3.5 w-3.5" /> {expandedCalendarHabitId === habit.id ? 'Close calendar' : 'View calendar'}
+            </button>
             <button
               type="button"
               onClick={() => setEditingId(habit.id)}
@@ -1092,6 +1140,50 @@ function HabitCard({
               <FileSignature className="h-3.5 w-3.5" /> Contract
             </Link>
           </div>
+          {expandedCalendarHabitId === habit.id && (
+            <div className="mt-3 pt-3 border-t border-border">
+              <p className="font-body text-[10px] text-muted-foreground mb-1.5">Last 30 days</p>
+              {calendarLoading === habit.id ? (
+                <p className="font-body text-xs text-muted-foreground">Loading…</p>
+              ) : (
+                <div
+                  className="grid gap-0.5 max-w-[200px]"
+                  style={{ gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' }}
+                >
+                  {(() => {
+                    const completedSet = calendarCompletions[habit.id]
+                    const todayStr = format(new Date(), 'yyyy-MM-dd')
+                    const cells: string[] = []
+                    const d = new Date()
+                    for (let i = 29; i >= 0; i--) {
+                      const x = new Date(d)
+                      x.setDate(d.getDate() - i)
+                      cells.push(x.toISOString().slice(0, 10))
+                    }
+                    return cells.map((dateStr) => {
+                      const completed = completedSet?.has(dateStr) ?? false
+                      const isToday = dateStr === todayStr
+                      return (
+                        <div
+                          key={dateStr}
+                          title={dateStr}
+                          className={`aspect-square rounded flex items-center justify-center text-[9px] font-body ${
+                            completed
+                              ? 'bg-primary text-primary-foreground'
+                              : isToday
+                                ? 'bg-muted text-foreground ring-1 ring-primary'
+                                : 'bg-muted/50 text-muted-foreground'
+                          }`}
+                        >
+                          {new Date(dateStr + 'T12:00:00').getDate()}
+                        </div>
+                      )
+                    })
+                  })()}
+                </div>
+              )}
+            </div>
+          )}
           {linkToIdentityId && linkToIdentityStatement && (
             <button
               type="button"
