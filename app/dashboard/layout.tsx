@@ -39,8 +39,8 @@ export default async function DashboardLayout({
         background: 'linear-gradient(135deg, #faf8f5 0%, #f5f0e8 50%, #f0ebe0 100%)',
       }}
     >
-      {/* Top bar: logo, tabs, user */}
-      <header className="flex items-center justify-between gap-4 h-14 px-4 md:px-6 border-b border-gray-200/80 bg-white/90 backdrop-blur-sm sticky top-0 z-10 shrink-0">
+      {/* Top bar: logo, tabs, user — flexible on mobile, reserved 260px for user from md up */}
+      <header className="grid grid-cols-[auto_minmax(0,1fr)_auto] md:grid-cols-[auto_1fr_minmax(260px,auto)] items-center gap-2 md:gap-4 h-14 px-3 md:px-6 lg:px-8 border-b border-gray-200/80 bg-white/90 backdrop-blur-sm sticky top-0 z-10 shrink-0">
         <Link href="/dashboard" className="flex items-center gap-2 shrink-0">
           <div className="flex flex-col gap-0.5">
             <span className="h-0.5 w-3 rounded-full bg-[#e87722]" />
@@ -49,10 +49,10 @@ export default async function DashboardLayout({
           </div>
           <span className="font-bold tracking-tight text-gray-900">Stacked</span>
         </Link>
-        <div className="flex-1 flex justify-center min-w-0 overflow-x-auto">
+        <div className="flex justify-center min-w-0 overflow-x-auto overflow-y-hidden py-1 -mx-1 md:mx-0">
           <DashboardNav />
         </div>
-        <div className="shrink-0">
+        <div className="flex justify-end min-w-0">
           <UserBlock displayName={displayName} email={email} />
         </div>
       </header>
