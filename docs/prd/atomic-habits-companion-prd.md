@@ -1428,6 +1428,69 @@ Before implementation, please confirm the following. Anything you want to add, d
 
 ---
 
+### Review Page UI Refresh (Post–Phase 7)
+
+**Goal:** Redesign the Review experience (weekly review and review hub) to match the approved facelift: two-column card layout, habit scoreboard as individual habit cards with day dots and progress, Wins & Needs attention sidebar, 4-prompt weekly reflection grid, and Atomic Habits insight card. All existing behavior (week navigation, data summary, save review, history) is preserved.
+
+**Design reference:** Target layout from approved designs: left column (wider) = habit cards list + weekly reflection card; right column (narrower) = completion list (wins + needs attention) + Atomic Habits insight card. Cards use `rounded-2xl`, `shadow-sm`, design tokens (font-heading, font-body, text-foreground, text-muted-foreground, bg-card, border-border, primary). Orange for active/scheduled and primary actions; red for needs-attention habits and warnings; green for wins/completed.
+
+**Proposed changes for your confirmation**
+
+| # | Change | Notes |
+|---|--------|------|
+| **Layout** | | |
+| 1 | Two-column layout: left ~60–70% width, right ~30–40%. Responsive: stack to single column on small screens. | Matches approved Review/Reflection tab design. |
+| 2 | All sections in white/card containers with rounded-2xl, border, shadow-sm. | Consistent with Identities/Habits/Today refresh. |
+| **Top (optional)** | | |
+| 3 | Keep week navigation (e.g. "Week 8", arrows) and date range (e.g. "Feb 17 – Feb 23, 2026") when on weekly review. | Existing behavior. |
+| 4 | Optionally keep summary stats row (Completion Rate, Habits Completed, Overall Streak, Best Day) and Daily consistency bar chart above the two-column content; or fold into the new layout per design. | Product choice: keep as-is above columns or simplify. |
+| **Left column — Habit scoreboard** | | |
+| 5 | Replace single list with **individual habit cards**. Each card shows: (a) Scheduled days as a row (M T W T F S S); active/scheduled days with orange circle, others muted. (b) Habit name and identity/description line. (c) Progress in top-right: e.g. "5/7" (completed/total for week); optional leading number (e.g. streak). (d) Link/arrow to habit detail or calendar. | Same data as current scoreboard; card per habit. |
+| 6 | **Needs-attention styling:** Habits with completion below threshold (e.g. 0/7 or &lt;4/7) get light red background tint on the card, red progress text, and red link/arrow. | Visual flag for "never miss twice" focus. |
+| **Left column — Weekly reflection** | | |
+| 7 | One card: "Weekly reflection" header, James Clear quote ("Does this behavior help me become the type of person I wish to be?"). | Already in scope; placement in left column. |
+| 8 | **Four prompts in a 2×2 grid**, each with icon + label + placeholder. Map to existing review fields: What went well this week? → wins; What could improve? → struggles; Key lesson learned → identity_reflection; Next week focus → adjustments. Icons: e.g. green sprout (wins), orange gear (improve), blue book (lesson), orange target (focus). | UI only; no schema change if mapping to wins, struggles, identity_reflection, adjustments. |
+| **Right column — Wins & Needs attention** | | |
+| 9 | **Completion list:** Strong/wins first (green text + completion ratio e.g. "Drink 8 glasses (7/7)"). Subheading "Needs attention" with warning icon; list habits below threshold in red with red ratio (e.g. "Walk 30 min (0/7)"). | Same data as current "habits needing attention" + completed list. |
+| 10 | **Coaching tip** below the list: "Never miss twice. Can you shrink these to a 2-minute version next week?" (or similar). | Static or conditional copy. |
+| **Right column — Atomic Habits insight** | | |
+| 11 | One card: "Atomic Habits insight" with icon. Quote: "You do not rise to the level of your goals. You fall to the level of your systems." Recommendation: "Review your 4 Laws design for any habit scoring below 4/7." | Fixed copy; supports methodology. |
+| **Behavior preserved** | | |
+| 12 | Week navigation, date range, loading/error states, save review (all four fields), review history, and any existing API usage unchanged. No backend or schema changes unless product opts to add new review fields. | Validation before and after build. |
+
+**User stories (if confirmed)**
+
+- US-Review-UI-1: As a user on the Review page, I see a two-column layout with habit cards (day dots, progress, link) and a weekly reflection card so the layout matches the approved design.
+- US-Review-UI-2: As a user on the Review page, I see habits needing attention highlighted (red card tint and red progress) and a right-side "Wins & Needs attention" list with a coaching tip so I know where to focus.
+- US-Review-UI-3: As a user on the Review page, I see a 4-prompt reflection grid (What went well, What could improve, Key lesson learned, Next week focus) and an Atomic Habits insight card so reflection is structured and tied to the methodology.
+- US-Review-UI-4: As a user, I can still change week, save my review, and view history; all existing flows work.
+
+**Frontend tasks (after confirmation)**
+
+- Two-column layout (grid or flex); responsive stack.
+- Left: Habit scoreboard as habit cards (day row M–S, name, identity line, progress top-right, link); needs-attention variant (red tint, red text).
+- Left: Weekly reflection card with quote and 4-prompt 2×2 grid (icons + labels + placeholders); bind to wins, struggles, identity_reflection, adjustments.
+- Right: Wins list (green) + "Needs attention" list (red) + coaching tip.
+- Right: Atomic Habits insight card (quote + recommendation).
+- Week nav and date range retained; summary stats/chart optional per product choice.
+- Design system: font-heading, font-body, bg-card, border-border, rounded-2xl, shadow-sm, primary, red/green accents; lucide-react icons.
+
+**Acceptance criteria**
+
+- Review (weekly) page matches the approved facelift: two-column layout, habit cards with day dots and progress, needs-attention styling, 4-prompt reflection grid, Wins & Needs attention list, Atomic Habits insight card.
+- Week navigation, save review, and review history unchanged. No backend or schema changes unless explicitly added.
+
+**Definition of Done**
+
+- PRD and Decision Log updated (this phase and D58).
+- Review weekly page (and optionally hub) rebuilt with new layout and components; all listed behaviors verified.
+
+**Dependencies:** Phase 4 (reviews, data summary). Today/Habits/Identities UI refresh optional (design system shared).
+
+**Implementation notes (built 2026-02-22):** Facelift implemented on **Write a review** page (`/dashboard/review/write`). Two-column layout: left = habit scoreboard (one card per habit with M–S day letters, name, identity, streak + completed/scheduled, link to habit detail) + weekly reflection card (James Clear quote, 4-prompt 2×2 grid: What went well / What could improve / Key lesson learned / Next week focus, Save); right = Wins & warnings (green list + Needs attention red list + coaching tip) + Atomic Habits insight card + Identity votes card. Week navigation (prev/next) and date range at top. Needs-attention threshold: &lt;4/7 or missed_two_plus; red card tint and red progress for those habits. API `/api/reviews/summary` extended with `week_completion` (boolean[7]), `scheduled_days`, and `completed_count` per habit. Review hub updated: design tokens, first card "Weekly review" links to write page; "Rate & fix" links to existing `/dashboard/review/weekly` step flow. GraduationPrompt retained below reflection form. No schema changes.
+
+---
+
 ## 8. Observability & Non-Functional Requirements
 
 ### Logging
@@ -1580,6 +1643,7 @@ These guidelines apply across all phases. They are cross-cutting UX patterns, no
 | D55 | Identities Page UI refresh | New phase: summary stats, 2-col cards, linked-habits pills, all behavior preserved | Identities list page redesigned to match v0-style: header with "+ Create identity" button, three summary cards (Identities, Votes this week, Avg momentum), identity cards in 2-col grid with statement, votes/trend, momentum bar, collapsible Linked habits (reinforcing/undermining pills), same three actions. No backend changes; create, edit, delete, all links, post-create prompt, and empty state must continue to work. See "Identities Page UI Refresh" in Section 7. | 2026-02-22 |
 | D56 | Dashboard nav: top tabs with icons | Single top bar, tabs on top, lucide icons, orange active | Dashboard layout updated: sidebar removed; single sticky top bar with logo, nav tabs (Today, Identities, Habits, Review, Partners), and user block. Each tab has a lucide-react icon (Calendar, Users, ListTodo, FileText, UserPlus). Active tab shown with orange background and white text. Implemented in `components/dashboard-nav.tsx` and `app/dashboard/layout.tsx`. See "Dashboard navigation — top tabs with icons" in Section 7. | 2026-02-22 |
 | D57 | Habits Page UI refresh | New phase: header + button, stats, search, 2-col grid, all behavior preserved | Habits list page to be redesigned to match v0-style: header with "+ Add habit" button, three stat chips (Active, On streak, Identities), search bar, identity-grouped sections, habit cards in 2-col grid. Create, edit, archive, delete, reminders, shared, contract, 4 Laws, view calendar, blockers flow unchanged. See "Habits Page UI Refresh" in Section 7; proposed changes listed for product confirmation before implementation. | 2026-02-22 |
+| D58 | Review Page UI refresh | Two-column facelift: habit cards, 4-prompt reflection, Wins & Needs attention, Atomic Habits insight | Implemented on /dashboard/review/write: two-column layout, habit cards with week_completion (M–S), needs-attention styling, 4-prompt reflection grid, Wins & Needs attention + Atomic Habits insight. API extended with week_completion, scheduled_days, completed_count. Hub refreshed; "Weekly review" → write, "Rate & fix" → weekly. See "Review Page UI Refresh" in Section 7 and implementation notes there. | 2026-02-22 |
 
 ---
 

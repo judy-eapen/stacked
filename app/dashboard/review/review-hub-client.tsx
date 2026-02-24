@@ -40,25 +40,25 @@ export function ReviewHubClient() {
   return (
     <>
       {!checking && showWeeklyPrompt && (
-        <div className="rounded-xl bg-[#e87722]/10 border border-[#e87722]/30 p-4 flex items-center justify-between gap-3 flex-wrap">
-          <p className="text-sm text-gray-900">
+        <div className="rounded-2xl border border-primary/30 bg-primary/10 p-4 flex items-center justify-between gap-3 flex-wrap">
+          <p className="font-body text-sm text-foreground">
             You haven&rsquo;t reviewed this week. Write a review to reflect on your habits.
           </p>
           <Link
             href="/dashboard/review/write"
-            className="shrink-0 h-9 px-4 rounded-lg bg-[#e87722] text-white text-sm font-medium hover:bg-[#d96b1e]"
+            className="shrink-0 inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 font-body text-sm font-medium text-primary-foreground hover:opacity-90"
           >
             Write a review
           </Link>
         </div>
       )}
 
-      <div className="rounded-xl bg-white border border-gray-200 p-5 space-y-4">
+      <div className="rounded-2xl border border-border bg-card p-5 shadow-sm space-y-4">
         <div className="flex items-center justify-between gap-4 flex-wrap">
-          <h2 className="text-sm font-semibold text-gray-900">Ways to use the scorecard</h2>
+          <h2 className="font-heading text-sm font-semibold text-foreground">Ways to use the scorecard</h2>
           <Link
             href="/dashboard/review/write"
-            className="inline-flex items-center justify-center h-10 px-4 rounded-lg bg-[#e87722] text-white text-sm font-medium hover:bg-[#d96b1e]"
+            className="inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 font-body text-sm font-medium text-primary-foreground hover:opacity-90"
           >
             Write a review
           </Link>
@@ -66,47 +66,56 @@ export function ReviewHubClient() {
         <ul className="space-y-3">
           <li>
             <Link
-              href="/dashboard/review/weekly"
-              className="block rounded-lg border border-gray-200 p-4 hover:bg-gray-50 hover:border-[#e87722]/30 transition-colors"
+              href="/dashboard/review/write"
+              className="block rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/30 hover:bg-muted/30"
             >
-              <span className="font-medium text-gray-900">Weekly review</span>
-              <span className="block text-xs text-gray-500 mt-0.5">Rate this week (= / −), see friction and advice, apply one fix.</span>
+              <span className="font-heading font-medium text-foreground">Weekly review</span>
+              <span className="font-body block text-xs text-muted-foreground mt-0.5">Reflect on your week with habit data, wins & warnings, and a 4-prompt reflection.</span>
+            </Link>
+          </li>
+          <li>
+            <Link
+              href="/dashboard/review/weekly"
+              className="block rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/30 hover:bg-muted/30"
+            >
+              <span className="font-heading font-medium text-foreground">Rate & fix</span>
+              <span className="font-body block text-xs text-muted-foreground mt-0.5">Rate this week (= / −), see friction and advice, apply one fix.</span>
             </Link>
           </li>
           <li>
             <Link
               href="/dashboard/scorecard"
-              className="block rounded-lg border border-gray-200 p-4 hover:bg-gray-50 hover:border-[#e87722]/30 transition-colors"
+              className="block rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/30 hover:bg-muted/30"
             >
-              <span className="font-medium text-gray-900">Map your day</span>
-              <span className="block text-xs text-gray-500 mt-0.5">List habits and rate them + / − / = by time of day. Recalibrate when you need a reset.</span>
+              <span className="font-heading font-medium text-foreground">Map your day</span>
+              <span className="font-body block text-xs text-muted-foreground mt-0.5">List habits and rate them + / − / = by time of day. Recalibrate when you need a reset.</span>
             </Link>
           </li>
           <li>
             <Link
               href="/dashboard/review/reset"
-              className="block rounded-lg border border-gray-200 p-4 hover:bg-gray-50 hover:border-[#e87722]/30 transition-colors"
+              className="block rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/30 hover:bg-muted/30"
             >
-              <span className="font-medium text-gray-900">I&rsquo;m stuck — reset</span>
-              <span className="block text-xs text-gray-500 mt-0.5">60 seconds: mini-scorecard, pick one habit, shrink it, restart.</span>
+              <span className="font-heading font-medium text-foreground">I&rsquo;m stuck — reset</span>
+              <span className="font-body block text-xs text-muted-foreground mt-0.5">60 seconds: mini-scorecard, pick one habit, shrink it, restart.</span>
             </Link>
           </li>
           <li>
             <Link
               href="/dashboard/review/monthly"
-              className="block rounded-lg border border-gray-200 p-4 hover:bg-gray-50 hover:border-[#e87722]/30 transition-colors"
+              className="block rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/30 hover:bg-muted/30"
             >
-              <span className="font-medium text-gray-900">Monthly identity reflection</span>
-              <span className="block text-xs text-gray-500 mt-0.5">Are your habits still aligned with who you want to become?</span>
+              <span className="font-heading font-medium text-foreground">Monthly identity reflection</span>
+              <span className="font-body block text-xs text-muted-foreground mt-0.5">Are your habits still aligned with who you want to become?</span>
             </Link>
           </li>
           <li>
             <Link
               href="/dashboard/review/history"
-              className="block rounded-lg border border-gray-200 p-4 hover:bg-gray-50 hover:border-[#e87722]/30 transition-colors"
+              className="block rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/30 hover:bg-muted/30"
             >
-              <span className="font-medium text-gray-900">Review history</span>
-              <span className="block text-xs text-gray-500 mt-0.5">Past weekly and monthly reviews.</span>
+              <span className="font-heading font-medium text-foreground">Review history</span>
+              <span className="font-body block text-xs text-muted-foreground mt-0.5">Past weekly and monthly reviews.</span>
             </Link>
           </li>
         </ul>

@@ -78,10 +78,21 @@ export async function GET(request: Request) {
     scheduledDaysByHabit[h.id] = scheduled
     completedByHabit[h.id] = 0
   }
+  const completedDatesByHabit: Record<string, Set<string>> = {}
+  for (const id of habitIds) completedDatesByHabit[id] = new Set()
   for (const row of completions ?? []) {
     if (row.completed && completedByHabit[row.habit_id] !== undefined) {
       completedByHabit[row.habit_id]++
+      completedDatesByHabit[row.habit_id].add(row.completed_date)
     }
+  }
+
+  const weekDates: string[] = []
+  const dWalk = new Date(start + 'T12:00:00')
+  const endDate = new Date(end + 'T12:00:00')
+  while (dWalk <= endDate) {
+    weekDates.push(toDateString(dWalk))
+    dWalk.setDate(dWalk.getDate() + 1)
   }
 
   const priorWeekStart = new Date(start + 'T12:00:00')
@@ -109,7 +120,19 @@ export async function GET(request: Request) {
   }
 
   const identityVotes: Record<string, number> = {}
-  const outHabits: { habit_id: string; habit_name: string; identity: string | null; completion_rate: number; current_streak: number; streak_change: number; missed_two_plus: boolean; total_completions: number }[] = []
+  const outHabits: {
+    habit_id: string
+    habit_name: string
+    identity: string | null
+    completion_rate: number
+    current_streak: number
+    streak_change: number
+    missed_two_plus: boolean
+    total_completions: number
+    scheduled_days: number
+    completed_count: number
+    week_completion: boolean[]
+  }[] = []
 
   for (const h of habitList) {
     const raw = h as { id: string; name: string; identity_id: string | null; current_streak: number; identities: { statement: string } | { statement: string }[] | null }
@@ -121,6 +144,8 @@ export async function GET(request: Request) {
     const priorCount = priorCompletedSet[h.id]?.size ?? 0
     const priorStreak = Math.min(7, priorCount)
     const streak_change = raw.current_streak - priorStreak
+    const completedSet = completedDatesByHabit[h.id] ?? new Set()
+    const week_completion = weekDates.map((dateStr) => completedSet.has(dateStr))
     outHabits.push({
       habit_id: raw.id,
       habit_name: raw.name,
@@ -130,6 +155,9 @@ export async function GET(request: Request) {
       streak_change,
       missed_two_plus: missed_two_plus,
       total_completions: totalByHabit[h.id] ?? 0,
+      scheduled_days: scheduled,
+      completed_count: completed,
+      week_completion,
     })
     if (identity) {
       identityVotes[identity] = (identityVotes[identity] ?? 0) + completed
