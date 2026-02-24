@@ -9,6 +9,7 @@ import {
   X,
   Check,
   Circle,
+  Flame,
 } from 'lucide-react'
 
 const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
@@ -107,6 +108,10 @@ export default function PartnersPage() {
   const [cancelInviteId, setCancelInviteId] = useState<string | null>(null)
   const [partnerSelectedHabits, setPartnerSelectedHabits] = useState<Record<string, Set<string>>>({})
   const [savingPartnerId, setSavingPartnerId] = useState<string | null>(null)
+  const [partnerViewData, setPartnerViewData] = useState<
+    Record<string, Record<string, { completedDates: Set<string>; current_streak: number }>>
+  >({})
+  const [partnerViewLoading, setPartnerViewLoading] = useState<Record<string, boolean>>({})
 
   const fetchPartners = useCallback(() => {
     return fetch('/api/partners', { credentials: 'include' })
@@ -129,6 +134,49 @@ export default function PartnersPage() {
       .catch(() => setData({ partners: [], pending_invites: [], shared_habits_count: 0, shared_habits: [], received_checkins: [], my_habits: [], habit_shares_by_habit: {} }))
       .finally(() => setLoading(false))
   }, [fetchPartners])
+
+  const partnerViewIdsKey =
+    expandedPartnerId ? [...(partnerSelectedHabits[expandedPartnerId] ?? [])].sort().join(',') : ''
+
+  useEffect(() => {
+    if (!expandedPartnerId) return
+    const ids = partnerViewIdsKey ? partnerViewIdsKey.split(',') : []
+    if (ids.length === 0) {
+      setPartnerViewLoading((prev) => ({ ...prev, [expandedPartnerId]: false }))
+      return
+    }
+    const to = new Date()
+    const from = new Date()
+    from.setDate(from.getDate() - 29)
+    const fromStr = from.toISOString().slice(0, 10)
+    const toStr = to.toISOString().slice(0, 10)
+    setPartnerViewLoading((prev) => ({ ...prev, [expandedPartnerId]: true }))
+    Promise.all(
+      ids.map((habitId) =>
+        fetch(`/api/habits/${habitId}/streaks?from=${fromStr}&to=${toStr}`, { credentials: 'include' }).then((r) =>
+          r.json().then((body) => ({ habitId, body }))
+        )
+      )
+    )
+      .then((results) => {
+        const byHabit: Record<string, { completedDates: Set<string>; current_streak: number }> = {}
+        for (const { habitId, body } of results) {
+          const dates = (body.completions ?? [])
+            .filter((c: { completed: boolean }) => c.completed)
+            .map((c: { date: string }) => c.date)
+          byHabit[habitId] = {
+            completedDates: new Set(dates),
+            current_streak: typeof body.current_streak === 'number' ? body.current_streak : 0,
+          }
+        }
+        setPartnerViewData((prev) => ({
+          ...prev,
+          [expandedPartnerId]: { ...prev[expandedPartnerId], ...byHabit },
+        }))
+      })
+      .catch(() => {})
+      .finally(() => setPartnerViewLoading((prev) => ({ ...prev, [expandedPartnerId]: false }))
+  }, [expandedPartnerId, partnerViewIdsKey])
 
   async function handleInvite() {
     setError(null)
@@ -414,6 +462,65 @@ export default function PartnersPage() {
                             >
                               {savingPartnerId === partner.partner_id ? 'Saving…' : 'Save'}
                             </button>
+                            {selectedSet.size > 0 && (
+                              <div className="mt-4 pt-4 border-t border-border">
+                                <p className="font-body text-sm font-medium text-foreground mb-3">
+                                  What {partnerDisplayName(partner)} sees (calendar and streaks)
+                                </p>
+                                {partnerViewLoading[partner.partner_id] ? (
+                                  <p className="font-body text-xs text-muted-foreground">Loading…</p>
+                                ) : (
+                                  <ul className="space-y-4">
+                                    {data.my_habits
+                                      ?.filter((h) => selectedSet.has(h.id))
+                                      .map((h) => {
+                                        const view = partnerViewData[partner.partner_id]?.[h.id]
+                                        const completedDates = view?.completedDates ?? new Set<string>()
+                                        const streak = view?.current_streak ?? 0
+                                        const cells: string[] = []
+                                        const d = new Date()
+                                        for (let i = 29; i >= 0; i--) {
+                                          const x = new Date(d)
+                                          x.setDate(d.getDate() - i)
+                                          cells.push(x.toISOString().slice(0, 10))
+                                        }
+                                        return (
+                                          <li key={h.id} className="rounded-xl border border-border bg-muted/20 p-3">
+                                            <div className="flex items-center justify-between gap-2 mb-2">
+                                              <span className="font-body text-sm font-medium text-foreground">{h.name}</span>
+                                              {streak > 0 && (
+                                                <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-400/20 to-orange-500/20 border border-amber-400/40 text-amber-800 px-2 py-0.5 font-body text-xs font-semibold">
+                                                  <Flame className="h-3.5 w-3.5 text-orange-500" />
+                                                  {streak} day{streak !== 1 ? 's' : ''}
+                                                </span>
+                                              )}
+                                            </div>
+                                            <p className="font-body text-[10px] text-muted-foreground mb-1.5">Last 30 days</p>
+                                            <div
+                                              className="grid gap-0.5 max-w-[200px]"
+                                              style={{ gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' }}
+                                            >
+                                              {cells.map((dateStr) => {
+                                                const completed = completedDates.has(dateStr)
+                                                return (
+                                                  <div
+                                                    key={dateStr}
+                                                    className={`aspect-square rounded-[3px] border ${
+                                                      completed ? 'bg-emerald-500 border-emerald-600' : 'bg-muted border-border'
+                                                    }`}
+                                                    title={dateStr}
+                                                    aria-label={completed ? `${dateStr} completed` : dateStr}
+                                                  />
+                                                )
+                                              })}
+                                            </div>
+                                          </li>
+                                        )
+                                      })}
+                                  </ul>
+                                )}
+                              </div>
+                            )}
                           </>
                         ) : (
                           <p className="font-body text-xs text-muted-foreground">No habits yet. Add habits on the Habits page first.</p>

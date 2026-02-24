@@ -197,6 +197,11 @@ export async function GET(
     scheduledInRangeByHabit[h.id] = arr
   }
 
+  const today = new Date(todayStr + 'T12:00:00')
+  const thirtyDaysAgo = new Date(today)
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29)
+  const rangeStart = toDateString(thirtyDaysAgo)
+
   const outHabits: {
     id: string
     name: string
@@ -206,6 +211,7 @@ export async function GET(
     completed_today: boolean
     completions_this_week: number
     contract: { commitment: string; consequence: string | null; start_date: string; end_date: string | null } | null
+    completed_dates: string[]
   }[] = []
 
   for (const h of habitList) {
@@ -235,6 +241,7 @@ export async function GET(
       }
     }
 
+    const datesInRange = dates.filter((d) => d >= rangeStart && d <= todayStr)
     outHabits.push({
       id: raw.id,
       name: raw.name,
@@ -244,6 +251,7 @@ export async function GET(
       completed_today: todaySet.has(raw.id),
       completions_this_week: weekCountByHabit[raw.id] ?? 0,
       contract: contracts[raw.id] ?? null,
+      completed_dates: datesInRange,
     })
   }
 

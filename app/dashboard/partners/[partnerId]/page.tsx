@@ -12,6 +12,7 @@ type Habit = {
   longest_streak: number
   completed_today: boolean
   completions_this_week: number
+  completed_dates?: string[]
   contract: {
     commitment: string
     consequence: string | null
@@ -114,43 +115,81 @@ export default function PartnerViewPage() {
           No shared habits yet.
         </div>
       ) : (
-        <ul className="space-y-3">
-          {data.habits.map((h) => (
-            <li
-              key={h.id}
-              className="rounded-xl bg-white border border-gray-200/80 p-4"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="font-medium text-gray-900">{h.name}</p>
-                  {h.identity && (
-                    <p className="text-sm text-gray-500 mt-0.5">{h.identity}</p>
-                  )}
+        <ul className="space-y-4">
+          {data.habits.map((h) => {
+            const completedSet = new Set(h.completed_dates ?? [])
+            const cells: string[] = []
+            const d = new Date()
+            for (let i = 29; i >= 0; i--) {
+              const x = new Date(d)
+              x.setDate(d.getDate() - i)
+              cells.push(x.toISOString().slice(0, 10))
+            }
+            return (
+              <li
+                key={h.id}
+                className="rounded-xl bg-white border border-gray-200/80 p-4"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-medium text-gray-900">{h.name}</p>
+                    {h.identity && (
+                      <p className="text-sm text-gray-500 mt-0.5">{h.identity}</p>
+                    )}
+                  </div>
+                  <div className="text-right text-sm shrink-0 flex items-center gap-1.5">
+                    {h.current_streak > 0 && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 font-medium">
+                        🔥 {h.current_streak} day{h.current_streak !== 1 ? 's' : ''}
+                      </span>
+                    )}
+                    <span className="text-gray-600">Streak {h.current_streak}</span>
+                    {h.longest_streak > h.current_streak && (
+                      <span className="text-gray-400 ml-1">(best {h.longest_streak})</span>
+                    )}
+                  </div>
                 </div>
-                <div className="text-right text-sm shrink-0">
-                  <span className="text-gray-600">Streak {h.current_streak}</span>
-                  {h.longest_streak > h.current_streak && (
-                    <span className="text-gray-400 ml-1">(best {h.longest_streak})</span>
-                  )}
+                <div className="mt-2 flex gap-4 text-sm text-gray-500">
+                  <span>{h.completed_today ? 'Done today' : 'Not done today'}</span>
+                  <span>{h.completions_this_week} this week</span>
                 </div>
-              </div>
-              <div className="mt-2 flex gap-4 text-sm text-gray-500">
-                <span>{h.completed_today ? 'Done today' : 'Not done today'}</span>
-                <span>{h.completions_this_week} this week</span>
-              </div>
-              {h.contract && (
-                <div className="mt-3 pt-3 border-t border-gray-100 text-sm">
-                  <p className="text-gray-700">{h.contract.commitment}</p>
-                  {h.contract.consequence && (
-                    <p className="text-gray-500 mt-1">Consequence: {h.contract.consequence}</p>
-                  )}
-                  <p className="text-gray-400 mt-1">
-                    {h.contract.start_date} – {h.contract.end_date || 'ongoing'}
-                  </p>
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <p className="text-[10px] text-gray-400 mb-1.5">Last 30 days</p>
+                  <div
+                    className="grid gap-0.5 max-w-[200px]"
+                    style={{ gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' }}
+                  >
+                    {cells.map((dateStr) => {
+                      const completed = completedSet.has(dateStr)
+                      return (
+                        <div
+                          key={dateStr}
+                          className={`aspect-square rounded-[3px] border ${
+                            completed
+                              ? 'bg-emerald-500 border-emerald-600'
+                              : 'bg-gray-100 border-gray-200'
+                          }`}
+                          title={dateStr}
+                          aria-label={completed ? `${dateStr} completed` : dateStr}
+                        />
+                      )
+                    })}
+                  </div>
                 </div>
-              )}
-            </li>
-          ))}
+                {h.contract && (
+                  <div className="mt-3 pt-3 border-t border-gray-100 text-sm">
+                    <p className="text-gray-700">{h.contract.commitment}</p>
+                    {h.contract.consequence && (
+                      <p className="text-gray-500 mt-1">Consequence: {h.contract.consequence}</p>
+                    )}
+                    <p className="text-gray-400 mt-1">
+                      {h.contract.start_date} – {h.contract.end_date || 'ongoing'}
+                    </p>
+                  </div>
+                )}
+              </li>
+            )
+          })}
         </ul>
       )}
 
