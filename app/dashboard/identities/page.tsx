@@ -460,16 +460,10 @@ export default function IdentitiesPage() {
                           Add reinforcing habit
                         </Link>
                         <Link
-                          href={idn.undermining.length === 0 ? `/dashboard/habits?addBlockerFor=${idn.id}` : `/dashboard/identities/${idn.id}?blockers=1`}
+                          href={idn.undermining.length === 0 ? `/dashboard/habits?addBlockerFor=${idn.id}` : `/dashboard/habits?identity=${idn.id}&mode=fix`}
                           className="inline-flex items-center justify-center h-9 px-4 rounded-lg border border-border font-body text-sm font-medium bg-card hover:bg-muted text-foreground"
                         >
                           {idn.undermining.length === 0 ? 'Add a blocking habit' : 'View & fix blockers'}
-                        </Link>
-                        <Link
-                          href={`/dashboard/identities/${idn.id}`}
-                          className="inline-flex items-center justify-center h-9 px-4 rounded-lg border border-border font-body text-sm font-medium bg-card hover:bg-muted text-foreground"
-                        >
-                          View details
                         </Link>
                       </div>
                     </>
