@@ -32,8 +32,8 @@ export async function PATCH(
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  if (row.status !== 'accepted') {
-    return NextResponse.json({ error: 'Partnership is not active' }, { status: 422 })
+  if (row.status !== 'accepted' && row.status !== 'pending') {
+    return NextResponse.json({ error: 'Partnership cannot be removed' }, { status: 422 })
   }
 
   const { error: updateError } = await supabase

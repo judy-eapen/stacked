@@ -1491,6 +1491,33 @@ Before implementation, please confirm the following. Anything you want to add, d
 
 ---
 
+### Partners Page UI Refresh (Post–Phase 7)
+
+**Goal:** Redesign the Partners tab to match the approved design: header with "Accountability Partners" and description, three summary cards (Active Partners, Shared Habits, Pending Invites), orange "Invite Partner" button, Pending Invites section (dashed cards with sent date, Resend/Cancel), Your Partners section with partner cards (avatar, name, streak pill, "N shared habits — active X days ago", expandable "X/Y today" with shared habits list and MTWTFSS dots), and right sidebar (How Partners Work, Your Privacy, James Clear quote). All existing behavior (invite, accept, remove, manage visibility, partner detail) preserved.
+
+**Proposed changes (summary)**
+
+| # | Change | Notes |
+|---|--------|------|
+| 1 | Title "Accountability Partners" with subtitle; orange "Invite Partner" button (top right) with icon. | Same invite flow. |
+| 2 | Three summary cards: Active Partners, Shared Habits, Pending Invites. | Design tokens. |
+| 3 | PENDING INVITES: dashed cards, "Sent X days ago", Resend (copy link), Cancel (remove pending). | API returns pending_invites. |
+| 4 | YOUR PARTNERS: card per partner with avatar (initials), name, "N shared habits — active X days ago", expandable "X/Y today" with shared habits (checkbox, name, identity, MTWTFSS dots, streak). "Partner since", "Manage visibility", Remove. | last_active from partner; shared_habits with week_completion. |
+| 5 | Right sidebar: How Partners Work (4 steps), Your Privacy, James Clear quote. | Fixed copy. |
+| 6 | All existing behavior preserved; optional API extension for pending_invites and shared_habits summary. | No schema change. |
+
+**User stories:** US-Partners-UI-1 through US-Partners-UI-4 (header/summary/invite, pending invites, partner cards with expandable habits, sidebar and existing flows).
+
+**Acceptance criteria:** Partners page matches design; invite, cancel, remove, manage visibility unchanged. No schema change.
+
+**Definition of Done:** PRD and Decision Log updated (D59). Partners page rebuilt; behaviors verified.
+
+**Dependencies:** Phase 5 (partnerships, shared habits). Design system from other refreshes.
+
+**Implementation notes (built 2026-02-22):** Partners tab redesigned: two-column layout (main + sidebar). Header "Accountability Partners" with subtitle and orange "Invite Partner" button. Three summary cards: Active Partners, Shared Habits, Pending Invites. PENDING INVITES: dashed cards with "Sent X days ago", Copy link, Cancel (PATCH partnership to status=removed). YOUR PARTNERS: card per partner with avatar (initials), name, "N shared habits — active X days ago", "Partner since [date]", Manage visibility link, Remove (click twice to confirm); expandable "X/Y today" with shared habits list (check/circle, name, identity, MTWTFSS dots, streak pill). Sidebar: How Partners Work (4 steps), Your Privacy (with link to habits), James Clear quote. API GET /api/partners extended: returns pending_invites (id, created_at, invite_url), shared_habits_count, shared_habits (id, name, identity, current_streak, completed_today, week_completion), and per-partner last_active. PATCH /api/partnerships/[id] allows canceling pending invites (status→removed). No schema change.
+
+---
+
 ## 8. Observability & Non-Functional Requirements
 
 ### Logging
@@ -1644,6 +1671,7 @@ These guidelines apply across all phases. They are cross-cutting UX patterns, no
 | D56 | Dashboard nav: top tabs with icons | Single top bar, tabs on top, lucide icons, orange active | Dashboard layout updated: sidebar removed; single sticky top bar with logo, nav tabs (Today, Identities, Habits, Review, Partners), and user block. Each tab has a lucide-react icon (Calendar, Users, ListTodo, FileText, UserPlus). Active tab shown with orange background and white text. Implemented in `components/dashboard-nav.tsx` and `app/dashboard/layout.tsx`. See "Dashboard navigation — top tabs with icons" in Section 7. | 2026-02-22 |
 | D57 | Habits Page UI refresh | New phase: header + button, stats, search, 2-col grid, all behavior preserved | Habits list page to be redesigned to match v0-style: header with "+ Add habit" button, three stat chips (Active, On streak, Identities), search bar, identity-grouped sections, habit cards in 2-col grid. Create, edit, archive, delete, reminders, shared, contract, 4 Laws, view calendar, blockers flow unchanged. See "Habits Page UI Refresh" in Section 7; proposed changes listed for product confirmation before implementation. | 2026-02-22 |
 | D58 | Review Page UI refresh | Two-column facelift: habit cards, 4-prompt reflection, Wins & Needs attention, Atomic Habits insight | Implemented on /dashboard/review/write: two-column layout, habit cards with week_completion (M–S), needs-attention styling, 4-prompt reflection grid, Wins & Needs attention + Atomic Habits insight. API extended with week_completion, scheduled_days, completed_count. Hub refreshed; "Weekly review" → write, "Rate & fix" → weekly. See "Review Page UI Refresh" in Section 7 and implementation notes there. | 2026-02-22 |
+| D59 | Partners Page UI refresh | Summary cards, Pending Invites, partner cards with expandable habits and week dots, sidebar | Implemented: header + "Invite Partner" button, three summary cards, Pending Invites (dashed cards, Copy link, Cancel), Your Partners with avatar, last_active, expandable "X/Y today" and shared habits with MTWTFSS dots, sidebar. API extended with pending_invites, shared_habits, last_active. See "Partners Page UI Refresh" in Section 7 and implementation notes there. | 2026-02-22 |
 
 ---
 

@@ -2,73 +2,98 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import {
+  UserPlus,
+  ChevronDown,
+  ChevronUp,
+  X,
+  Check,
+  Circle,
+} from 'lucide-react'
 
-function PartnerRow({
-  partnershipId,
-  partnerId,
-  displayName,
-  onRemoved,
-}: {
-  partnershipId: string
-  partnerId: string
-  displayName: string | null
-  onRemoved: () => void
-}) {
-  const [removing, setRemoving] = useState(false)
-  const [confirm, setConfirm] = useState(false)
-
-  async function handleRemove() {
-    if (!confirm) {
-      setConfirm(true)
-      return
-    }
-    setRemoving(true)
-    const res = await fetch(`/api/partnerships/${partnershipId}`, { method: 'PATCH' })
-    setRemoving(false)
-    setConfirm(false)
-    if (res.ok) onRemoved()
-  }
-
-  return (
-    <li className="flex items-center gap-3 rounded-xl bg-white border border-gray-200/80 p-4 hover:bg-gray-50/80 group">
-      <Link href={`/dashboard/partners/${partnerId}`} className="flex-1 flex items-center gap-3 min-w-0">
-        <span className="font-medium text-gray-900 truncate">{displayName || 'Partner'}</span>
-        <span className="text-gray-400 shrink-0">→</span>
-      </Link>
-      <button
-        type="button"
-        onClick={handleRemove}
-        disabled={removing}
-        className={`text-sm shrink-0 ${confirm ? 'text-red-600 font-medium' : 'text-gray-500 hover:text-red-600'}`}
-      >
-        {removing ? 'Removing…' : confirm ? 'Click again to remove' : 'Remove'}
-      </button>
-    </li>
-  )
-}
+const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 
 type Partner = {
   partnership_id: string
   partner_id: string
   display_name: string | null
   avatar_url: string | null
+  accepted_at: string | null
+  last_active: string | null
+}
+
+type PendingInvite = {
+  id: string
+  created_at: string
+  invite_url: string
+}
+
+type SharedHabit = {
+  id: string
+  name: string
+  identity: string | null
+  current_streak: number
+  completed_today: boolean
+  week_completion: boolean[]
+}
+
+type ApiResponse = {
+  partners: Partner[]
+  pending_invites: PendingInvite[]
+  shared_habits_count: number
+  shared_habits: SharedHabit[]
+}
+
+function daysAgo(dateStr: string): number {
+  const d = new Date(dateStr + 'T12:00:00')
+  const now = new Date()
+  return Math.floor((now.getTime() - d.getTime()) / (24 * 60 * 60 * 1000))
+}
+
+function formatSentAt(createdAt: string): string {
+  const d = daysAgo(createdAt.slice(0, 10))
+  if (d === 0) return 'Sent today'
+  if (d === 1) return 'Sent 1 day ago'
+  return `Sent ${d} days ago`
+}
+
+function formatPartnerSince(acceptedAt: string | null): string {
+  if (!acceptedAt) return ''
+  const d = new Date(acceptedAt)
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function getInitials(name: string | null): string {
+  if (!name || !name.trim()) return '?'
+  const parts = name.trim().split(/\s+/)
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+  return name.slice(0, 2).toUpperCase()
 }
 
 export default function PartnersPage() {
-  const [partners, setPartners] = useState<Partner[]>([])
+  const [data, setData] = useState<ApiResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [inviting, setInviting] = useState(false)
   const [inviteUrl, setInviteUrl] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [expandedPartnerId, setExpandedPartnerId] = useState<string | null>(null)
+  const [removingId, setRemovingId] = useState<string | null>(null)
+  const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null)
+  const [cancelInviteId, setCancelInviteId] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/api/partners')
+    fetch('/api/partners', { credentials: 'include' })
       .then((r) => r.json())
-      .then((data) => {
-        setPartners(data.partners ?? [])
+      .then((d) => {
+        setData({
+          partners: d.partners ?? [],
+          pending_invites: d.pending_invites ?? [],
+          shared_habits_count: d.shared_habits_count ?? 0,
+          shared_habits: d.shared_habits ?? [],
+        })
       })
-      .catch(() => setPartners([]))
+      .catch(() => setData({ partners: [], pending_invites: [], shared_habits_count: 0, shared_habits: [] }))
       .finally(() => setLoading(false))
   }, [])
 
@@ -77,112 +102,303 @@ export default function PartnersPage() {
     setInviteUrl(null)
     setInviting(true)
     const res = await fetch('/api/partnerships/invite', { method: 'POST' })
-    const data = await res.json().catch(() => ({}))
+    const body = await res.json().catch(() => ({}))
     setInviting(false)
     if (!res.ok) {
-      setError(data.error || 'Failed to create invite')
+      setError(body.error || 'Failed to create invite')
       return
     }
     const url =
       typeof window !== 'undefined'
-        ? `${window.location.origin}/invite/${data.invite_token}`
-        : data.invite_url || ''
+        ? `${window.location.origin}/invite/${body.invite_token}`
+        : body.invite_url || ''
     setInviteUrl(url)
+    fetch('/api/partners', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => setData({ partners: d.partners ?? [], pending_invites: d.pending_invites ?? [], shared_habits_count: d.shared_habits_count ?? 0, shared_habits: d.shared_habits ?? [] }))
+      .catch(() => {})
   }
 
-  function copyInviteUrl() {
-    if (!inviteUrl) return
-    navigator.clipboard.writeText(inviteUrl).then(() => {
+  function copyInviteUrl(url: string) {
+    navigator.clipboard.writeText(url).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     })
   }
 
+  async function handleCancelInvite(id: string) {
+    setCancelInviteId(id)
+    const res = await fetch(`/api/partnerships/${id}`, { method: 'PATCH' })
+    setCancelInviteId(null)
+    if (res.ok && data) setData({ ...data, pending_invites: data.pending_invites.filter((i) => i.id !== id) })
+  }
+
+  async function handleRemovePartnership(partnershipId: string) {
+    if (confirmRemoveId !== partnershipId) {
+      setConfirmRemoveId(partnershipId)
+      return
+    }
+    setRemovingId(partnershipId)
+    const res = await fetch(`/api/partnerships/${partnershipId}`, { method: 'PATCH' })
+    setRemovingId(null)
+    setConfirmRemoveId(null)
+    if (res.ok && data) setData({ ...data, partners: data.partners.filter((p) => p.partnership_id !== partnershipId) })
+  }
+
+  const completedToday = data?.shared_habits?.filter((h) => h.completed_today).length ?? 0
+  const totalShared = data?.shared_habits?.length ?? 0
+
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-1">Partners</h1>
-          <p className="text-sm text-gray-500">Accountability partners can see your shared habits and cheer you on.</p>
-        </div>
-        <p className="text-gray-500">Loading…</p>
+      <div className="flex min-h-[200px] items-center justify-center">
+        <p className="font-body text-sm text-muted-foreground">Loading…</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-1">Partners</h1>
-        <p className="text-sm text-gray-500">Accountability partners can see your shared habits and cheer you on.</p>
-      </div>
-
-      {error && (
-        <div className="rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm p-3" role="alert">
-          {error}
-        </div>
-      )}
-
-      {inviteUrl && (
-        <div className="rounded-xl bg-white border border-gray-200/80 p-5 space-y-3">
-          <p className="text-sm font-medium text-gray-900">Invite link (valid 7 days)</p>
-          <div className="flex gap-2">
-            <input
-              readOnly
-              value={inviteUrl}
-              className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 bg-gray-50"
-            />
-            <button
-              type="button"
-              onClick={copyInviteUrl}
-              className="rounded-lg bg-[#e87722] text-white font-medium px-4 py-2 hover:bg-[#d96b1e] whitespace-nowrap"
-            >
-              {copied ? 'Copied' : 'Copy'}
-            </button>
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
+      <div className="space-y-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="font-heading text-2xl md:text-3xl font-bold tracking-tight text-foreground">
+              Accountability Partners
+            </h1>
+            <p className="font-body text-sm text-muted-foreground mt-0.5">
+              Share your habits with people who will cheer you on and keep you honest. They can see your streaks and check-ins — nothing more.
+            </p>
           </div>
-        </div>
-      )}
-
-      {partners.length === 0 && !inviteUrl && (
-        <div className="rounded-xl bg-white border border-gray-200/80 p-8 text-center">
-          <p className="text-gray-600 mb-4">No partners yet. Invite someone to see your shared habits and progress.</p>
           <button
             type="button"
             onClick={handleInvite}
             disabled={inviting}
-            className="rounded-lg bg-[#e87722] text-white font-semibold px-5 py-2.5 hover:bg-[#d96b1e] disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-lg bg-primary text-primary-foreground font-body text-sm font-medium hover:opacity-90 disabled:opacity-60 shrink-0"
           >
-            {inviting ? 'Creating link…' : 'Invite a partner'}
+            <UserPlus className="h-4 w-4" />
+            Invite Partner
           </button>
         </div>
-      )}
 
-      {partners.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-900">Your partners</h2>
-            <button
-              type="button"
-              onClick={handleInvite}
-              disabled={inviting}
-              className="text-sm font-medium text-[#e87722] hover:underline disabled:opacity-60"
-            >
-              {inviting ? 'Creating…' : 'Invite a partner'}
-            </button>
+        {error && (
+          <div className="rounded-lg bg-red-50 border border-red-200 text-red-700 font-body text-sm p-3" role="alert">
+            {error}
           </div>
-          <ul className="space-y-2">
-            {partners.map((p) => (
-              <PartnerRow
-                key={p.partnership_id}
-                partnershipId={p.partnership_id}
-                partnerId={p.partner_id}
-                displayName={p.display_name}
-                onRemoved={() => setPartners((prev) => prev.filter((x) => x.partnership_id !== p.partnership_id))}
+        )}
+
+        {inviteUrl && (
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <p className="font-body text-sm font-medium text-foreground mb-2">Invite link (valid 7 days)</p>
+            <div className="flex gap-2">
+              <input
+                readOnly
+                value={inviteUrl}
+                className="font-body flex-1 rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm text-foreground"
               />
-            ))}
-          </ul>
+              <button
+                type="button"
+                onClick={() => copyInviteUrl(inviteUrl)}
+                className="rounded-lg bg-primary text-primary-foreground font-body font-medium px-4 py-2 hover:opacity-90 whitespace-nowrap"
+              >
+                {copied ? 'Copied' : 'Copy'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <p className="font-body text-xs font-medium text-muted-foreground uppercase tracking-wide">Active Partners</p>
+            <p className="font-heading text-2xl font-bold text-foreground mt-0.5">{data?.partners?.length ?? 0}</p>
+          </div>
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <p className="font-body text-xs font-medium text-muted-foreground uppercase tracking-wide">Shared Habits</p>
+            <p className="font-heading text-2xl font-bold text-foreground mt-0.5">{data?.shared_habits_count ?? 0}</p>
+          </div>
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <p className="font-body text-xs font-medium text-muted-foreground uppercase tracking-wide">Pending Invites</p>
+            <p className="font-heading text-2xl font-bold text-foreground mt-0.5">{data?.pending_invites?.length ?? 0}</p>
+          </div>
         </div>
-      )}
+
+        {data?.pending_invites && data.pending_invites.length > 0 && (
+          <div>
+            <h2 className="font-heading text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+              Pending Invites
+            </h2>
+            <ul className="space-y-2">
+              {data.pending_invites.map((inv) => (
+                <li
+                  key={inv.id}
+                  className="rounded-2xl border border-dashed border-primary/40 bg-primary/5 p-4 flex flex-wrap items-center justify-between gap-2"
+                >
+                  <span className="font-body text-sm text-foreground">{formatSentAt(inv.created_at)}</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => copyInviteUrl(inv.invite_url)}
+                      className="font-body text-sm font-medium text-primary hover:underline"
+                    >
+                      {copied ? 'Copied' : 'Copy link'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCancelInvite(inv.id)}
+                      disabled={cancelInviteId === inv.id}
+                      className="p-1 text-muted-foreground hover:text-foreground rounded disabled:opacity-50"
+                      aria-label="Cancel invite"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <div>
+          <h2 className="font-heading text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            Your Partners
+          </h2>
+          {!data?.partners?.length ? (
+            <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
+              <p className="font-body text-muted-foreground mb-4">No partners yet. Invite someone to see your shared habits and progress.</p>
+              <button
+                type="button"
+                onClick={handleInvite}
+                disabled={inviting}
+                className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-lg bg-primary text-primary-foreground font-body font-medium hover:opacity-90 disabled:opacity-60"
+              >
+                <UserPlus className="h-4 w-4" /> Invite Partner
+              </button>
+            </div>
+          ) : (
+            <ul className="space-y-3">
+              {data.partners.map((partner) => {
+                const isExpanded = expandedPartnerId === partner.partner_id
+                const lastActive = partner.last_active ? daysAgo(partner.last_active) : null
+                const activeText = lastActive !== null ? (lastActive === 0 ? 'active today' : lastActive === 1 ? 'active 1 day ago' : `active ${lastActive} days ago`) : 'no activity yet'
+                const sharedCount = data.shared_habits?.length ?? 0
+                return (
+                  <li
+                    key={partner.partnership_id}
+                    className="rounded-2xl border border-border bg-card p-4 shadow-sm"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary font-heading text-sm font-semibold">
+                        {getInitials(partner.display_name)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Link
+                            href={`/dashboard/partners/${partner.partner_id}`}
+                            className="font-heading font-medium text-foreground hover:text-primary"
+                          >
+                            {partner.display_name || 'Partner'}
+                          </Link>
+                        </div>
+                        <p className="font-body text-xs text-muted-foreground mt-0.5">
+                          {sharedCount} shared habit{sharedCount !== 1 ? 's' : ''} — {activeText}
+                        </p>
+                        {partner.accepted_at && (
+                          <p className="font-body text-xs text-muted-foreground mt-0.5">
+                            Partner since {formatPartnerSince(partner.accepted_at)}
+                          </p>
+                        )}
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <Link
+                            href={`/dashboard/partners/${partner.partner_id}`}
+                            className="font-body text-xs font-medium text-primary hover:underline"
+                          >
+                            Manage visibility
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => setExpandedPartnerId(isExpanded ? null : partner.partner_id)}
+                            className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2 py-1 font-body text-xs font-medium text-foreground hover:bg-muted/50"
+                          >
+                            {completedToday}/{totalShared} today
+                            {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRemovePartnership(partner.partnership_id)}
+                            disabled={removingId === partner.partnership_id}
+                            className={`font-body text-xs font-medium ${confirmRemoveId === partner.partnership_id ? 'text-red-600' : 'text-muted-foreground hover:text-foreground'}`}
+                          >
+                            {removingId === partner.partnership_id ? 'Removing…' : confirmRemoveId === partner.partnership_id ? 'Click again to remove' : 'Remove'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    {isExpanded && data?.shared_habits && data.shared_habits.length > 0 && (
+                      <ul className="mt-4 space-y-2 border-t border-border pt-4">
+                        {data.shared_habits.map((h) => (
+                          <li key={h.id} className="flex items-start gap-2">
+                            <span className="shrink-0 mt-0.5">
+                              {h.completed_today ? (
+                                <Check className="h-4 w-4 text-primary" />
+                              ) : (
+                                <Circle className="h-4 w-4 text-muted-foreground/60" />
+                              )}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-body text-sm font-medium text-foreground">{h.name}</p>
+                              {h.identity && (
+                                <p className="font-body text-xs text-muted-foreground">{h.identity}</p>
+                              )}
+                              <div className="mt-1 flex items-center gap-1">
+                                {DAY_LABELS.map((label, i) => (
+                                  <span
+                                    key={i}
+                                    className={h.week_completion[i] ? 'text-primary font-medium' : 'text-muted-foreground/60'}
+                                  >
+                                    {label}
+                                  </span>
+                                ))}
+                                <span className="ml-2 inline-flex rounded-full bg-primary/15 px-1.5 py-0.5 font-body text-xs font-medium text-primary">
+                                  {h.current_streak}
+                                </span>
+                              </div>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+          <h2 className="font-heading text-sm font-semibold text-foreground mb-3">How Partners Work</h2>
+          <ol className="font-body text-sm text-muted-foreground space-y-2 list-decimal list-inside">
+            <li><strong className="text-foreground">Invite by email</strong> — Send an invite with a personal link</li>
+            <li><strong className="text-foreground">Choose what to share</strong> — Pick specific habits they can see</li>
+            <li><strong className="text-foreground">They see your streaks</strong> — View-only access to your check-ins</li>
+            <li><strong className="text-foreground">Stay accountable</strong> — Check in regularly; they will notice</li>
+          </ol>
+        </div>
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+          <h2 className="font-heading text-sm font-semibold text-foreground mb-2">Your Privacy</h2>
+          <p className="font-body text-sm text-muted-foreground">
+            Partners can <strong className="text-foreground">only</strong> see the specific habits you choose to share. They see whether you checked in and your streak — nothing else.
+          </p>
+          <p className="font-body text-sm text-muted-foreground mt-2">
+            You can hide or remove any shared habit at any time using <Link href="/dashboard/habits" className="font-medium text-primary hover:underline">Manage visibility</Link> on each partner.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+          <blockquote className="font-body text-sm italic text-foreground">
+            One of the most effective things you can do to build better habits is to join a culture where your desired behavior is the normal behavior.
+          </blockquote>
+          <cite className="font-body text-xs text-primary mt-1 block">— James Clear, Atomic Habits</cite>
+        </div>
+      </div>
     </div>
   )
 }
