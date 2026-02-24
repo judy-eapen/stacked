@@ -8,7 +8,7 @@ import type { DesignBuild } from '@/lib/db-types'
 import { DesignBreakForm, EMPTY_DESIGN_BREAK, trimDesignBreak } from '@/components/DesignBreakForm'
 import { StackChainView } from '@/components/stack-chain-view'
 import type { DesignBreak } from '@/lib/db-types'
-import { Plus, Trash2, Bell, Users, FileSignature, Sparkles, Pencil, Calendar } from 'lucide-react'
+import { Plus, Trash2, Bell, Users, FileSignature, Sparkles, Pencil, Calendar, TrendingUp, MinusCircle } from 'lucide-react'
 
 type HabitFrequency = 'daily' | 'weekdays' | 'weekends' | 'custom'
 
@@ -136,6 +136,12 @@ function designBreakSummaryLines(d: DesignBreak | null | undefined): string[] {
   return lines
 }
 
+function designBreakStrategySummary(d: DesignBreak | null | undefined): string {
+  const lines = designBreakSummaryLines(d)
+  if (lines.length === 0) return ''
+  return lines.map((l) => l.replace(/^[A-Za-z]+: /, '')).join('. ')
+}
+
 function DesignBuildForm({ value, onChange }: { value: DesignBuild; onChange: (v: DesignBuild) => void }) {
   const d = {
     obvious: { ...EMPTY_DESIGN_BUILD.obvious, ...value?.obvious },
@@ -222,6 +228,7 @@ export default function HabitsPage() {
   const [blockerDraftDesign, setBlockerDraftDesign] = useState<DesignBreak>(() => ({ ...EMPTY_DESIGN_BREAK }))
   const [editingBlockerId, setEditingBlockerId] = useState<string | null>(null)
   const [addingBlockerHabitId, setAddingBlockerHabitId] = useState<string | null>(null)
+  const [habitFilter, setHabitFilter] = useState<'all' | 'reinforcing' | 'blocking'>('all')
 
   const fetchAll = useCallback(async () => {
     const supabase = createClient()
@@ -294,6 +301,27 @@ export default function HabitsPage() {
     })
     return map
   }, [activeHabits, identities])
+
+  const blockersByIdentity = useMemo(() => {
+    const map = new Map<string, HabitToBreak[]>()
+    identities.forEach((idn) => map.set(idn.id, []))
+    habitsToBreak.forEach((h) => {
+      const list = map.get(h.identity_id) ?? []
+      list.push(h)
+      map.set(h.identity_id, list)
+    })
+    return map
+  }, [habitsToBreak, identities])
+
+  const identityGroups = useMemo(() => {
+    return identities.filter((idn) => {
+      const reinforcing = (habitsByIdentity.get(idn.id) ?? []).length
+      const blocking = (blockersByIdentity.get(idn.id) ?? []).length
+      if (habitFilter === 'all') return reinforcing > 0 || blocking > 0
+      if (habitFilter === 'reinforcing') return reinforcing > 0
+      return blocking > 0
+    })
+  }, [identities, habitsByIdentity, blockersByIdentity, habitFilter])
 
   const activeCount = activeHabits.length
   const onStreakCount = activeHabits.filter((h) => h.current_streak > 0).length
@@ -445,7 +473,7 @@ export default function HabitsPage() {
             Habits
           </h1>
           <p className="font-body text-sm text-muted-foreground mt-0.5">
-            Design habits with implementation intentions, stacking, and two-minute versions. Expand any habit to see its full 4 Laws design.
+            Design habits with implementation intentions, stacking, and two-minute versions. Blocking habits are shown with strategies to overcome them.
           </p>
         </div>
         {!showAddForm && (
@@ -513,83 +541,39 @@ export default function HabitsPage() {
         </div>
       )}
 
-      {habitsToBreak.length > 0 && (
-        <div className="space-y-6">
-          <div>
-            <h2 className="font-heading text-base font-semibold text-foreground">Negative Habits</h2>
-            <p className="font-body text-xs text-muted-foreground mt-0.5">
-              Habits you&rsquo;re breaking; design them with the inverse of the 4 Laws (invisible, unattractive, difficult, unsatisfying).
-            </p>
+      {/* Counters and filter tabs */}
+      {(activeHabits.length > 0 || habitsToBreak.length > 0) && (
+        <div className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            <span className="inline-flex items-center rounded-full border border-green-200 bg-green-50 px-3 py-1 font-body text-xs font-medium text-green-800">
+              {activeCount} REINFORCING
+            </span>
+            <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 font-body text-xs font-medium text-emerald-800">
+              {onStreakCount} ON STREAK
+            </span>
+            <span className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-3 py-1 font-body text-xs font-medium text-red-800">
+              {habitsToBreak.length} BLOCKING
+            </span>
+            <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1 font-body text-xs font-medium text-blue-800">
+              {identitiesWithHabitsCount} IDENTITIES
+            </span>
           </div>
-          {(() => {
-            const byIdentity = new Map<string, HabitToBreak[]>()
-            habitsToBreak.forEach((h) => {
-              const list = byIdentity.get(h.identity_id) ?? []
-              list.push(h)
-              byIdentity.set(h.identity_id, list)
-            })
-            return identities
-              .filter((idn) => (byIdentity.get(idn.id) ?? []).length > 0)
-              .map((idn) => (
-                <div key={idn.id}>
-                  <h3 className="font-heading text-sm font-medium text-foreground mb-2">
-                    Undermines: {idn.statement}
-                    <span className="font-body text-muted-foreground font-normal ml-1">
-                      ({(byIdentity.get(idn.id) ?? []).length} habit{(byIdentity.get(idn.id) ?? []).length !== 1 ? 's' : ''})
-                    </span>
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {(byIdentity.get(idn.id) ?? []).map((h) => (
-                      <BlockerCard
-                        key={h.id}
-                        blocker={h}
-                        identityStatement={idn.statement}
-                        editingBlockerId={editingBlockerId}
-                        setEditingBlockerId={setEditingBlockerId}
-                        draftName={blockerDraftName}
-                        setDraftName={setBlockerDraftName}
-                        draftDesign={blockerDraftDesign}
-                        setDraftDesign={setBlockerDraftDesign}
-                        onSave={async () => {
-                          const name = blockerDraftName.trim().slice(0, 200)
-                          if (!name) return
-                          const supabase = createClient()
-                          const { data: { user } } = await supabase.auth.getUser()
-                          if (!user) return
-                          const db = trimDesignBreak(blockerDraftDesign)
-                          const { error: err } = await supabase.from('habits_to_break').update({ name, design_break: db }).eq('id', h.id).eq('user_id', user.id)
-                          if (err) setError(err.message)
-                          else { setEditingBlockerId(null); fetchAll(); }
-                        }}
-                        onDelete={async () => {
-                          const supabase = createClient()
-                          const { data: { user } } = await supabase.auth.getUser()
-                          if (!user) return
-                          const { error: err } = await supabase.from('habits_to_break').delete().eq('id', h.id).eq('user_id', user.id)
-                          if (err) setError(err.message)
-                          else fetchAll()
-                        }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))
-          })()}
-        </div>
-      )}
-
-      {/* Summary stats: ACTIVE, ON STREAK, IDENTITIES */}
-      {activeHabits.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          <span className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-3 py-1 font-body text-xs font-medium text-red-800">
-            {activeCount} ACTIVE
-          </span>
-          <span className="inline-flex items-center rounded-full border border-green-200 bg-green-50 px-3 py-1 font-body text-xs font-medium text-green-800">
-            {onStreakCount} ON STREAK
-          </span>
-          <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1 font-body text-xs font-medium text-blue-800">
-            {identitiesWithHabitsCount} IDENTITIES
-          </span>
+          <div className="flex gap-1 rounded-lg border border-border bg-muted/30 p-1 w-fit">
+            {(['all', 'reinforcing', 'blocking'] as const).map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setHabitFilter(f)}
+                className={`inline-flex items-center px-3 py-1.5 rounded-md font-body text-xs font-medium transition-colors ${
+                  habitFilter === f ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {f === 'all' && `All (${activeHabits.length + habitsToBreak.length})`}
+                {f === 'reinforcing' && `Reinforcing (${activeCount})`}
+                {f === 'blocking' && `Blocking (${habitsToBreak.length})`}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
@@ -785,7 +769,7 @@ export default function HabitsPage() {
         </div>
       ) : null}
 
-      {activeHabits.length === 0 && !showAddForm ? (
+      {activeHabits.length === 0 && habitsToBreak.length === 0 && !showAddForm ? (
         <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
           <p className="font-body text-muted-foreground mb-6">
             Add habits to track. Start with a name and optional identity; you can add implementation intentions and stacking later.
@@ -798,28 +782,30 @@ export default function HabitsPage() {
           </Link>
         </div>
       ) : (
-        <div className="space-y-8">
-          {(identities.some((idn) => (habitsByIdentity.get(idn.id) ?? []).length > 0)) && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="font-heading text-base font-semibold text-foreground">Positive Habits</h2>
-                <p className="font-body text-xs text-muted-foreground mt-0.5">
-                  Habits that reinforce an identity.
-                </p>
-              </div>
-              {identities.map((idn) => {
-                const groupHabits = habitsByIdentity.get(idn.id) ?? []
-                if (groupHabits.length === 0) return null
-                return (
-                  <div key={idn.id}>
-                    <h3 className="font-heading text-sm font-medium text-foreground mb-2">
-                      Reinforces: {idn.statement}
-                      <span className="font-body text-muted-foreground font-normal ml-1">
-                        ({groupHabits.length} habit{groupHabits.length !== 1 ? 's' : ''})
-                      </span>
+        <div className="space-y-10">
+          {identityGroups.length === 0 && (habitFilter === 'blocking' || (habitsByIdentity.get(null) ?? []).length === 0) && (
+            <p className="font-body text-sm text-muted-foreground">No habits match this filter.</p>
+          )}
+          {identityGroups.map((idn) => {
+            const reinforcing = habitsByIdentity.get(idn.id) ?? []
+            const blocking = blockersByIdentity.get(idn.id) ?? []
+            const showReinforcing = (habitFilter === 'all' || habitFilter === 'reinforcing') && reinforcing.length > 0
+            const showBlocking = (habitFilter === 'all' || habitFilter === 'blocking') && blocking.length > 0
+            return (
+              <div key={idn.id} className="space-y-4">
+                <div>
+                  <h2 className="font-heading text-lg font-semibold text-foreground">{idn.statement}</h2>
+                  <p className="font-body text-xs text-muted-foreground mt-0.5">
+                    {reinforcing.length} habit{reinforcing.length !== 1 ? 's' : ''} {blocking.length} blocker{blocking.length !== 1 ? 's' : ''}
+                  </p>
+                </div>
+                {showReinforcing && (
+                  <div className="space-y-2">
+                    <h3 className="font-heading text-xs font-semibold uppercase tracking-wide text-green-700 flex items-center gap-1.5">
+                      <TrendingUp className="h-3.5 w-3.5" /> Reinforcing
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {groupHabits.map((h) => (
+                      {reinforcing.map((h) => (
                         <HabitCard
                           key={h.id}
                           habit={h}
@@ -840,20 +826,61 @@ export default function HabitsPage() {
                       ))}
                     </div>
                   </div>
-                )
-              })}
-            </div>
-          )}
-          {(habitsByIdentity.get(null) ?? []).length > 0 && (
-            <div>
-              <h2 className="font-heading text-base font-semibold text-foreground mb-2">
-                Unlinked Habits
-                <span className="font-body text-muted-foreground font-normal ml-1">
+                )}
+                {showBlocking && (
+                  <div className="space-y-2">
+                    <h3 className="font-heading text-xs font-semibold uppercase tracking-wide text-red-700 flex items-center gap-1.5">
+                      <MinusCircle className="h-3.5 w-3.5" /> Undermining
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {blocking.map((h) => (
+                        <BlockerCard
+                          key={h.id}
+                          blocker={h}
+                          identityStatement={idn.statement}
+                          editingBlockerId={editingBlockerId}
+                          setEditingBlockerId={setEditingBlockerId}
+                          draftName={blockerDraftName}
+                          setDraftName={setBlockerDraftName}
+                          draftDesign={blockerDraftDesign}
+                          setDraftDesign={setBlockerDraftDesign}
+                          onSave={async () => {
+                            const name = blockerDraftName.trim().slice(0, 200)
+                            if (!name) return
+                            const supabase = createClient()
+                            const { data: { user } } = await supabase.auth.getUser()
+                            if (!user) return
+                            const db = trimDesignBreak(blockerDraftDesign)
+                            const { error: err } = await supabase.from('habits_to_break').update({ name, design_break: db }).eq('id', h.id).eq('user_id', user.id)
+                            if (err) setError(err.message)
+                            else { setEditingBlockerId(null); fetchAll(); }
+                          }}
+                          onDelete={async () => {
+                            const supabase = createClient()
+                            const { data: { user } } = await supabase.auth.getUser()
+                            if (!user) return
+                            const { error: err } = await supabase.from('habits_to_break').delete().eq('id', h.id).eq('user_id', user.id)
+                            if (err) setError(err.message)
+                            else fetchAll()
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+          {(habitFilter === 'all' || habitFilter === 'reinforcing') && (habitsByIdentity.get(null) ?? []).length > 0 && (
+            <div className="space-y-4">
+              <div>
+                <h2 className="font-heading text-lg font-semibold text-foreground">Unlinked habits</h2>
+                <p className="font-body text-xs text-muted-foreground mt-0.5">
                   ({(habitsByIdentity.get(null) ?? []).length} habit{(habitsByIdentity.get(null) ?? []).length !== 1 ? 's' : ''})
-                </span>
-              </h2>
+                </p>
+              </div>
               {identityParam && modeParam === 'reinforce' && identities.find((idn) => idn.id === identityParam) && (
-                <p className="font-body text-xs text-muted-foreground mb-2">Click &quot;Add to identity&quot; on a habit below to link it to <strong>{identities.find((idn) => idn.id === identityParam)?.statement}</strong>.</p>
+                <p className="font-body text-xs text-muted-foreground">Click &quot;Add to identity&quot; on a habit below to link it to <strong>{identities.find((idn) => idn.id === identityParam)?.statement}</strong>.</p>
               )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {(habitsByIdentity.get(null) ?? []).map((h) => (
@@ -1094,80 +1121,85 @@ function BlockerCard({
 }: BlockerCardProps) {
   const isEditing = editingBlockerId === blocker.id
   const hasDesign = hasDesignBreakFields(blocker.design_break)
-  const summaryLines = designBreakSummaryLines(blocker.design_break)
+  const strategySummary = designBreakStrategySummary(blocker.design_break)
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-      {isEditing ? (
-        <div className="space-y-3">
-          <label className="font-body block text-xs font-medium text-muted-foreground">Habit to break (name)</label>
-          <input
-            value={draftName}
-            onChange={(e) => setDraftName(e.target.value)}
-            className="font-body w-full h-10 px-3 rounded-lg border border-border bg-card text-sm text-foreground"
-          />
-          <div>
-            <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">4 laws: break this habit</p>
-            <DesignBreakForm value={draftDesign} onChange={setDraftDesign} />
-          </div>
-          <div className="flex gap-2 pt-2">
-            <button type="button" onClick={onSave} className="h-9 px-3 rounded-lg bg-[#e87722] text-white text-sm font-medium">Save</button>
-            <button type="button" onClick={() => setEditingBlockerId(null)} className="h-9 px-3 rounded-lg border text-sm">Cancel</button>
-          </div>
-        </div>
-      ) : (
-        <>
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 flex-1">
-              <p className="font-heading font-medium text-foreground">{blocker.name}</p>
-              <p className="font-body text-xs text-muted-foreground mt-0.5">Undermines: {identityStatement}</p>
-              {summaryLines.length > 0 && (
-                <div className="mt-1.5 space-y-0.5">
-                  {summaryLines.map((line, i) => (
-                    <p key={i} className="font-body text-xs text-muted-foreground">{line}</p>
-                  ))}
-                </div>
-              )}
+    <div className="rounded-2xl border border-red-200 bg-red-50/50 shadow-sm overflow-hidden flex">
+      <div className="w-1 shrink-0 bg-red-400" aria-hidden />
+      <div className="flex-1 min-w-0 p-4">
+        {isEditing ? (
+          <div className="space-y-3">
+            <label className="font-body block text-xs font-medium text-muted-foreground">Habit to break (name)</label>
+            <input
+              value={draftName}
+              onChange={(e) => setDraftName(e.target.value)}
+              className="font-body w-full h-10 px-3 rounded-lg border border-border bg-card text-sm text-foreground"
+            />
+            <div>
+              <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">4 laws: break this habit</p>
+              <DesignBreakForm value={draftDesign} onChange={setDraftDesign} />
             </div>
-            <div className="flex items-center gap-0.5 shrink-0">
-              <button type="button" onClick={onDelete} className="p-1.5 text-muted-foreground hover:text-red-600 rounded-md hover:bg-card" aria-label="Delete">
-                <Trash2 className="h-4 w-4" />
-              </button>
+            <div className="flex gap-2 pt-2">
+              <button type="button" onClick={onSave} className="h-9 px-3 rounded-lg bg-[#e87722] text-white text-sm font-medium">Save</button>
+              <button type="button" onClick={() => setEditingBlockerId(null)} className="h-9 px-3 rounded-lg border text-sm">Cancel</button>
             </div>
           </div>
-          <div className="mt-2 flex items-center gap-3 flex-wrap">
-            <Link
-              href={`/dashboard/identities/${blocker.identity_id}?blockers=1`}
-              className="font-body inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-primary"
-            >
-              <Users className="h-3.5 w-3.5" /> View on identity
-            </Link>
-            <button type="button" onClick={() => { setEditingBlockerId(blocker.id); setDraftName(blocker.name); setDraftDesign({ ...EMPTY_DESIGN_BREAK, ...blocker.design_break }); }} className="font-body inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground">
-              <Pencil className="h-3.5 w-3.5" /> Edit
-            </button>
-            {blocker.habit_id && (
-              <Link href={`/dashboard/habits/${blocker.habit_id}`} className="font-body inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-primary" aria-label="View calendar">
-                <Calendar className="h-3.5 w-3.5" /> View calendar
+        ) : (
+          <>
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="font-heading font-medium text-red-800 line-through">{blocker.name}</p>
+                <p className="font-body text-xs text-red-700/80 mt-1 flex items-center gap-1">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500" aria-hidden />
+                  Still active
+                </p>
+              </div>
+              <div className="flex items-center gap-0.5 shrink-0">
+                <button type="button" onClick={onDelete} className="p-1.5 text-red-700/70 hover:text-red-600 rounded-md hover:bg-red-100" aria-label="Delete">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            {strategySummary ? (
+              <div className="mt-3 pt-3 border-t border-red-200/60">
+                <p className="font-body text-xs font-semibold uppercase tracking-wide text-red-800 mb-1">Strategy to break it</p>
+                <p className="font-body text-sm text-red-900/90">{strategySummary}</p>
+              </div>
+            ) : null}
+            <div className="mt-3 flex items-center gap-3 flex-wrap">
+              <Link
+                href={`/dashboard/identities/${blocker.identity_id}?blockers=1`}
+                className="font-body inline-flex items-center gap-1 text-xs font-medium text-red-700 hover:text-red-800"
+              >
+                <Users className="h-3.5 w-3.5" /> View on identity
               </Link>
+              <button type="button" onClick={() => { setEditingBlockerId(blocker.id); setDraftName(blocker.name); setDraftDesign({ ...EMPTY_DESIGN_BREAK, ...blocker.design_break }); }} className="font-body inline-flex items-center gap-1 text-xs font-medium text-red-700 hover:text-red-800">
+                <Pencil className="h-3.5 w-3.5" /> Edit
+              </button>
+              {blocker.habit_id && (
+                <Link href={`/dashboard/habits/${blocker.habit_id}`} className="font-body inline-flex items-center gap-1 text-xs font-medium text-red-700 hover:text-red-800" aria-label="View calendar">
+                  <Calendar className="h-3.5 w-3.5" /> View calendar
+                </Link>
+              )}
+              <Link
+                href={`/dashboard/identities/${blocker.identity_id}?blockers=1`}
+                className="font-body inline-flex items-center gap-1 text-xs font-medium text-red-700 hover:text-red-800"
+              >
+                <FileSignature className="h-3.5 w-3.5" /> Contract
+              </Link>
+            </div>
+            {!hasDesign && (
+              <button
+                type="button"
+                onClick={() => { setEditingBlockerId(blocker.id); setDraftName(blocker.name); setDraftDesign({ ...EMPTY_DESIGN_BREAK, ...blocker.design_break }); }}
+                className="mt-2 font-body inline-flex items-center gap-1 text-xs font-medium text-red-700 hover:underline"
+              >
+                <Sparkles className="h-3.5 w-3.5" /> Design this habit
+              </button>
             )}
-            <Link
-              href={`/dashboard/identities/${blocker.identity_id}?blockers=1`}
-              className="font-body inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-primary"
-            >
-              <FileSignature className="h-3.5 w-3.5" /> Contract
-            </Link>
-          </div>
-          {!hasDesign && (
-            <button
-              type="button"
-              onClick={() => { setEditingBlockerId(blocker.id); setDraftName(blocker.name); setDraftDesign({ ...EMPTY_DESIGN_BREAK, ...blocker.design_break }); }}
-              className="mt-2 font-body inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-            >
-              <Sparkles className="h-3.5 w-3.5" /> Design this habit
-            </button>
-          )}
-        </>
-      )}
+          </>
+        )}
+      </div>
     </div>
   )
 }
