@@ -8,7 +8,7 @@ import type { DesignBuild } from '@/lib/db-types'
 import { DesignBreakForm, EMPTY_DESIGN_BREAK, trimDesignBreak } from '@/components/DesignBreakForm'
 import { StackChainView } from '@/components/stack-chain-view'
 import type { DesignBreak } from '@/lib/db-types'
-import { Search, Plus, Archive, Trash2, Bell, Users, FileSignature, Sparkles, Pencil, Calendar } from 'lucide-react'
+import { Plus, Trash2, Bell, Users, FileSignature, Sparkles, Pencil, Calendar } from 'lucide-react'
 
 type HabitFrequency = 'daily' | 'weekdays' | 'weekends' | 'custom'
 
@@ -168,14 +168,12 @@ export default function HabitsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [habits, setHabits] = useState<Habit[]>([])
-  const [archivedHabits, setArchivedHabits] = useState<Habit[]>([])
   const [identities, setIdentities] = useState<IdentityOption[]>([])
   const [scorecardEntries, setScorecardEntries] = useState<ScorecardAnchor[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
   const [showDesignSection, setShowDesignSection] = useState(false)
-  const [archivedOpen, setArchivedOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
 
   const [draftName, setDraftName] = useState('')
@@ -190,15 +188,13 @@ export default function HabitsPage() {
   const [blockerDraftDesign, setBlockerDraftDesign] = useState<DesignBreak>(() => ({ ...EMPTY_DESIGN_BREAK }))
   const [editingBlockerId, setEditingBlockerId] = useState<string | null>(null)
   const [addingBlockerHabitId, setAddingBlockerHabitId] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
 
   const fetchAll = useCallback(async () => {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const [habitsRes, archivedRes, identitiesRes, scorecardRes, habitsToBreakRes] = await Promise.all([
+    const [habitsRes, identitiesRes, scorecardRes, habitsToBreakRes] = await Promise.all([
       supabase.from('habits').select('*').eq('user_id', user.id).is('archived_at', null).order('sort_order', { ascending: true }),
-      supabase.from('habits').select('*').eq('user_id', user.id).not('archived_at', 'is', null).order('updated_at', { ascending: false }),
       supabase.from('identities').select('id, statement, sort_order').eq('user_id', user.id).order('sort_order', { ascending: true }),
       supabase.from('scorecard_entries').select('id, habit_name').eq('user_id', user.id).order('sort_order', { ascending: true }),
       supabase.from('habits_to_break').select('*').eq('user_id', user.id),
@@ -210,8 +206,6 @@ export default function HabitsPage() {
       setHabits((habitsRes.data ?? []) as Habit[])
       setError(null)
     }
-    if (archivedRes.error) setArchivedHabits([])
-    else setArchivedHabits((archivedRes.data ?? []) as Habit[])
     if (identitiesRes.error) setIdentities([])
     else setIdentities((identitiesRes.data ?? []) as IdentityOption[])
     if (scorecardRes.error) setScorecardEntries([])
@@ -267,15 +261,6 @@ export default function HabitsPage() {
     return map
   }, [activeHabits, identities])
 
-  const matchesSearch = useCallback((h: Habit) => {
-    const q = searchQuery.trim().toLowerCase()
-    if (!q) return true
-    return (
-      h.name.toLowerCase().includes(q) ||
-      (h.two_minute_version?.toLowerCase().includes(q) ?? false)
-    )
-  }, [searchQuery])
-
   const activeCount = activeHabits.length
   const onStreakCount = activeHabits.filter((h) => h.current_streak > 0).length
   const identitiesWithHabitsCount = identities.filter(
@@ -306,11 +291,12 @@ export default function HabitsPage() {
     const twoMinFromBuild = db?.easy?.two_minute_rule?.trim()
     const temptationFromBuild = db?.attractive?.temptation_bundling?.trim()
     const onlyOneStack = draftStackScorecardId ? { stack_anchor_scorecard_id: draftStackScorecardId, stack_anchor_habit_id: null } : draftStackHabitId ? { stack_anchor_scorecard_id: null, stack_anchor_habit_id: draftStackHabitId } : {}
+    const isAddingAsBlocker = Boolean(addBlockerFor)
     const { data: inserted, error: err } = await supabase
       .from('habits')
       .insert({
         user_id: user.id,
-        identity_id: draftIdentityId || null,
+        identity_id: isAddingAsBlocker ? null : (draftIdentityId || null),
         name,
         two_minute_version: twoMinFromBuild?.slice(0, 200) || null,
         implementation_intention: intention,
@@ -332,6 +318,16 @@ export default function HabitsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ habitId: inserted.id }),
       }).catch(() => {})
+    }
+    if (isAddingAsBlocker && addBlockerFor) {
+      const { error: breakErr } = await supabase
+        .from('habits_to_break')
+        .upsert({ user_id: user.id, identity_id: addBlockerFor, habit_id: inserted.id, name, design_break: null }, { onConflict: 'identity_id' })
+      resetCreateForm()
+      fetchAll()
+      if (breakErr) setError(breakErr.message)
+      else router.push(`/dashboard/identities/${addBlockerFor}?blockers=1`)
+      return
     }
     const identityForRedirect = draftIdentityId || identityParam || null
     resetCreateForm()
@@ -356,14 +352,6 @@ export default function HabitsPage() {
         body: JSON.stringify({ habitId }),
       }).catch(() => {})
     }
-  }
-
-  const archiveHabit = (id: string) => {
-    updateHabit(id, { archived_at: new Date().toISOString(), is_active: false })
-  }
-
-  const restoreHabit = (id: string) => {
-    updateHabit(id, { archived_at: null, is_active: true, current_streak: 0 })
   }
 
   const deleteHabit = async (id: string) => {
@@ -458,9 +446,19 @@ export default function HabitsPage() {
             ← Back to identity
           </Link>
           {unlinkedHabitsForBlocker.length === 0 ? (
-            <p className="font-body text-sm text-muted-foreground">
-              No unlinked habits. Create a habit without an identity first, or unlink one from the Habits page.
-            </p>
+            <div className="space-y-2">
+              <p className="font-body text-sm text-muted-foreground">
+                No unlinked habits. Create a new habit below and it will be added as a blocker for this identity (not as a reinforcing habit).
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowAddForm(true)}
+                className="inline-flex items-center gap-2 h-10 px-4 rounded-lg bg-primary text-primary-foreground font-body text-sm font-medium hover:opacity-90"
+              >
+                <Plus className="h-4 w-4" />
+                Create habit and add as blocker
+              </button>
+            </div>
           ) : (
             <ul className="space-y-2">
               {unlinkedHabitsForBlocker.map((habit) => (
@@ -482,27 +480,41 @@ export default function HabitsPage() {
       )}
 
       {habitsToBreak.length > 0 && (
-        <div className="rounded-xl border border-border bg-card p-4 space-y-2">
-          <h2 className="font-heading text-sm font-semibold text-foreground">Blocking habits</h2>
+        <div className="rounded-xl border border-border bg-card p-4 space-y-4">
+          <h2 className="font-heading text-base font-semibold text-foreground">Negative Habits</h2>
           <p className="font-body text-xs text-muted-foreground">
-            Habits you&rsquo;re breaking (undermine an identity). View or edit on the identity.
+            Habits you&rsquo;re breaking; they undermine an identity. View or edit on the identity.
           </p>
-          <ul className="space-y-2">
-            {habitsToBreak.map((h) => {
-              const identity = identities.find((i) => i.id === h.identity_id)
-              return (
-                <li key={h.id} className="flex items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2">
-                  <span className="font-body text-sm text-foreground">{h.name}</span>
-                  <Link
-                    href={`/dashboard/identities/${h.identity_id}?blockers=1`}
-                    className="font-body text-xs font-medium text-primary hover:underline shrink-0"
-                  >
-                    {identity?.statement ?? 'View identity'}
-                  </Link>
-                </li>
-              )
-            })}
-          </ul>
+          {(() => {
+            const byIdentity = new Map<string, HabitToBreak[]>()
+            habitsToBreak.forEach((h) => {
+              const list = byIdentity.get(h.identity_id) ?? []
+              list.push(h)
+              byIdentity.set(h.identity_id, list)
+            })
+            return identities
+              .filter((idn) => (byIdentity.get(idn.id) ?? []).length > 0)
+              .map((idn) => (
+                <div key={idn.id}>
+                  <h3 className="font-heading text-sm font-medium text-foreground mb-2">
+                    Undermines: {idn.statement}
+                  </h3>
+                  <ul className="space-y-2">
+                    {(byIdentity.get(idn.id) ?? []).map((h) => (
+                      <li key={h.id} className="flex items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2">
+                        <span className="font-body text-sm text-foreground">{h.name}</span>
+                        <Link
+                          href={`/dashboard/identities/${h.identity_id}?blockers=1`}
+                          className="font-body text-xs font-medium text-primary hover:underline shrink-0"
+                        >
+                          View on identity
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))
+          })()}
         </div>
       )}
 
@@ -518,21 +530,6 @@ export default function HabitsPage() {
           <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1 font-body text-xs font-medium text-blue-800">
             {identitiesWithHabitsCount} IDENTITIES
           </span>
-        </div>
-      )}
-
-      {/* Search */}
-      {activeHabits.length > 0 && (
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="search"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search habits…"
-            className="font-body w-full rounded-lg border border-border bg-card py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-            aria-label="Search habits by name"
-          />
         </div>
       )}
 
@@ -651,9 +648,16 @@ export default function HabitsPage() {
       {showAddForm ? (
         <div className="rounded-xl bg-white border border-gray-200 p-5 space-y-4">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-gray-900">New habit</p>
+            <p className="text-sm font-medium text-gray-900">
+              {addBlockerFor && addBlockerForIdentity ? 'New habit (will be added as blocker)' : 'New habit'}
+            </p>
             <button type="button" onClick={resetCreateForm} className="text-sm text-gray-500 hover:underline">Cancel</button>
           </div>
+          {addBlockerFor && addBlockerForIdentity && (
+            <p className="font-body text-xs text-muted-foreground rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
+              This habit will be added as a <strong>blocking</strong> habit for &ldquo;{addBlockerForIdentity.statement}&rdquo;, not as a reinforcing habit.
+            </p>
+          )}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Habit name (required)</label>
             <input
@@ -664,6 +668,7 @@ export default function HabitsPage() {
               className="w-full h-10 px-3 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#e87722]/70 focus:ring-offset-2"
             />
           </div>
+          {!(addBlockerFor && addBlockerForIdentity) && (
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Identity (optional)</label>
             <select
@@ -677,6 +682,7 @@ export default function HabitsPage() {
               ))}
             </select>
           </div>
+          )}
           <div>
             <button
               type="button"
@@ -714,7 +720,7 @@ export default function HabitsPage() {
             disabled={!draftName.trim()}
             className="h-10 px-4 rounded-lg bg-[#e87722] text-white text-sm font-medium hover:bg-[#d96b1e] disabled:opacity-50"
           >
-            Create habit
+            {addBlockerFor && addBlockerForIdentity ? 'Create habit and add as blocker' : 'Create habit'}
           </button>
         </div>
       ) : null}
@@ -732,56 +738,65 @@ export default function HabitsPage() {
           </Link>
         </div>
       ) : (
-        <div className="space-y-6">
-          {identities.map((idn) => {
-            const groupHabits = (habitsByIdentity.get(idn.id) ?? []).filter(matchesSearch)
-            if (groupHabits.length === 0) return null
-            return (
-              <div key={idn.id}>
-                <h2 className="font-heading text-sm font-semibold text-foreground mb-2">
-                  {idn.statement}
-                  <span className="font-body text-muted-foreground font-normal ml-1">
-                    ({groupHabits.length} habit{groupHabits.length !== 1 ? 's' : ''})
-                  </span>
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {groupHabits.map((h) => (
-                    <HabitCard
-                      key={h.id}
-                      habit={h}
-                      identityStatement={idn.statement}
-                      identities={identities}
-                      linkToIdentityId={null}
-                      linkToIdentityStatement={null}
-                      scorecardEntries={scorecardEntries}
-                      habits={habits}
-                      getStackLabel={getStackLabel}
-                      intentionString={intentionString}
-                      hasDesignFields={hasDesignFields(h)}
-                      editingId={editingId}
-                      setEditingId={setEditingId}
-                      onUpdate={(updates) => updateHabit(h.id, updates)}
-                      onArchive={() => archiveHabit(h.id)}
-                      onDelete={() => deleteHabit(h.id)}
-                    />
-                  ))}
-                </div>
+        <div className="space-y-8">
+          {(identities.some((idn) => (habitsByIdentity.get(idn.id) ?? []).length > 0)) && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="font-heading text-base font-semibold text-foreground">Positive Habits</h2>
+                <p className="font-body text-xs text-muted-foreground mt-0.5">
+                  Habits that reinforce an identity.
+                </p>
               </div>
-            )
-          })}
-          {(habitsByIdentity.get(null) ?? []).filter(matchesSearch).length > 0 && (
+              {identities.map((idn) => {
+                const groupHabits = habitsByIdentity.get(idn.id) ?? []
+                if (groupHabits.length === 0) return null
+                return (
+                  <div key={idn.id}>
+                    <h3 className="font-heading text-sm font-medium text-foreground mb-2">
+                      Reinforces: {idn.statement}
+                      <span className="font-body text-muted-foreground font-normal ml-1">
+                        ({groupHabits.length} habit{groupHabits.length !== 1 ? 's' : ''})
+                      </span>
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {groupHabits.map((h) => (
+                        <HabitCard
+                          key={h.id}
+                          habit={h}
+                          identityStatement={idn.statement}
+                          identities={identities}
+                          linkToIdentityId={null}
+                          linkToIdentityStatement={null}
+                          scorecardEntries={scorecardEntries}
+                          habits={habits}
+                          getStackLabel={getStackLabel}
+                          intentionString={intentionString}
+                          hasDesignFields={hasDesignFields(h)}
+                          editingId={editingId}
+                          setEditingId={setEditingId}
+                          onUpdate={(updates) => updateHabit(h.id, updates)}
+                          onDelete={() => deleteHabit(h.id)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+          {(habitsByIdentity.get(null) ?? []).length > 0 && (
             <div>
-              <h2 className="font-heading text-sm font-semibold text-foreground mb-2">
+              <h2 className="font-heading text-base font-semibold text-foreground mb-2">
                 Unlinked Habits
                 <span className="font-body text-muted-foreground font-normal ml-1">
-                  ({(habitsByIdentity.get(null) ?? []).filter(matchesSearch).length} habit{(habitsByIdentity.get(null) ?? []).filter(matchesSearch).length !== 1 ? 's' : ''})
+                  ({(habitsByIdentity.get(null) ?? []).length} habit{(habitsByIdentity.get(null) ?? []).length !== 1 ? 's' : ''})
                 </span>
               </h2>
               {identityParam && modeParam === 'reinforce' && identities.find((idn) => idn.id === identityParam) && (
                 <p className="font-body text-xs text-muted-foreground mb-2">Click &quot;Add to identity&quot; on a habit below to link it to <strong>{identities.find((idn) => idn.id === identityParam)?.statement}</strong>.</p>
               )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {(habitsByIdentity.get(null) ?? []).filter(matchesSearch).map((h) => (
+                {(habitsByIdentity.get(null) ?? []).map((h) => (
                   <HabitCard
                     key={h.id}
                     habit={h}
@@ -797,34 +812,10 @@ export default function HabitsPage() {
                     editingId={editingId}
                     setEditingId={setEditingId}
                     onUpdate={(updates) => updateHabit(h.id, updates)}
-                    onArchive={() => archiveHabit(h.id)}
                     onDelete={() => deleteHabit(h.id)}
                   />
                 ))}
               </div>
-            </div>
-          )}
-
-          {archivedHabits.length > 0 && (
-            <div className="border-t border-gray-200 pt-4">
-              <button
-                type="button"
-                onClick={() => setArchivedOpen((v) => !v)}
-                className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900"
-              >
-                <span className={archivedOpen ? 'rotate-90' : ''}>→</span>
-                Archived ({archivedHabits.length})
-              </button>
-              {archivedOpen && (
-                <ul className="mt-2 space-y-2">
-                  {archivedHabits.map((h) => (
-                    <li key={h.id} className="flex items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-600">
-                      <span>{h.name}</span>
-                      <button type="button" onClick={() => restoreHabit(h.id)} className="text-[#e87722] hover:underline text-xs">Restore</button>
-                    </li>
-                  ))}
-                </ul>
-              )}
             </div>
           )}
         </div>
@@ -847,7 +838,6 @@ interface HabitCardProps {
   editingId: string | null
   setEditingId: (id: string | null) => void
   onUpdate: (updates: Partial<Habit>) => void
-  onArchive: () => void
   onDelete: () => void
 }
 
@@ -863,7 +853,6 @@ function HabitCard({
   editingId,
   setEditingId,
   onUpdate,
-  onArchive,
   onDelete,
 }: HabitCardProps) {
   const [editName, setEditName] = useState(habit.name)
@@ -965,9 +954,6 @@ function HabitCard({
               {habit.temptation_bundle && <p className="font-body text-xs text-muted-foreground mt-0.5">Reward: {habit.temptation_bundle}</p>}
             </div>
             <div className="flex items-center gap-0.5 shrink-0">
-              <button type="button" onClick={onArchive} className="p-1.5 text-muted-foreground hover:text-amber-600 rounded-md hover:bg-card" aria-label="Archive">
-                <Archive className="h-4 w-4" />
-              </button>
               <button type="button" onClick={onDelete} className="p-1.5 text-muted-foreground hover:text-red-600 rounded-md hover:bg-card" aria-label="Delete">
                 <Trash2 className="h-4 w-4" />
               </button>
