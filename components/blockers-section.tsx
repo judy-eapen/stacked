@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { DesignBreakForm, EMPTY_DESIGN_BREAK, trimDesignBreak } from '@/components/DesignBreakForm'
 import type { DesignBreak } from '@/lib/db-types'
@@ -63,7 +64,6 @@ export function BlockersSection({
     fetchData()
   }, [fetchData])
 
-  const unlinkedHabits = habits.filter((h) => h.identity_id == null)
   const blockers = habitsToBreak
 
   const handleSaveNew = async () => {
@@ -170,31 +170,14 @@ export function BlockersSection({
         </div>
       ) : (
         <div className="space-y-2">
-          <p className="text-xs font-medium text-gray-700">Pick from existing habits</p>
-          <ul className="space-y-1 max-h-48 overflow-y-auto rounded-lg border border-gray-200 p-2">
-            {unlinkedHabits.map((habit) => (
-              <li key={habit.id} className="flex items-center justify-between gap-2 py-1.5 px-2 rounded hover:bg-gray-50">
-                <span className="text-sm text-gray-900">{habit.name}</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setBlockerDraftName(habit.name)
-                    setBlockerDraftHabitId(habit.id)
-                    setShowBlockerForm(true)
-                  }}
-                  className="text-xs font-medium text-[#e87722] hover:underline"
-                >
-                  Add as blocker
-                </button>
-              </li>
-            ))}
-          </ul>
-          {unlinkedHabits.length === 0 && (
-            <p className="text-sm text-gray-500">
-              {habits.length === 0 ? 'No habits yet. Create one first, then you can add it as a blocker here.' : 'No unlinked habits. Only habits not linked as reinforcing any identity can be added as blockers; add a blocker by name below.'}
-            </p>
-          )}
-          <p className="text-xs text-gray-500">Or add by name:</p>
+          <p className="text-xs font-medium text-gray-700">Pick a habit on the Habits page, then return here.</p>
+          <Link
+            href={`/dashboard/habits?addBlockerFor=${identityId}`}
+            className="inline-flex items-center font-body text-sm font-medium text-[#e87722] hover:underline"
+          >
+            Add blocker → pick on Habits page
+          </Link>
+          <p className="text-xs text-gray-500 pt-1">Or add by name:</p>
           <button
             type="button"
             onClick={() => {

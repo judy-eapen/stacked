@@ -189,6 +189,7 @@ export default function HabitsPage() {
   const [blockerDraftHabitId, setBlockerDraftHabitId] = useState<string | null>(null)
   const [blockerDraftDesign, setBlockerDraftDesign] = useState<DesignBreak>(() => ({ ...EMPTY_DESIGN_BREAK }))
   const [editingBlockerId, setEditingBlockerId] = useState<string | null>(null)
+  const [addingBlockerHabitId, setAddingBlockerHabitId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
 
   const fetchAll = useCallback(async () => {
@@ -226,12 +227,32 @@ export default function HabitsPage() {
   const identityParam = searchParams.get('identity')
   const modeParam = searchParams.get('mode')
   const newParam = searchParams.get('new')
+  const addBlockerFor = searchParams.get('addBlockerFor')
 
   useEffect(() => {
     if (searchParams.get('add') === '1') setShowAddForm(true)
     if (identityParam) setDraftIdentityId(identityParam)
     if (newParam === '1' || (identityParam && modeParam === 'reinforce')) setShowAddForm(true)
   }, [searchParams, identityParam, modeParam, newParam])
+
+  const addBlockerForIdentity = addBlockerFor ? identities.find((i) => i.id === addBlockerFor) : null
+  const unlinkedHabitsForBlocker = activeHabits.filter((h) => h.identity_id == null)
+  const addAsBlockerForIdentity = async (habitId: string) => {
+    if (!addBlockerFor) return
+    const habit = activeHabits.find((h) => h.id === habitId)
+    if (!habit) return
+    setAddingBlockerHabitId(habitId)
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setAddingBlockerHabitId(null); return }
+    const name = habit.name.trim().slice(0, 200)
+    const { error: err } = await supabase
+      .from('habits_to_break')
+      .upsert({ user_id: user.id, identity_id: addBlockerFor, habit_id: habitId, name, design_break: null }, { onConflict: 'identity_id' })
+    setAddingBlockerHabitId(null)
+    if (err) setError(err.message)
+    else router.push(`/dashboard/identities/${addBlockerFor}?blockers=1`)
+  }
 
   const activeHabits = habits.filter((h) => h.is_active)
   const habitsByIdentity = useMemo(() => {
@@ -421,6 +442,44 @@ export default function HabitsPage() {
         <p className="text-sm text-red-600 p-3 rounded-lg bg-red-50 border border-red-200" role="alert">
           {error}
         </p>
+      )}
+
+      {addBlockerFor && addBlockerForIdentity && (
+        <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
+          <p className="font-body text-sm font-medium text-foreground">
+            Pick a habit to add as a blocker for &ldquo;{addBlockerForIdentity.statement}&rdquo;
+          </p>
+          <p className="font-body text-xs text-muted-foreground">
+            Only unlinked habits (not tied to an identity) can be blockers. Select one below, then you&rsquo;ll return to the identity.
+          </p>
+          <Link
+            href={`/dashboard/identities/${addBlockerFor}`}
+            className="inline-flex items-center font-body text-sm font-medium text-primary hover:underline"
+          >
+            ← Back to identity
+          </Link>
+          {unlinkedHabitsForBlocker.length === 0 ? (
+            <p className="font-body text-sm text-muted-foreground">
+              No unlinked habits. Create a habit without an identity first, or unlink one from the Habits page.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {unlinkedHabitsForBlocker.map((habit) => (
+                <li key={habit.id} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2">
+                  <span className="font-body text-sm text-foreground">{habit.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => addAsBlockerForIdentity(habit.id)}
+                    disabled={addingBlockerHabitId === habit.id}
+                    className="font-body text-sm font-medium text-primary hover:underline disabled:opacity-50"
+                  >
+                    {addingBlockerHabitId === habit.id ? 'Adding…' : 'Add as blocker'}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
 
       {/* Summary stats: ACTIVE, ON STREAK, IDENTITIES */}

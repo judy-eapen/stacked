@@ -423,7 +423,7 @@ export default function IdentitiesPage() {
                               <div className="flex flex-wrap gap-2">
                                 {idn.undermining.length === 0 ? (
                                   <Link
-                                    href={`/dashboard/identities/${idn.id}?blockers=1`}
+                                    href={`/dashboard/habits?addBlockerFor=${idn.id}`}
                                     className="font-body text-sm text-muted-foreground hover:text-primary hover:underline"
                                   >
                                     No blockers linked yet. + Add one
@@ -436,7 +436,7 @@ export default function IdentitiesPage() {
                                       </span>
                                     ))}
                                     <Link
-                                      href={`/dashboard/identities/${idn.id}?blockers=1`}
+                                      href={`/dashboard/habits?addBlockerFor=${idn.id}`}
                                       className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border text-muted-foreground font-body text-sm hover:bg-muted"
                                     >
                                       <Plus className="h-3.5 w-3.5" />
@@ -460,7 +460,7 @@ export default function IdentitiesPage() {
                           Add reinforcing habit
                         </Link>
                         <Link
-                          href={`/dashboard/identities/${idn.id}?blockers=1`}
+                          href={idn.undermining.length === 0 ? `/dashboard/habits?addBlockerFor=${idn.id}` : `/dashboard/identities/${idn.id}?blockers=1`}
                           className="inline-flex items-center justify-center h-9 px-4 rounded-lg border border-border font-body text-sm font-medium bg-card hover:bg-muted text-foreground"
                         >
                           {idn.undermining.length === 0 ? 'Add a blocking habit' : 'View & fix blockers'}
