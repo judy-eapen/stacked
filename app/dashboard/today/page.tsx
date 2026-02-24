@@ -101,13 +101,13 @@ export default function TodayPage() {
       return
     }
     if (pastDaysDate) fetchPastDay(pastDaysDate)
-    fetchToday()
+    await fetchToday()
   }
 
   const fetchToday = useCallback(async () => {
     const now = new Date()
     const localDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-    const res = await fetch(`/api/habits/today?date=${localDateStr}`, { credentials: 'include' })
+    const res = await fetch(`/api/habits/today?date=${localDateStr}`, { credentials: 'include', cache: 'no-store' })
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
       setError(err.error || res.statusText)

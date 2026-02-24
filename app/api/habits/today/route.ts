@@ -74,13 +74,23 @@ export async function GET(request: Request) {
   startDate.setDate(startDate.getDate() - 60)
   const startStr = toDateString(startDate)
 
+  const targetDate = new Date(targetStr + 'T12:00:00')
+  const dayOfWeek = targetDate.getDay()
+  const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+  const weekStartDate = new Date(targetDate)
+  weekStartDate.setDate(targetDate.getDate() - daysToMonday)
+  const weekEndDate = new Date(weekStartDate)
+  weekEndDate.setDate(weekStartDate.getDate() + 6)
+  const weekEndStr = toDateString(weekEndDate)
+  const completionsEndStr = weekEndStr > todayStr ? weekEndStr : todayStr
+
   const [completionsRes, totalsRes] = await Promise.all([
     supabase
       .from('habit_completions')
       .select('habit_id, completed_date, completed')
       .eq('user_id', user.id)
       .gte('completed_date', startStr)
-      .lte('completed_date', todayStr),
+      .lte('completed_date', completionsEndStr),
     supabase
       .from('habit_completions')
       .select('habit_id')
@@ -125,12 +135,7 @@ export async function GET(request: Request) {
     }
   }
 
-  // Week containing targetStr (Monday = index 0 .. Sunday = index 6) for week_completion
-  const targetDate = new Date(targetStr + 'T12:00:00')
-  const dayOfWeek = targetDate.getDay()
-  const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
-  const weekStart = new Date(targetDate)
-  weekStart.setDate(targetDate.getDate() - daysToMonday)
+  const weekStart = new Date(weekStartDate)
   function toLocalDateStr(d: Date): string {
     const y = d.getFullYear()
     const m = String(d.getMonth() + 1).padStart(2, '0')
