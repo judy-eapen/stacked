@@ -7,30 +7,37 @@ CREATE TABLE public.habit_partner_shares (
   PRIMARY KEY (habit_id, partner_id)
 );
 
+-- Helper: check habit ownership without triggering habits RLS (avoids infinite recursion)
+CREATE OR REPLACE FUNCTION public.user_owns_habit(check_habit_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.habits h
+    WHERE h.id = check_habit_id AND h.user_id = auth.uid()
+  );
+$$;
+
 -- RLS: habit owner can manage their shares (partner_id must be an accepted partner; enforced in app)
 ALTER TABLE public.habit_partner_shares ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Habit owner can manage own habit_partner_shares"
-  ON public.habit_partner_shares
-  FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.habits h
-      WHERE h.id = habit_partner_shares.habit_id AND h.user_id = auth.uid()
-    )
-  )
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.habits h
-      WHERE h.id = habit_partner_shares.habit_id AND h.user_id = auth.uid()
-    )
-  );
+DROP POLICY IF EXISTS "Habit owner can manage own habit_partner_shares" ON public.habit_partner_shares;
+DROP POLICY IF EXISTS "Partner can read shares where they are partner" ON public.habit_partner_shares;
 
--- Partner can read shares where they are the partner (to see which habits are shared with them)
-CREATE POLICY "Partner can read shares where they are partner"
+-- Owner can do everything on their shares; partner can only read rows where they are the partner
+CREATE POLICY "Habit owner or partner can read habit_partner_shares"
   ON public.habit_partner_shares
   FOR SELECT
-  USING (partner_id = auth.uid());
+  USING (partner_id = auth.uid() OR user_owns_habit(habit_id));
+
+CREATE POLICY "Habit owner can insert update delete habit_partner_shares"
+  ON public.habit_partner_shares
+  FOR ALL
+  USING (user_owns_habit(habit_id))
+  WITH CHECK (user_owns_habit(habit_id));
 
 CREATE INDEX idx_habit_partner_shares_partner ON public.habit_partner_shares (partner_id);
 CREATE INDEX idx_habit_partner_shares_habit ON public.habit_partner_shares (habit_id);
