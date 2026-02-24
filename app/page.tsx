@@ -68,9 +68,6 @@ export default function LandingPage() {
             <a href="#how-it-works" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
               How It Works
             </a>
-            <a href="#beta" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
-              Beta
-            </a>
             <Link href="/login" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
               Log in
             </Link>
@@ -89,21 +86,18 @@ export default function LandingPage() {
         <section className="px-6 pt-12 pb-20 md:pt-20 md:pb-28 max-w-6xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             <div>
-              <span className="inline-block px-3 py-1 rounded-full text-xs font-medium bg-[#e87722]/15 text-[#e87722] mb-4">
-                Private Beta
-              </span>
               <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-gray-900 mb-4">
                 Become the type of person who keeps promises to themselves.
               </h1>
               <p className="text-lg text-gray-600 mb-8 max-w-lg">
-                Stacked is a private beta habit system built around identity, small actions, and daily consistency.
+                Stacked is a habit system built around identity, small actions, and daily consistency.
               </p>
               <div className="flex flex-wrap gap-3">
                 <Link
                   href="/signup"
                   className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-lg bg-[#e87722] text-white font-semibold hover:bg-[#d96b1e] transition-colors shadow-sm"
                 >
-                  Request Early Access
+                  Sign up
                   <ArrowRight className="h-4 w-4" />
                 </Link>
                 <a
@@ -199,27 +193,21 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Early Access */}
-        <section id="beta" className="px-6 py-16 md:py-24 bg-[#f5f0e8] border-t border-gray-200/60">
+        {/* CTA */}
+        <section id="get-started" className="px-6 py-16 md:py-24 bg-[#f5f0e8] border-t border-gray-200/60">
           <div className="max-w-xl mx-auto text-center">
-            <p className="text-sm font-semibold text-[#e87722] uppercase tracking-wider mb-2">
-              Early Access
-            </p>
             <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-4">
-              Built with a small group
+              Get started
             </h2>
             <p className="text-gray-600 mb-8">
-              Stacked is currently invite-only and free for early users. We&apos;re refining the system with a small community before a wider release.
+              Create an account and build habits that compound.
             </p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center mb-3">
-              <Link
-                href="/signup"
-                className="inline-flex items-center justify-center h-12 px-8 rounded-lg bg-[#e87722] text-white font-semibold hover:bg-[#d96b1e] transition-colors"
-              >
-                Join the Beta
-              </Link>
-            </div>
-            <p className="text-xs text-gray-500">No spam. We respect your inbox.</p>
+            <Link
+              href="/signup"
+              className="inline-flex items-center justify-center h-12 px-8 rounded-lg bg-[#e87722] text-white font-semibold hover:bg-[#d96b1e] transition-colors"
+            >
+              Sign up
+            </Link>
           </div>
         </section>
       </main>
