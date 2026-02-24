@@ -123,8 +123,30 @@ export function TodayContent(props: TodayContentProps) {
   const [shareModalCopied, setShareModalCopied] = useState(false)
   const [sharePartners, setSharePartners] = useState<PartnerOption[]>([])
   const [shareSendingId, setShareSendingId] = useState<string | null>(null)
+  const [expanded30dHabitId, setExpanded30dHabitId] = useState<string | null>(null)
+  const [thirtyDayCompletions, setThirtyDayCompletions] = useState<Record<string, Set<string>>>({})
+  const [thirtyDayLoading, setThirtyDayLoading] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!expanded30dHabitId) return
+    if (thirtyDayCompletions[expanded30dHabitId]) return
+    const to = new Date()
+    const from = new Date()
+    from.setDate(from.getDate() - 29)
+    const fromStr = from.toISOString().slice(0, 10)
+    const toStr = to.toISOString().slice(0, 10)
+    setThirtyDayLoading(expanded30dHabitId)
+    fetch(`/api/habits/${expanded30dHabitId}/streaks?from=${fromStr}&to=${toStr}`, { credentials: 'include' })
+      .then((r) => r.json())
+      .then((data) => {
+        const set = new Set(
+          (data.completions ?? []).filter((c: { completed: boolean }) => c.completed).map((c: { date: string }) => c.date)
+        )
+        setThirtyDayCompletions((prev) => ({ ...prev, [expanded30dHabitId]: set }))
+      })
+      .catch(() => {})
+      .finally(() => setThirtyDayLoading(null))
+  }, [expanded30dHabitId])
     if (!showShareModal) return
     fetch('/api/partners', { credentials: 'include' })
       .then((r) => r.json())
@@ -543,14 +565,60 @@ export function TodayContent(props: TodayContentProps) {
                           </div>
                         ))}
                       </div>
-                      <Link
-                        href={`/dashboard/habits/${h.id}`}
+                      <button
+                        type="button"
+                        onClick={() => setExpanded30dHabitId((id) => (id === h.id ? null : h.id))}
                         className="shrink-0 inline-flex items-center gap-1 font-body text-xs text-muted-foreground hover:text-primary transition-colors"
+                        aria-expanded={expanded30dHabitId === h.id}
                       >
                         <Calendar className="w-3.5 h-3.5" />
-                        30d
-                      </Link>
+                        {expanded30dHabitId === h.id ? 'Close' : '30d'}
+                      </button>
                     </div>
+                    {expanded30dHabitId === h.id && (
+                      <div className="mt-3 pt-3 border-t border-border">
+                        <p className="font-body text-[10px] text-muted-foreground mb-1.5">Last 30 days</p>
+                        {thirtyDayLoading === h.id ? (
+                          <p className="font-body text-xs text-muted-foreground">Loading…</p>
+                        ) : (
+                          <div
+                            className="grid gap-0.5 max-w-[200px]"
+                            style={{ gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' }}
+                          >
+                            {(() => {
+                              const completedSet = thirtyDayCompletions[h.id]
+                              const todayStr = format(todayDate, 'yyyy-MM-dd')
+                              const cells: string[] = []
+                              const d = new Date()
+                              for (let i = 29; i >= 0; i--) {
+                                const x = new Date(d)
+                                x.setDate(d.getDate() - i)
+                                cells.push(x.toISOString().slice(0, 10))
+                              }
+                              return cells.map((dateStr) => {
+                                const completed = completedSet?.has(dateStr) ?? false
+                                const isToday = dateStr === todayStr
+                                return (
+                                  <div
+                                    key={dateStr}
+                                    title={dateStr}
+                                    className={`aspect-square rounded flex items-center justify-center text-[9px] font-body ${
+                                      completed
+                                        ? 'bg-primary text-primary-foreground'
+                                        : isToday
+                                          ? 'bg-muted text-foreground ring-1 ring-primary'
+                                          : 'bg-muted/50 text-muted-foreground'
+                                    }`}
+                                  >
+                                    {new Date(dateStr + 'T12:00:00').getDate()}
+                                  </div>
+                                )
+                              })
+                            })()}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
