@@ -481,6 +481,31 @@ export default function HabitsPage() {
         </div>
       )}
 
+      {habitsToBreak.length > 0 && (
+        <div className="rounded-xl border border-border bg-card p-4 space-y-2">
+          <h2 className="font-heading text-sm font-semibold text-foreground">Blocking habits</h2>
+          <p className="font-body text-xs text-muted-foreground">
+            Habits you&rsquo;re breaking (undermine an identity). View or edit on the identity.
+          </p>
+          <ul className="space-y-2">
+            {habitsToBreak.map((h) => {
+              const identity = identities.find((i) => i.id === h.identity_id)
+              return (
+                <li key={h.id} className="flex items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2">
+                  <span className="font-body text-sm text-foreground">{h.name}</span>
+                  <Link
+                    href={`/dashboard/identities/${h.identity_id}?blockers=1`}
+                    className="font-body text-xs font-medium text-primary hover:underline shrink-0"
+                  >
+                    {identity?.statement ?? 'View identity'}
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
+
       {/* Summary stats: ACTIVE, ON STREAK, IDENTITIES */}
       {activeHabits.length > 0 && (
         <div className="flex flex-wrap gap-2">
