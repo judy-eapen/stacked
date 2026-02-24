@@ -235,6 +235,7 @@ export default function HabitsPage() {
     if (newParam === '1' || (identityParam && modeParam === 'reinforce')) setShowAddForm(true)
   }, [searchParams, identityParam, modeParam, newParam])
 
+  const activeHabits = habits.filter((h) => h.is_active)
   const addBlockerForIdentity = addBlockerFor ? identities.find((i) => i.id === addBlockerFor) : null
   const unlinkedHabitsForBlocker = activeHabits.filter((h) => h.identity_id == null)
   const addAsBlockerForIdentity = async (habitId: string) => {
@@ -253,8 +254,6 @@ export default function HabitsPage() {
     if (err) setError(err.message)
     else router.push(`/dashboard/identities/${addBlockerFor}?blockers=1`)
   }
-
-  const activeHabits = habits.filter((h) => h.is_active)
   const habitsByIdentity = useMemo(() => {
     const map = new Map<string | null, Habit[]>()
     map.set(null, [])
