@@ -35,7 +35,7 @@ export async function GET(request: Request) {
     if (parsed) {
       const target = new Date(parsed + 'T12:00:00')
       const diffDays = Math.floor((today.getTime() - target.getTime()) / (24 * 60 * 60 * 1000))
-      if (diffDays >= 0 && diffDays <= 7) targetStr = parsed
+      if (diffDays >= -1 && diffDays <= 7) targetStr = parsed
     }
   }
 

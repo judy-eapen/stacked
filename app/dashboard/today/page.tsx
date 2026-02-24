@@ -104,7 +104,9 @@ export default function TodayPage() {
   }
 
   const fetchToday = useCallback(async () => {
-    const res = await fetch('/api/habits/today', { credentials: 'include' })
+    const now = new Date()
+    const localDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    const res = await fetch(`/api/habits/today?date=${localDateStr}`, { credentials: 'include' })
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
       setError(err.error || res.statusText)
