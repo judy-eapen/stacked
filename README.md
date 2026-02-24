@@ -33,11 +33,23 @@ Open [http://localhost:3000](http://localhost:3000).
 ## Supabase setup (first time)
 
 1. Create a project at [supabase.com/dashboard](https://supabase.com/dashboard).
-2. Run migrations in order (Supabase Dashboard → SQL Editor → paste each file’s contents → Run):
+2. Run migrations in order (Supabase Dashboard → SQL Editor → paste each file’s contents → Run). Minimum for core app:
    - `supabase/migrations/20260220100000_phase1_schema.sql`
-   - `supabase/migrations/20260220120000_scorecard_identity_id.sql` (adds `identity_id` to scorecard entries so identities can link habits)
-   - `supabase/migrations/20260220140000_habits_table.sql` (Phase 2: habits table for habit design)
-3. Authentication → Providers: enable Email; optionally enable Google and add Client ID/Secret from Google Cloud Console. In URL configuration, add redirect URL(s) (e.g. `http://localhost:3000/auth/callback`).
+   - `supabase/migrations/20260220110000_profiles_insert_policy.sql`
+   - `supabase/migrations/20260220120000_scorecard_identity_id.sql`
+   - `supabase/migrations/20260220140000_habits_table.sql`
+   - `supabase/migrations/20260220150000_habits_design_build.sql`
+   - `supabase/migrations/20260220160000_habits_to_break.sql`
+   - `supabase/migrations/20260220170000_add_habit_id_to_habits_to_break.sql`
+   - `supabase/migrations/20260220170000_weekly_review_ratings.sql`
+   - `supabase/migrations/20260222100000_habit_completions.sql`
+   - `supabase/migrations/20260223100000_reviews.sql`
+   - `supabase/migrations/20260224100000_partnerships.sql` (required for Partners page)
+   - `supabase/migrations/20260224110000_habit_contracts_and_partner_rls.sql`
+   - `supabase/migrations/20260224120000_partnerships_rls_accept.sql`
+   - Then any remaining migrations in `supabase/migrations/` by filename order.
+3. **Partners page:** If you see "Could not find the table public.partnerships", the `partnerships` table is missing. Run the three partnership migrations above (20260224100000, 20260224110000, 20260224120000) in order; if you have not run earlier migrations (e.g. profiles, habits), run those first.
+4. Authentication → Providers: enable Email; optionally enable Google and add Client ID/Secret from Google Cloud Console. In URL configuration, add redirect URL(s) (e.g. `http://localhost:3000/auth/callback`).
 
 ## Production (deployed) auth
 
