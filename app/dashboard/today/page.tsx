@@ -350,6 +350,7 @@ export default function TodayPage() {
         if (!showPastDays) setPastDaysDate(null)
       }}
       setPastDaysDate={setPastDaysDate}
+      daysSinceLastVisit={data?.days_since_last_visit ?? 0}
     />
   )
 }

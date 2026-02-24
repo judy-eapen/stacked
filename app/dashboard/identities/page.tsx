@@ -453,7 +453,7 @@ export default function IdentitiesPage() {
                       {/* Card actions */}
                       <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
                         <Link
-                          href={`/dashboard/identities/${idn.id}?add=1`}
+                          href={`/dashboard/habits?identity=${idn.id}&mode=reinforce&new=1`}
                           className="inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-lg bg-primary text-primary-foreground font-body text-sm font-medium hover:opacity-90"
                         >
                           <Plus className="h-4 w-4" />

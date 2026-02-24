@@ -283,6 +283,7 @@ export default function OnboardingPage() {
             onChange={(e) => setHabitTwoMin(e.target.value)}
             className="w-full h-10 px-3 rounded-lg border border-gray-200 text-sm"
           />
+          <p className="text-[11px] text-gray-500 mt-0.5">A tiny version you can do every day (e.g. read one page).</p>
           {habitName.trim() && !habitTwoMin.trim() && (
             <p className="text-xs text-amber-600">Add a 2-minute version to continue.</p>
           )}

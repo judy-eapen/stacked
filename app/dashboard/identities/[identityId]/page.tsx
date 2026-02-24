@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { useParams, useSearchParams } from 'next/navigation'
+import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getThisWeekBounds, getLastWeekBounds, countVotesInRange } from '@/lib/identityMetrics'
 import { BlockersSection } from '@/components/blockers-section'
@@ -34,6 +34,7 @@ function momentumPct(votesThisWeek: number, habitCount: number): number {
 export default function IdentityDetailPage() {
   const params = useParams()
   const searchParams = useSearchParams()
+  const router = useRouter()
   const identityId = params?.identityId as string
   const showAdd = searchParams?.get('add') === '1'
   const showBlockers = searchParams?.get('blockers') === '1'
@@ -79,6 +80,13 @@ export default function IdentityDetailPage() {
   useEffect(() => {
     fetchIdentity()
   }, [fetchIdentity])
+
+  useEffect(() => {
+    if (showAdd && identity) {
+      router.replace(`/dashboard/habits?identity=${identity.id}&mode=reinforce&new=1`)
+      return
+    }
+  }, [showAdd, identity, router])
 
   useEffect(() => {
     if (showBlockers && identity) {

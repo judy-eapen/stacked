@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import Link from 'next/link'
 import { format, parseISO, startOfWeek, addDays, isSameDay } from 'date-fns'
 import { Share2, Check, ChevronDown, ChevronUp, Zap } from 'lucide-react'
 import { GraduationPrompt } from '@/components/graduation-prompt'
@@ -59,6 +60,7 @@ export interface TodayContentProps {
   onPastDayToggle: (habit: TodayContentHabit, date: string) => void
   onTogglePastDays: () => void
   setPastDaysDate: (d: string | null) => void
+  daysSinceLastVisit: number
 }
 
 export function TodayContent(props: TodayContentProps) {
@@ -90,10 +92,29 @@ export function TodayContent(props: TodayContentProps) {
     onPastDayToggle,
     onTogglePastDays,
     setPastDaysDate,
+    daysSinceLastVisit,
   } = props
+
+  const showStrugglingBanner =
+    habits.length > 0 &&
+    (daysSinceLastVisit >= 3 ||
+      habits.some((h) => h.current_streak === 0 && h.consecutive_misses >= 2))
 
   return (
     <div className="bg-background min-h-screen -mx-4 md:-mx-6 lg:-mx-8 px-4 md:px-6 lg:px-8 py-6 space-y-6">
+      {showStrugglingBanner && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3">
+          <p className="font-body text-sm text-amber-900">
+            Struggling? You can reset a habit and start fresh with a 2-minute version.
+          </p>
+          <Link
+            href="/dashboard/review/reset"
+            className="mt-2 inline-block font-body text-sm font-medium text-amber-800 hover:text-amber-900 underline"
+          >
+            I&rsquo;m stuck — reset
+          </Link>
+        </div>
+      )}
       <div className="space-y-2">
         <div className="flex items-start justify-between gap-2">
           <div>
@@ -341,6 +362,9 @@ export function TodayContent(props: TodayContentProps) {
                       </span>
                     )}
                   </div>
+                  <p className="font-body text-[11px] text-muted-foreground mt-0.5">
+                    One miss doesn&rsquo;t reset; two in a row do.
+                  </p>
                   <div className="flex items-center gap-1 mt-2">
                     {WEEKDAY_LETTERS.map((letter, i) => (
                       <div key={i} className="flex flex-col items-center gap-0.5">
