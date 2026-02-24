@@ -17,6 +17,7 @@ type Partner = {
   partnership_id: string
   partner_id: string
   display_name: string | null
+  email: string | null
   avatar_url: string | null
   accepted_at: string | null
   last_active: string | null
@@ -79,9 +80,16 @@ function formatPartnerSince(acceptedAt: string | null): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-function getInitials(name: string | null): string {
-  if (!name || !name.trim()) return '?'
-  const parts = name.trim().split(/\s+/)
+function partnerDisplayName(partner: Partner): string {
+  if (partner.display_name?.trim()) return partner.display_name.trim()
+  if (partner.email?.trim()) return partner.email.trim()
+  return 'Partner'
+}
+
+function getInitials(partner: Partner): string {
+  const name = partner.display_name?.trim() || partner.email?.trim() || ''
+  if (!name) return '?'
+  const parts = name.split(/\s+/).filter(Boolean)
   if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
   return name.slice(0, 2).toUpperCase()
 }
@@ -306,7 +314,7 @@ export default function PartnersPage() {
                   >
                     <div className="flex items-start gap-3">
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary font-heading text-sm font-semibold">
-                        {getInitials(partner.display_name)}
+                        {getInitials(partner)}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
@@ -314,7 +322,7 @@ export default function PartnersPage() {
                             href={`/dashboard/partners/${partner.partner_id}`}
                             className="font-heading font-medium text-foreground hover:text-primary"
                           >
-                            {partner.display_name || 'Partner'}
+                            {partnerDisplayName(partner)}
                           </Link>
                         </div>
                         <p className="font-body text-xs text-muted-foreground mt-0.5">
@@ -358,7 +366,7 @@ export default function PartnersPage() {
                     {isExpanded && (
                       <div className="mt-4 border-t border-border pt-4 space-y-3">
                         <p className="font-body text-sm font-medium text-foreground">
-                          Select which habits to share with {partner.display_name || 'this partner'}
+                          Select which habits to share with {partnerDisplayName(partner)}
                         </p>
                         {data?.my_habits && data.my_habits.length > 0 ? (
                           <>

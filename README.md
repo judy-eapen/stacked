@@ -49,6 +49,7 @@ Open [http://localhost:3000](http://localhost:3000).
    - `supabase/migrations/20260224120000_partnerships_rls_accept.sql`
    - `supabase/migrations/20260229100000_partner_checkin_shares.sql` (for Today → Share → Send to partner)
    - `supabase/migrations/20260230100000_habit_partner_shares.sql` (per-partner habit sharing; run after partnerships)
+   - `supabase/migrations/20260230110000_profiles_read_partners.sql` (so partner names show on Partners page)
    - Then any remaining migrations in `supabase/migrations/` by filename order.
 3. **Partners page:** If you see "Could not find the table public.partnerships", the `partnerships` table is missing. Run the three partnership migrations above (20260224100000, 20260224110000, 20260224120000) in order; if you have not run earlier migrations (e.g. profiles, habits), run those first.
 4. Authentication → Providers: enable Email; optionally enable Google and add Client ID/Secret from Google Cloud Console. In URL configuration, add redirect URL(s) (e.g. `http://localhost:3000/auth/callback`).

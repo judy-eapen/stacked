@@ -39,11 +39,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Cannot partner with yourself' }, { status: 422 })
   }
 
-  const created = new Date(row.created_at)
-  const expiry = new Date(created)
-  expiry.setDate(expiry.getDate() + INVITE_EXPIRY_DAYS)
-  if (new Date() > expiry) {
-    return NextResponse.json({ error: 'Token not found or expired' }, { status: 404 })
+  const isReaccept = row.status === 'removed' && row.partner_id === user.id
+  if (!isReaccept) {
+    const created = new Date(row.created_at)
+    const expiry = new Date(created)
+    expiry.setDate(expiry.getDate() + INVITE_EXPIRY_DAYS)
+    if (new Date() > expiry) {
+      return NextResponse.json({ error: 'Token not found or expired' }, { status: 404 })
+    }
   }
 
   if (row.status === 'accepted' && row.partner_id === user.id) {

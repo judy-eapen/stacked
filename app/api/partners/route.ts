@@ -41,12 +41,16 @@ export async function GET(request: Request) {
 
   const { data: profiles } = await supabase
     .from('profiles')
-    .select('id, display_name, avatar_url')
+    .select('id, display_name, email, avatar_url')
     .in('id', otherIds.length ? otherIds : ['00000000-0000-0000-0000-000000000000'])
 
   const profileMap = (profiles ?? []).reduce(
-    (acc: Record<string, { display_name: string | null; avatar_url: string | null }>, p) => {
-      acc[p.id] = { display_name: p.display_name ?? null, avatar_url: p.avatar_url ?? null }
+    (acc: Record<string, { display_name: string | null; email: string | null; avatar_url: string | null }>, p) => {
+      acc[p.id] = {
+        display_name: (p.display_name ?? '').trim() || null,
+        email: (p.email ?? '').trim() || null,
+        avatar_url: p.avatar_url ?? null,
+      }
       return acc
     },
     {}
@@ -59,6 +63,7 @@ export async function GET(request: Request) {
       partnership_id: r.id,
       partner_id: otherId,
       display_name: p?.display_name ?? null,
+      email: p?.email ?? null,
       avatar_url: p?.avatar_url ?? null,
       accepted_at: r.accepted_at ?? null,
     }
