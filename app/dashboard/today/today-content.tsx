@@ -139,9 +139,10 @@ export function TodayContent(props: TodayContentProps) {
     fetch(`/api/habits/${expanded30dHabitId}/streaks?from=${fromStr}&to=${toStr}`, { credentials: 'include' })
       .then((r) => r.json())
       .then((data) => {
-        const set = new Set(
-          (data.completions ?? []).filter((c: { completed: boolean }) => c.completed).map((c: { date: string }) => c.date)
-        )
+        const dates = (data.completions ?? [])
+          .filter((c: { completed: boolean }) => c.completed)
+          .map((c: { date: string }) => c.date)
+        const set: Set<string> = new Set(dates)
         setThirtyDayCompletions((prev) => ({ ...prev, [expanded30dHabitId]: set }))
       })
       .catch(() => {})
