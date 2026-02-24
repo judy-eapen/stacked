@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Calendar, Users, ListTodo, FileText, UserPlus } from 'lucide-react'
 
-const nav = [
+export const dashboardNavItems = [
   { label: 'Today', href: '/dashboard/today', icon: Calendar },
   { label: 'Identities', href: '/dashboard/identities', icon: Users },
   { label: 'Habits', href: '/dashboard/habits', icon: ListTodo },
@@ -17,7 +17,7 @@ export function DashboardNav() {
 
   return (
     <nav className="flex items-center gap-1" aria-label="Main">
-      {nav.map((item) => {
+      {dashboardNavItems.map((item) => {
         const isActive =
           pathname === item.href ||
           (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'))
