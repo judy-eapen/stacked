@@ -100,13 +100,22 @@ export default function TodayPage() {
       if (pastDaysDate) fetchPastDay(pastDaysDate)
       return
     }
+    let postStreak: number | undefined
+    try {
+      const postJson = await res.json()
+      postStreak = postJson.current_streak
+    } catch {
+      // ignore
+    }
+    const todayDateStr = data?.date ?? ''
+    const selectedDay = new Date(selectedDate + 'T12:00:00')
+    const todayAtNoon = todayDateStr ? new Date(todayDateStr + 'T12:00:00') : null
+    const weekStart = todayAtNoon ? startOfWeek(todayAtNoon, { weekStartsOn: 1 }) : null
+    const dayIndex = weekStart != null ? differenceInDays(selectedDay, weekStart) : -1
+    const inRange = dayIndex >= 0 && dayIndex <= 6
     setData((prev) => {
       if (!prev) return prev
-      const todayAtNoon = new Date(prev.date + 'T12:00:00')
-      const weekStart = startOfWeek(todayAtNoon, { weekStartsOn: 1 })
-      const selectedDay = new Date(selectedDate + 'T12:00:00')
-      const dayIndex = differenceInDays(selectedDay, weekStart)
-      if (dayIndex < 0 || dayIndex > 6) return prev
+      if (!inRange) return prev
       const defaultWeek = [false, false, false, false, false, false, false]
       return {
         ...prev,
@@ -118,6 +127,7 @@ export default function TodayPage() {
           return {
             ...h,
             week_completion: wc,
+            ...(typeof postStreak === 'number' && { current_streak: postStreak }),
             ...(isTogglingToday && { completed_today: nextCompleted }),
           }
         }),
@@ -128,6 +138,18 @@ export default function TodayPage() {
     const refetchRes = await fetch(`/api/habits/today?date=${localDateStr}&_=${Date.now()}`, { credentials: 'include', cache: 'no-store' })
     if (refetchRes.ok) {
       const json = await refetchRes.json()
+      if (inRange && json.habits && json.date) {
+        const refetchWeekStart = startOfWeek(new Date(json.date + 'T12:00:00'), { weekStartsOn: 1 })
+        const refetchDayIndex = differenceInDays(selectedDay, refetchWeekStart)
+        if (refetchDayIndex >= 0 && refetchDayIndex <= 6) {
+          const idx = json.habits.findIndex((h: TodayHabit) => h.id === habit.id)
+          if (idx >= 0) {
+            const wc = [...(json.habits[idx].week_completion ?? [false, false, false, false, false, false, false])]
+            wc[refetchDayIndex] = nextCompleted
+            json.habits[idx] = { ...json.habits[idx], week_completion: wc }
+          }
+        }
+      }
       setData(json)
     }
   }
