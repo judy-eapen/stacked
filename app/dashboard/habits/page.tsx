@@ -102,6 +102,40 @@ function trimDesignBuild(d: DesignBuild | null | undefined): DesignBuild | null 
   return Object.keys(out).length ? out : null
 }
 
+function hasDesignBreakFields(d: DesignBreak | null | undefined): boolean {
+  if (!d) return false
+  const keys = ['invisible', 'unattractive', 'difficult', 'unsatisfying'] as const
+  for (const law of keys) {
+    const section = d[law]
+    if (section && typeof section === 'object') {
+      for (const v of Object.values(section)) {
+        if (typeof v === 'string' && v.trim()) return true
+      }
+    }
+  }
+  return false
+}
+
+function designBreakSummaryLines(d: DesignBreak | null | undefined): string[] {
+  const lines: string[] = []
+  if (!d) return lines
+  const labels: Record<string, string> = {
+    invisible: 'Invisible',
+    unattractive: 'Unattractive',
+    difficult: 'Difficult',
+    unsatisfying: 'Unsatisfying',
+  }
+  const keys = ['invisible', 'unattractive', 'difficult', 'unsatisfying'] as const
+  for (const law of keys) {
+    const section = d[law]
+    if (section && typeof section === 'object') {
+      const first = (Object.values(section) as string[]).find((v) => typeof v === 'string' && v.trim())
+      if (first) lines.push(`${labels[law]}: ${first.trim()}`)
+    }
+  }
+  return lines
+}
+
 function DesignBuildForm({ value, onChange }: { value: DesignBuild; onChange: (v: DesignBuild) => void }) {
   const d = {
     obvious: { ...EMPTY_DESIGN_BUILD.obvious, ...value?.obvious },
@@ -480,11 +514,13 @@ export default function HabitsPage() {
       )}
 
       {habitsToBreak.length > 0 && (
-        <div className="rounded-xl border border-border bg-card p-4 space-y-4">
-          <h2 className="font-heading text-base font-semibold text-foreground">Negative Habits</h2>
-          <p className="font-body text-xs text-muted-foreground">
-            Habits you&rsquo;re breaking; they undermine an identity. View or edit on the identity.
-          </p>
+        <div className="space-y-6">
+          <div>
+            <h2 className="font-heading text-base font-semibold text-foreground">Negative Habits</h2>
+            <p className="font-body text-xs text-muted-foreground mt-0.5">
+              Habits you&rsquo;re breaking; design them with the inverse of the 4 Laws (invisible, unattractive, difficult, unsatisfying).
+            </p>
+          </div>
           {(() => {
             const byIdentity = new Map<string, HabitToBreak[]>()
             habitsToBreak.forEach((h) => {
@@ -498,20 +534,44 @@ export default function HabitsPage() {
                 <div key={idn.id}>
                   <h3 className="font-heading text-sm font-medium text-foreground mb-2">
                     Undermines: {idn.statement}
+                    <span className="font-body text-muted-foreground font-normal ml-1">
+                      ({(byIdentity.get(idn.id) ?? []).length} habit{(byIdentity.get(idn.id) ?? []).length !== 1 ? 's' : ''})
+                    </span>
                   </h3>
-                  <ul className="space-y-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {(byIdentity.get(idn.id) ?? []).map((h) => (
-                      <li key={h.id} className="flex items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2">
-                        <span className="font-body text-sm text-foreground">{h.name}</span>
-                        <Link
-                          href={`/dashboard/identities/${h.identity_id}?blockers=1`}
-                          className="font-body text-xs font-medium text-primary hover:underline shrink-0"
-                        >
-                          View on identity
-                        </Link>
-                      </li>
+                      <BlockerCard
+                        key={h.id}
+                        blocker={h}
+                        identityStatement={idn.statement}
+                        editingBlockerId={editingBlockerId}
+                        setEditingBlockerId={setEditingBlockerId}
+                        draftName={blockerDraftName}
+                        setDraftName={setBlockerDraftName}
+                        draftDesign={blockerDraftDesign}
+                        setDraftDesign={setBlockerDraftDesign}
+                        onSave={async () => {
+                          const name = blockerDraftName.trim().slice(0, 200)
+                          if (!name) return
+                          const supabase = createClient()
+                          const { data: { user } } = await supabase.auth.getUser()
+                          if (!user) return
+                          const db = trimDesignBreak(blockerDraftDesign)
+                          const { error: err } = await supabase.from('habits_to_break').update({ name, design_break: db }).eq('id', h.id).eq('user_id', user.id)
+                          if (err) setError(err.message)
+                          else { setEditingBlockerId(null); fetchAll(); }
+                        }}
+                        onDelete={async () => {
+                          const supabase = createClient()
+                          const { data: { user } } = await supabase.auth.getUser()
+                          if (!user) return
+                          const { error: err } = await supabase.from('habits_to_break').delete().eq('id', h.id).eq('user_id', user.id)
+                          if (err) setError(err.message)
+                          else fetchAll()
+                        }}
+                      />
                     ))}
-                  </ul>
+                  </div>
                 </div>
               ))
           })()}
@@ -998,6 +1058,111 @@ function HabitCard({
           )}
           {!hasDesignFields && (
             <button type="button" onClick={() => setEditingId(habit.id)} className="mt-2 font-body inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+              <Sparkles className="h-3.5 w-3.5" /> Design this habit
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+interface BlockerCardProps {
+  blocker: HabitToBreak
+  identityStatement: string
+  editingBlockerId: string | null
+  setEditingBlockerId: (id: string | null) => void
+  draftName: string
+  setDraftName: (s: string) => void
+  draftDesign: DesignBreak
+  setDraftDesign: (d: DesignBreak) => void
+  onSave: () => void
+  onDelete: () => void
+}
+
+function BlockerCard({
+  blocker,
+  identityStatement,
+  editingBlockerId,
+  setEditingBlockerId,
+  draftName,
+  setDraftName,
+  draftDesign,
+  setDraftDesign,
+  onSave,
+  onDelete,
+}: BlockerCardProps) {
+  const isEditing = editingBlockerId === blocker.id
+  const hasDesign = hasDesignBreakFields(blocker.design_break)
+  const summaryLines = designBreakSummaryLines(blocker.design_break)
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+      {isEditing ? (
+        <div className="space-y-3">
+          <label className="font-body block text-xs font-medium text-muted-foreground">Habit to break (name)</label>
+          <input
+            value={draftName}
+            onChange={(e) => setDraftName(e.target.value)}
+            className="font-body w-full h-10 px-3 rounded-lg border border-border bg-card text-sm text-foreground"
+          />
+          <div>
+            <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">4 laws: break this habit</p>
+            <DesignBreakForm value={draftDesign} onChange={setDraftDesign} />
+          </div>
+          <div className="flex gap-2 pt-2">
+            <button type="button" onClick={onSave} className="h-9 px-3 rounded-lg bg-[#e87722] text-white text-sm font-medium">Save</button>
+            <button type="button" onClick={() => setEditingBlockerId(null)} className="h-9 px-3 rounded-lg border text-sm">Cancel</button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <p className="font-heading font-medium text-foreground">{blocker.name}</p>
+              <p className="font-body text-xs text-muted-foreground mt-0.5">Undermines: {identityStatement}</p>
+              {summaryLines.length > 0 && (
+                <div className="mt-1.5 space-y-0.5">
+                  {summaryLines.map((line, i) => (
+                    <p key={i} className="font-body text-xs text-muted-foreground">{line}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-0.5 shrink-0">
+              <button type="button" onClick={onDelete} className="p-1.5 text-muted-foreground hover:text-red-600 rounded-md hover:bg-card" aria-label="Delete">
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+          <div className="mt-2 flex items-center gap-3 flex-wrap">
+            <Link
+              href={`/dashboard/identities/${blocker.identity_id}?blockers=1`}
+              className="font-body inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-primary"
+            >
+              <Users className="h-3.5 w-3.5" /> View on identity
+            </Link>
+            <button type="button" onClick={() => { setEditingBlockerId(blocker.id); setDraftName(blocker.name); setDraftDesign({ ...EMPTY_DESIGN_BREAK, ...blocker.design_break }); }} className="font-body inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground">
+              <Pencil className="h-3.5 w-3.5" /> Edit
+            </button>
+            {blocker.habit_id && (
+              <Link href={`/dashboard/habits/${blocker.habit_id}`} className="font-body inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-primary" aria-label="View calendar">
+                <Calendar className="h-3.5 w-3.5" /> View calendar
+              </Link>
+            )}
+            <Link
+              href={`/dashboard/identities/${blocker.identity_id}?blockers=1`}
+              className="font-body inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-primary"
+            >
+              <FileSignature className="h-3.5 w-3.5" /> Contract
+            </Link>
+          </div>
+          {!hasDesign && (
+            <button
+              type="button"
+              onClick={() => { setEditingBlockerId(blocker.id); setDraftName(blocker.name); setDraftDesign({ ...EMPTY_DESIGN_BREAK, ...blocker.design_break }); }}
+              className="mt-2 font-body inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+            >
               <Sparkles className="h-3.5 w-3.5" /> Design this habit
             </button>
           )}
