@@ -489,7 +489,7 @@ export default function PartnersPage() {
                                             <div className="flex items-center justify-between gap-2 mb-2">
                                               <span className="font-body text-sm font-medium text-foreground">{h.name}</span>
                                               {streak > 0 && (
-                                                <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-400/20 to-orange-500/20 border border-amber-400/40 text-amber-800 px-2 py-0.5 font-body text-xs font-semibold">
+                                                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 border border-amber-400/60 text-amber-900 dark:bg-amber-900/30 dark:border-amber-500/50 dark:text-amber-100 px-2 py-0.5 font-body text-xs font-semibold">
                                                   <Flame className="h-3.5 w-3.5 text-orange-500" />
                                                   {streak} day{streak !== 1 ? 's' : ''}
                                                 </span>

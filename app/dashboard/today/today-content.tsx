@@ -537,7 +537,7 @@ export function TodayContent(props: TodayContentProps) {
                       <span
                         className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold font-body ${
                           h.current_streak > 0
-                            ? 'bg-gradient-to-r from-amber-400/20 to-orange-500/20 border border-amber-400/40 text-amber-800'
+                            ? 'bg-amber-100 border border-amber-400/60 text-amber-900 dark:bg-amber-900/30 dark:border-amber-500/50 dark:text-amber-100'
                             : 'bg-muted text-muted-foreground'
                         }`}
                       >

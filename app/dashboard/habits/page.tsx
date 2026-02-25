@@ -1118,8 +1118,8 @@ function HabitCard({
                 </p>
               )}
               {(habit.current_streak > 0) && (
-                <span className="inline-flex items-center gap-1.5 mt-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r from-amber-400/20 to-orange-500/20 border border-amber-400/40 text-amber-800 dark:text-amber-200 font-body text-xs font-semibold">
-                  <Flame className="h-3.5 w-3.5 text-orange-500" />
+                <span className="inline-flex items-center gap-1.5 mt-1.5 px-2.5 py-1 rounded-full bg-amber-100 border border-amber-400/60 text-amber-900 dark:bg-amber-900/30 dark:border-amber-500/50 dark:text-amber-100 font-body text-xs font-semibold">
+                  <Flame className="h-3.5 w-3.5 text-orange-600 dark:text-amber-400" />
                   {habit.current_streak} day{habit.current_streak !== 1 ? 's' : ''} streak
                 </span>
               )}
