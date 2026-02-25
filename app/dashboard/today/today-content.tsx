@@ -537,14 +537,14 @@ export function TodayContent(props: TodayContentProps) {
                       <span
                         className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold font-body ${
                           h.current_streak > 0
-                            ? 'bg-amber-100 border border-amber-400/60 text-amber-900 dark:bg-amber-900/30 dark:border-amber-500/50 dark:text-amber-100'
+                            ? 'bg-amber-100 border border-amber-500/70 text-amber-900 dark:bg-amber-900/30 dark:border-amber-500/50 dark:text-amber-100'
                             : 'bg-muted text-muted-foreground'
                         }`}
                       >
                         {h.current_streak > 0 && (
-                          <Flame className="w-3.5 h-3.5 text-orange-500" />
+                          <Flame className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" />
                         )}
-                        {h.current_streak} day{h.current_streak !== 1 ? 's' : ''}
+                        {h.current_streak > 0 ? `${h.current_streak}d streak` : '0d streak'}
                       </span>
                       {h.total_completions > 0 && (
                         <span className="font-body text-xs text-muted-foreground">

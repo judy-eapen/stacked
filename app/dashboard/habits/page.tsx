@@ -1118,9 +1118,9 @@ function HabitCard({
                 </p>
               )}
               {(habit.current_streak > 0) && (
-                <span className="inline-flex items-center gap-1.5 mt-1.5 px-2.5 py-1 rounded-full bg-amber-100 border border-amber-400/60 text-amber-900 dark:bg-amber-900/30 dark:border-amber-500/50 dark:text-amber-100 font-body text-xs font-semibold">
-                  <Flame className="h-3.5 w-3.5 text-orange-600 dark:text-amber-400" />
-                  {habit.current_streak} day{habit.current_streak !== 1 ? 's' : ''} streak
+                <span className="inline-flex items-center gap-1.5 mt-1.5 px-2.5 py-1 rounded-full bg-amber-100 border border-amber-500/70 text-amber-900 font-body text-xs font-semibold dark:bg-amber-900/30 dark:border-amber-500/50 dark:text-amber-100">
+                  <Flame className="h-3.5 w-3.5 text-amber-700 dark:text-amber-400" />
+                  {habit.current_streak}d streak
                 </span>
               )}
               {stackLabel && <StackChainView anchorLabel={stackLabel.replace(/^After "/, '').replace(/"$/, '')} habitName={habit.name} className="mt-1" />}
@@ -1138,11 +1138,7 @@ function HabitCard({
             <button
               type="button"
               onClick={() => onToggleCalendar(habit.id)}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-body text-xs font-medium transition-colors ${
-                expandedCalendarHabitId === habit.id
-                  ? 'border-primary/50 bg-primary/15 text-primary'
-                  : 'border-border bg-muted/50 text-foreground hover:border-primary/40 hover:bg-primary/10'
-              }`}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 py-1.5 font-body text-xs font-medium text-foreground transition-colors hover:border-border hover:bg-muted"
               aria-label="View calendar"
               aria-expanded={expandedCalendarHabitId === habit.id}
             >
@@ -1151,14 +1147,14 @@ function HabitCard({
             <button
               type="button"
               onClick={() => setEditingId(habit.id)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 py-1.5 font-body text-xs font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-primary/10"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 py-1.5 font-body text-xs font-medium text-foreground transition-colors hover:border-border hover:bg-muted"
               aria-label="Edit"
             >
               <Pencil className="h-3.5 w-3.5" /> Edit
             </button>
             <Link
               href="/dashboard/partners"
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 py-1.5 font-body text-xs font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-primary/10"
+              className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/70 bg-emerald-50 px-3 py-1.5 font-body text-xs font-medium text-emerald-800 transition-colors hover:bg-emerald-100 hover:border-emerald-600/80"
             >
               <Users className="h-3.5 w-3.5" /> {sharedWithNames.length > 0 ? `Shared with ${sharedWithNames.join(', ')}` : 'Share with partners'}
             </Link>
@@ -1166,14 +1162,16 @@ function HabitCard({
               type="button"
               onClick={() => onUpdate({ push_notification_enabled: !(habit.push_notification_enabled ?? false) })}
               className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-body text-xs font-medium transition-colors ${
-                habit.push_notification_enabled ? 'border-primary/50 bg-primary/15 text-primary' : 'border-border bg-muted/50 text-foreground hover:border-primary/40 hover:bg-primary/10'
+                habit.push_notification_enabled
+                  ? 'border-sky-500/80 bg-sky-100 text-sky-900 hover:bg-sky-200'
+                  : 'border-sky-500/70 bg-sky-50 text-sky-800 hover:bg-sky-100 hover:border-sky-600/80'
               }`}
             >
               <Bell className="h-3.5 w-3.5" /> {habit.push_notification_enabled ? 'Reminders on' : 'Reminders'}
             </button>
             <Link
               href={`/dashboard/habits/${habit.id}/contract`}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 py-1.5 font-body text-xs font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-primary/10"
+              className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/70 bg-amber-50 px-3 py-1.5 font-body text-xs font-medium text-amber-900 transition-colors hover:bg-amber-100 hover:border-amber-600/80"
             >
               <FileSignature className="h-3.5 w-3.5" /> Contract
             </Link>
