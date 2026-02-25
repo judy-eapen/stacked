@@ -537,7 +537,7 @@ export function TodayContent(props: TodayContentProps) {
                       <span
                         className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold font-body ${
                           h.current_streak > 0
-                            ? 'bg-primary/10 text-primary'
+                            ? 'bg-primary/5 border border-primary/25 text-primary'
                             : 'bg-muted text-muted-foreground'
                         }`}
                       >
