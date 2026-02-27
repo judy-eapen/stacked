@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { logWarn } from '@/lib/logger'
 import { toDateString } from '@/lib/streaks'
 
 export const dynamic = 'force-dynamic'
@@ -24,7 +25,7 @@ export async function GET(request: Request) {
   }
 
   const url = new URL(request.url)
-  const dashboard = url.searchParams.get('dashboard') === '1'
+  const includeDashboard = url.searchParams.get('dashboard') === '1'
 
   const { data: rows, error } = await supabase
     .from('partnerships')
@@ -102,8 +103,12 @@ export async function GET(request: Request) {
       const prof = profileMap[pid]
       habit_shares_by_habit[hid].push({ partner_id: pid, display_name: prof?.display_name ?? null })
     }
-  } catch {
-    // table might not exist yet
+  } catch (error) {
+    logWarn('Failed to load habit_partner_shares; continuing without share metadata', {
+      user_id: user.id,
+      route: '/api/partners',
+      detail: error instanceof Error ? error.message : String(error),
+    })
   }
 
   const partnersWithSharedIds = partners.map((p) => ({
@@ -123,7 +128,7 @@ export async function GET(request: Request) {
   }[] = []
   let last_active_by_partner: Record<string, string> = {}
 
-  if (dashboard || true) {
+  if (includeDashboard) {
     const { data: pendingRows } = await supabase
       .from('partnerships')
       .select('id, created_at, invite_token')
@@ -228,7 +233,8 @@ export async function GET(request: Request) {
     summary_text: string
     created_at: string
   }[] = []
-  try {
+  if (includeDashboard) {
+    try {
     const { data: shareRows } = await supabase
       .from('partner_checkin_shares')
       .select('id, sender_id, checkin_date, personal_message, summary_text, created_at')
@@ -255,8 +261,13 @@ export async function GET(request: Request) {
         created_at: r.created_at,
       }))
     }
-  } catch {
-    // table might not exist yet
+    } catch (error) {
+      logWarn('Failed to load partner_checkin_shares; continuing without received check-ins', {
+        user_id: user.id,
+        route: '/api/partners',
+        detail: error instanceof Error ? error.message : String(error),
+      })
+    }
   }
 
   return NextResponse.json({

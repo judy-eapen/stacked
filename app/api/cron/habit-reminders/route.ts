@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { validateCronRequest } from '@/lib/cron-auth'
 import {
   getHabitsForReminderAtHour,
   buildHabitReminderEmailHtml,
@@ -85,10 +86,8 @@ function formatTimeLabel(hour: number, minute: number): string {
 
 /** Run once per day. Schedules habit reminder emails with Resend's scheduledAt so Resend sends at the right time (no hourly cron). */
 export async function GET(request: Request) {
-  const authHeader = request.headers.get('authorization')
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const cronAuthError = validateCronRequest(request)
+  if (cronAuthError) return cronAuthError
 
   const resendKey = process.env.RESEND_API_KEY
   if (!resendKey) {

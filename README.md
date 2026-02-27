@@ -73,11 +73,20 @@ If Google sign-in works locally but not in production, check: (1) production cal
 
 ## Scripts
 
-| Command        | Description              |
-|----------------|--------------------------|
-| `npm run dev`  | Start dev server         |
-| `npm run build`| Production build         |
-| `npm run start`| Run production build     |
+| Command               | Description                                       |
+|-----------------------|---------------------------------------------------|
+| `npm run dev`         | Start dev server                                  |
+| `npm run build`       | Production build                                  |
+| `npm run start`       | Run production build                              |
+| `npm run test:e2e`    | Run E2E test suite                                |
+| `npm run test:e2e:auth` | Run authenticated E2E workflows                |
+| `npm run test:e2e:unauth` | Run unauthenticated auth workflows           |
+| `npm run guard:tests` | Fail if feature files changed without test updates |
+| `npm run verify:e2e`  | Enforce guard then run full E2E suite             |
+
+## Testing (E2E)
+
+Playwright E2E tests cover auth, dashboard, identities, habits, today, partners, settings, and review. See **`tests/README.md`** for setup and workflow details, including required env (`TEST_USER_EMAIL`, `TEST_USER_PASSWORD` for authenticated flows).
 
 ## Keeping this README up to date
 

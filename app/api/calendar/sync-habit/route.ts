@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { logWarn } from '@/lib/logger'
 import {
   getCalendarClient,
   habitToEventPayload,
@@ -62,8 +63,14 @@ export async function POST(request: Request) {
     if (habit.google_event_id) {
       try {
         await deleteEvent(calendar, targetCalendarId, habit.google_event_id)
-      } catch {
-        // event may already be deleted
+      } catch (error) {
+        logWarn('Failed to delete calendar event for removed habit; continuing cleanup', {
+          user_id: user.id,
+          route: '/api/calendar/sync-habit',
+          habit_id: habitId,
+          event_id: habit.google_event_id,
+          detail: error instanceof Error ? error.message : String(error),
+        })
       }
       await admin.from('habits').update({ google_event_id: null }).eq('id', habitId).eq('user_id', user.id)
     }

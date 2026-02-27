@@ -1,15 +1,14 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { validateCronRequest } from '@/lib/cron-auth'
 import { getStackContextForPush } from '@/lib/push'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
 export async function GET(request: Request) {
-  const authHeader = request.headers.get('authorization')
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const cronAuthError = validateCronRequest(request)
+  if (cronAuthError) return cronAuthError
 
   const appId = process.env.ONESIGNAL_APP_ID
   const apiKey = process.env.ONESIGNAL_REST_API_KEY

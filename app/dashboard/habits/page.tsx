@@ -1,505 +1,80 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { format } from 'date-fns'
 import { createClient } from '@/lib/supabase/client'
-import type { DesignBuild } from '@/lib/db-types'
 import { DesignBreakForm, EMPTY_DESIGN_BREAK, trimDesignBreak } from '@/components/DesignBreakForm'
-import { StackChainView } from '@/components/stack-chain-view'
-import type { DesignBreak } from '@/lib/db-types'
-import { Plus, Trash2, Bell, Users, FileSignature, Sparkles, Pencil, Calendar, TrendingUp, MinusCircle, Flame } from 'lucide-react'
-
-type HabitFrequency = 'daily' | 'weekdays' | 'weekends' | 'custom'
-
-interface ImplementationIntention {
-  behavior?: string
-  time?: string
-  location?: string
-}
-
-interface Habit {
-  id: string
-  user_id: string
-  identity_id: string | null
-  name: string
-  two_minute_version: string | null
-  implementation_intention: ImplementationIntention | null
-  stack_anchor_scorecard_id: string | null
-  stack_anchor_habit_id: string | null
-  temptation_bundle: string | null
-  design_build: DesignBuild | null
-  frequency: HabitFrequency
-  custom_days: number[] | null
-  is_active: boolean
-  is_shared: boolean
-  push_notification_enabled: boolean
-  email_reminder_time: string | null
-  sort_order: number
-  current_streak: number
-  last_completed_date: string | null
-  created_at: string
-  updated_at: string
-  archived_at: string | null
-}
-
-interface IdentityOption {
-  id: string
-  statement: string
-  sort_order: number
-}
-
-interface ScorecardAnchor {
-  id: string
-  habit_name: string
-}
-
-interface HabitToBreak {
-  id: string
-  user_id: string
-  identity_id: string
-  habit_id: string | null
-  name: string
-  design_break: DesignBreak | null
-  created_at: string
-  updated_at: string
-}
-
-const EMPTY_DESIGN_BUILD: DesignBuild = {
-  obvious: { clear_cue: '', visible_trigger: '', implementation_intention: '' },
-  attractive: { pair_with_enjoyment: '', identity_reframe: '', temptation_bundling: '' },
-  easy: { reduce_friction: '', two_minute_rule: '', environment_design: '' },
-  satisfying: { immediate_reward: '', track_streak: '', celebrate_completion: '' },
-}
-
-function isEmptyDesignBuild(d: DesignBuild | null | undefined): boolean {
-  if (!d) return true
-  const keys = ['obvious', 'attractive', 'easy', 'satisfying'] as const
-  for (const law of keys) {
-    const section = d[law]
-    if (section && typeof section === 'object') {
-      for (const v of Object.values(section)) {
-        if (typeof v === 'string' && v.trim()) return false
-      }
-    }
-  }
-  return true
-}
-
-function trimDesignBuild(d: DesignBuild | null | undefined): DesignBuild | null {
-  if (!d) return null
-  const out: DesignBuild = {}
-  const keys = ['obvious', 'attractive', 'easy', 'satisfying'] as const
-  for (const law of keys) {
-    const section = d[law]
-    if (section && typeof section === 'object') {
-      const trimmed: Record<string, string> = {}
-      for (const [k, v] of Object.entries(section)) {
-        if (typeof v === 'string') trimmed[k] = v.trim()
-      }
-      if (Object.keys(trimmed).length) (out as Record<string, unknown>)[law] = trimmed
-    }
-  }
-  return Object.keys(out).length ? out : null
-}
-
-function hasDesignBreakFields(d: DesignBreak | null | undefined): boolean {
-  if (!d) return false
-  const keys = ['invisible', 'unattractive', 'difficult', 'unsatisfying'] as const
-  for (const law of keys) {
-    const section = d[law]
-    if (section && typeof section === 'object') {
-      for (const v of Object.values(section)) {
-        if (typeof v === 'string' && v.trim()) return true
-      }
-    }
-  }
-  return false
-}
-
-function designBreakSummaryLines(d: DesignBreak | null | undefined): string[] {
-  const lines: string[] = []
-  if (!d) return lines
-  const labels: Record<string, string> = {
-    invisible: 'Invisible',
-    unattractive: 'Unattractive',
-    difficult: 'Difficult',
-    unsatisfying: 'Unsatisfying',
-  }
-  const keys = ['invisible', 'unattractive', 'difficult', 'unsatisfying'] as const
-  for (const law of keys) {
-    const section = d[law]
-    if (section && typeof section === 'object') {
-      const first = (Object.values(section) as string[]).find((v) => typeof v === 'string' && v.trim())
-      if (first) lines.push(`${labels[law]}: ${first.trim()}`)
-    }
-  }
-  return lines
-}
-
-function designBreakStrategySummary(d: DesignBreak | null | undefined): string {
-  const lines = designBreakSummaryLines(d)
-  if (lines.length === 0) return ''
-  return lines.map((l) => l.replace(/^[A-Za-z]+: /, '')).join('. ')
-}
-
-function DesignBuildForm({ value, onChange }: { value: DesignBuild; onChange: (v: DesignBuild) => void }) {
-  const d = {
-    obvious: { ...EMPTY_DESIGN_BUILD.obvious, ...value?.obvious },
-    attractive: { ...EMPTY_DESIGN_BUILD.attractive, ...value?.attractive },
-    easy: { ...EMPTY_DESIGN_BUILD.easy, ...value?.easy },
-    satisfying: { ...EMPTY_DESIGN_BUILD.satisfying, ...value?.satisfying },
-  }
-  const set = (law: keyof DesignBuild, field: string, val: string) => {
-    onChange({
-      ...value,
-      [law]: { ...d[law], [field]: val },
-    })
-  }
-  return (
-    <div className="space-y-4">
-      <div>
-        <p className="text-xs font-medium text-gray-700 mb-1">1. Make it obvious</p>
-        <input placeholder="Clear cue" value={d.obvious?.clear_cue ?? ''} onChange={(e) => set('obvious', 'clear_cue', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm mb-1" />
-        <input placeholder="Visible trigger" value={d.obvious?.visible_trigger ?? ''} onChange={(e) => set('obvious', 'visible_trigger', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm mb-1" />
-        <input placeholder="Implementation intention (e.g. After I pour coffee, I journal.)" value={d.obvious?.implementation_intention ?? ''} onChange={(e) => set('obvious', 'implementation_intention', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm" />
-        <p className="text-[11px] text-gray-500 mt-0.5">Stacking: After [current habit], I will [new habit].</p>
-      </div>
-      <div>
-        <p className="text-xs font-medium text-gray-700 mb-1">2. Make it attractive</p>
-        <input placeholder="Pair with something you enjoy" value={d.attractive?.pair_with_enjoyment ?? ''} onChange={(e) => set('attractive', 'pair_with_enjoyment', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm mb-1" />
-        <input placeholder="Reframe as identity-driven" value={d.attractive?.identity_reframe ?? ''} onChange={(e) => set('attractive', 'identity_reframe', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm mb-1" />
-        <input placeholder="Temptation bundling" value={d.attractive?.temptation_bundling ?? ''} onChange={(e) => set('attractive', 'temptation_bundling', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm" />
-        <p className="text-[11px] text-gray-500 mt-0.5">Pair the habit with something you enjoy (e.g. podcast only while walking).</p>
-      </div>
-      <div>
-        <p className="text-xs font-medium text-gray-700 mb-1">3. Make it easy</p>
-        <input placeholder="Reduce friction" value={d.easy?.reduce_friction ?? ''} onChange={(e) => set('easy', 'reduce_friction', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm mb-1" />
-        <input placeholder="2-minute rule" value={d.easy?.two_minute_rule ?? ''} onChange={(e) => set('easy', 'two_minute_rule', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm mb-1" />
-        <p className="text-[11px] text-gray-500 mt-0.5">Start with a version that takes under 2 minutes so you can do it every day.</p>
-        <input placeholder="Environment design" value={d.easy?.environment_design ?? ''} onChange={(e) => set('easy', 'environment_design', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm" />
-      </div>
-      <div>
-        <p className="text-xs font-medium text-gray-700 mb-1">4. Make it satisfying</p>
-        <input placeholder="Immediate reward" value={d.satisfying?.immediate_reward ?? ''} onChange={(e) => set('satisfying', 'immediate_reward', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm mb-1" />
-        <input placeholder="Track streak" value={d.satisfying?.track_streak ?? ''} onChange={(e) => set('satisfying', 'track_streak', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm mb-1" />
-        <input placeholder="Celebrate completion" value={d.satisfying?.celebrate_completion ?? ''} onChange={(e) => set('satisfying', 'celebrate_completion', e.target.value)} className="w-full h-9 px-3 rounded border border-gray-200 text-sm" />
-      </div>
-    </div>
-  )
-}
-
-function formatReminderTime(t: string): string {
-  const s = String(t).slice(0, 5)
-  const [h, m] = s.split(':').map((x) => parseInt(x, 10) || 0)
-  if (h === 0 && m === 0) return '12:00 AM'
-  if (h === 0) return `12:${String(m).padStart(2, '0')} AM`
-  if (h < 12) return `${h}:${String(m).padStart(2, '0')} AM`
-  if (h === 12) return `12:${String(m).padStart(2, '0')} PM`
-  return `${h - 12}:${String(m).padStart(2, '0')} PM`
-}
-
-function hasDesignFields(h: Habit): boolean {
-  if (!isEmptyDesignBuild(h.design_build ?? null)) return true
-  const hasIntention = h.implementation_intention && (
-    (h.implementation_intention.behavior ?? '').trim() ||
-    (h.implementation_intention.time ?? '').trim() ||
-    (h.implementation_intention.location ?? '').trim()
-  )
-  return !!(
-    hasIntention ||
-    (h.two_minute_version ?? '').trim() ||
-    (h.temptation_bundle ?? '').trim() ||
-    h.stack_anchor_scorecard_id ||
-    h.stack_anchor_habit_id
-  )
-}
+import { Plus, TrendingUp, MinusCircle } from 'lucide-react'
+import { DesignBuildForm } from './DesignBuildForm'
+import { HabitCard } from './HabitCard'
+import { BlockerCard } from './BlockerCard'
+import { hasDesignFields } from './utils'
+import { useHabitsPageState } from './useHabitsPageState'
 
 export default function HabitsPage() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const [habits, setHabits] = useState<Habit[]>([])
-  const [identities, setIdentities] = useState<IdentityOption[]>([])
-  const [scorecardEntries, setScorecardEntries] = useState<ScorecardAnchor[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [showAddForm, setShowAddForm] = useState(false)
-  const [showDesignSection, setShowDesignSection] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
-
-  const [draftName, setDraftName] = useState('')
-  const [draftIdentityId, setDraftIdentityId] = useState<string | null>(null)
-  const [draftStackScorecardId, setDraftStackScorecardId] = useState<string | null>(null)
-  const [draftStackHabitId, setDraftStackHabitId] = useState<string | null>(null)
-  const [draftDesignBuild, setDraftDesignBuild] = useState<DesignBuild>(() => ({ ...EMPTY_DESIGN_BUILD }))
-  const [habitsToBreak, setHabitsToBreak] = useState<HabitToBreak[]>([])
-  const [showBlockerForm, setShowBlockerForm] = useState(false)
-  const [blockerDraftName, setBlockerDraftName] = useState('')
-  const [blockerDraftHabitId, setBlockerDraftHabitId] = useState<string | null>(null)
-  const [blockerDraftDesign, setBlockerDraftDesign] = useState<DesignBreak>(() => ({ ...EMPTY_DESIGN_BREAK }))
-  const [editingBlockerId, setEditingBlockerId] = useState<string | null>(null)
-  const [addingBlockerHabitId, setAddingBlockerHabitId] = useState<string | null>(null)
-  const [habitFilter, setHabitFilter] = useState<'all' | 'reinforcing' | 'blocking'>('all')
-  const [expandedCalendarHabitId, setExpandedCalendarHabitId] = useState<string | null>(null)
-  const [calendarCompletions, setCalendarCompletions] = useState<Record<string, Set<string>>>({})
-  const [calendarLoading, setCalendarLoading] = useState<string | null>(null)
-  const [habitSharesByHabit, setHabitSharesByHabit] = useState<Record<string, { partner_id: string; display_name: string | null }[]>>({})
-
-  const fetchAll = useCallback(async () => {
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    const [habitsRes, identitiesRes, scorecardRes, habitsToBreakRes] = await Promise.all([
-      supabase.from('habits').select('*').eq('user_id', user.id).is('archived_at', null).order('sort_order', { ascending: true }),
-      supabase.from('identities').select('id, statement, sort_order').eq('user_id', user.id).order('sort_order', { ascending: true }),
-      supabase.from('scorecard_entries').select('id, habit_name').eq('user_id', user.id).order('sort_order', { ascending: true }),
-      supabase.from('habits_to_break').select('*').eq('user_id', user.id),
-    ])
-    if (habitsRes.error) {
-      setError(habitsRes.error.message)
-      setHabits([])
-    } else {
-      setHabits((habitsRes.data ?? []) as Habit[])
-      setError(null)
-    }
-    if (identitiesRes.error) setIdentities([])
-    else setIdentities((identitiesRes.data ?? []) as IdentityOption[])
-    if (scorecardRes.error) setScorecardEntries([])
-    else setScorecardEntries((scorecardRes.data ?? []) as ScorecardAnchor[])
-    if (habitsToBreakRes.error) setHabitsToBreak([])
-    else setHabitsToBreak((habitsToBreakRes.data ?? []) as HabitToBreak[])
-  }, [])
-
-  useEffect(() => {
-    fetchAll().finally(() => setLoading(false))
-  }, [fetchAll])
-
-  useEffect(() => {
-    fetch('/api/partners', { credentials: 'include' })
-      .then((r) => r.json())
-      .then((d) => setHabitSharesByHabit(d.habit_shares_by_habit ?? {}))
-      .catch(() => {})
-  }, [habits.length])
-
-  useEffect(() => {
-    if (!expandedCalendarHabitId) return
-    if (calendarCompletions[expandedCalendarHabitId]) return
-    const to = new Date()
-    const from = new Date()
-    from.setDate(from.getDate() - 29)
-    const fromStr = from.toISOString().slice(0, 10)
-    const toStr = to.toISOString().slice(0, 10)
-    setCalendarLoading(expandedCalendarHabitId)
-    fetch(`/api/habits/${expandedCalendarHabitId}/streaks?from=${fromStr}&to=${toStr}`, { credentials: 'include' })
-      .then((r) => r.json())
-      .then((data) => {
-        const dates = (data.completions ?? [])
-          .filter((c: { completed: boolean }) => c.completed)
-          .map((c: { date: string }) => c.date)
-        const set: Set<string> = new Set(dates)
-        setCalendarCompletions((prev) => ({ ...prev, [expandedCalendarHabitId]: set }))
-      })
-      .catch(() => {})
-      .finally(() => setCalendarLoading(null))
-  }, [expandedCalendarHabitId])
-
-  const identityParam = searchParams.get('identity')
-  const modeParam = searchParams.get('mode')
-  const newParam = searchParams.get('new')
-  const addBlockerFor = searchParams.get('addBlockerFor')
-
-  useEffect(() => {
-    if (searchParams.get('add') === '1') setShowAddForm(true)
-    if (identityParam) setDraftIdentityId(identityParam)
-    if (newParam === '1' || (identityParam && modeParam === 'reinforce')) setShowAddForm(true)
-  }, [searchParams, identityParam, modeParam, newParam])
-
-  const activeHabits = habits.filter((h) => h.is_active)
-  const addBlockerForIdentity = addBlockerFor ? identities.find((i) => i.id === addBlockerFor) : null
-  const unlinkedHabitsForBlocker = activeHabits.filter((h) => h.identity_id == null)
-  const addAsBlockerForIdentity = async (habitId: string) => {
-    if (!addBlockerFor) return
-    const habit = activeHabits.find((h) => h.id === habitId)
-    if (!habit) return
-    setAddingBlockerHabitId(habitId)
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setAddingBlockerHabitId(null); return }
-    const name = habit.name.trim().slice(0, 200)
-    const { error: err } = await supabase
-      .from('habits_to_break')
-      .upsert({ user_id: user.id, identity_id: addBlockerFor, habit_id: habitId, name, design_break: null }, { onConflict: 'identity_id' })
-    setAddingBlockerHabitId(null)
-    if (err) setError(err.message)
-    else router.push(`/dashboard/identities/${addBlockerFor}?blockers=1`)
-  }
-  const habitsByIdentity = useMemo(() => {
-    const map = new Map<string | null, Habit[]>()
-    map.set(null, [])
-    identities.forEach((idn) => map.set(idn.id, []))
-    activeHabits.forEach((h) => {
-      const key = h.identity_id ?? null
-      const list = map.get(key) ?? []
-      list.push(h)
-      map.set(key, list)
-    })
-    return map
-  }, [activeHabits, identities])
-
-  const blockersByIdentity = useMemo(() => {
-    const map = new Map<string, HabitToBreak[]>()
-    identities.forEach((idn) => map.set(idn.id, []))
-    habitsToBreak.forEach((h) => {
-      const list = map.get(h.identity_id) ?? []
-      list.push(h)
-      map.set(h.identity_id, list)
-    })
-    return map
-  }, [habitsToBreak, identities])
-
-  const identityGroups = useMemo(() => {
-    return identities.filter((idn) => {
-      const reinforcing = (habitsByIdentity.get(idn.id) ?? []).length
-      const blocking = (blockersByIdentity.get(idn.id) ?? []).length
-      if (habitFilter === 'all') return reinforcing > 0 || blocking > 0
-      if (habitFilter === 'reinforcing') return reinforcing > 0
-      return blocking > 0
-    })
-  }, [identities, habitsByIdentity, blockersByIdentity, habitFilter])
-
-  const activeCount = activeHabits.length
-  const onStreakCount = activeHabits.filter((h) => h.current_streak > 0).length
-  const identitiesWithHabitsCount = identities.filter(
-    (idn) => (habitsByIdentity.get(idn.id) ?? []).length > 0
-  ).length
-
-  const resetCreateForm = () => {
-    setDraftName('')
-    setDraftIdentityId(null)
-    setDraftStackScorecardId(null)
-    setDraftStackHabitId(null)
-    setDraftDesignBuild({ ...EMPTY_DESIGN_BUILD })
-    setShowDesignSection(false)
-    setShowAddForm(false)
-  }
-
-  const createHabit = async () => {
-    const name = draftName.trim().slice(0, 200)
-    if (!name) return
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    const db = trimDesignBuild(draftDesignBuild)
-    const intentionFromBuild = db?.obvious?.implementation_intention?.trim()
-    const intention = intentionFromBuild
-      ? { behavior: intentionFromBuild.slice(0, 200), time: undefined, location: undefined }
-      : null
-    const twoMinFromBuild = db?.easy?.two_minute_rule?.trim()
-    const temptationFromBuild = db?.attractive?.temptation_bundling?.trim()
-    const onlyOneStack = draftStackScorecardId ? { stack_anchor_scorecard_id: draftStackScorecardId, stack_anchor_habit_id: null } : draftStackHabitId ? { stack_anchor_scorecard_id: null, stack_anchor_habit_id: draftStackHabitId } : {}
-    const isAddingAsBlocker = Boolean(addBlockerFor)
-    const { data: inserted, error: err } = await supabase
-      .from('habits')
-      .insert({
-        user_id: user.id,
-        identity_id: isAddingAsBlocker ? null : (draftIdentityId || null),
-        name,
-        two_minute_version: twoMinFromBuild?.slice(0, 200) || null,
-        implementation_intention: intention,
-        temptation_bundle: temptationFromBuild?.slice(0, 500) || null,
-        design_build: isEmptyDesignBuild(db ?? null) ? null : db,
-        frequency: 'daily',
-        sort_order: habits.length,
-        ...onlyOneStack,
-      })
-      .select('id')
-      .single()
-    if (err) {
-      setError(err.message)
-      return
-    }
-    if (inserted?.id) {
-      fetch('/api/calendar/sync-habit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ habitId: inserted.id }),
-      }).catch(() => {})
-    }
-    if (isAddingAsBlocker && addBlockerFor) {
-      const { error: breakErr } = await supabase
-        .from('habits_to_break')
-        .upsert({ user_id: user.id, identity_id: addBlockerFor, habit_id: inserted.id, name, design_break: null }, { onConflict: 'identity_id' })
-      resetCreateForm()
-      fetchAll()
-      if (breakErr) setError(breakErr.message)
-      else router.push(`/dashboard/identities/${addBlockerFor}?blockers=1`)
-      return
-    }
-    const identityForRedirect = draftIdentityId || identityParam || null
-    resetCreateForm()
-    fetchAll()
-    if (identityForRedirect) {
-      router.push(`/dashboard/identities/${identityForRedirect}`)
-    }
-  }
-
-  const updateHabit = async (habitId: string, updates: Partial<Habit>) => {
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    const { error: err } = await supabase.from('habits').update(updates).eq('id', habitId).eq('user_id', user.id)
-    if (err) setError(err.message)
-    else {
-      setEditingId(null)
-      fetchAll()
-      fetch('/api/calendar/sync-habit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ habitId }),
-      }).catch(() => {})
-    }
-  }
-
-  const deleteHabit = async (id: string) => {
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    await fetch('/api/calendar/sync-habit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ habitId: id, remove: true }),
-    }).catch(() => {})
-    const { error: err } = await supabase.from('habits').delete().eq('id', id).eq('user_id', user.id)
-    if (err) setError(err.message)
-    else {
-      setEditingId(null)
-      fetchAll()
-    }
-  }
-
-  const getStackLabel = (h: Habit): string | null => {
-    if (h.stack_anchor_scorecard_id) {
-      const e = scorecardEntries.find((e) => e.id === h.stack_anchor_scorecard_id)
-      return e ? `After "${e.habit_name}"` : null
-    }
-    if (h.stack_anchor_habit_id) {
-      const other = habits.find((o) => o.id === h.stack_anchor_habit_id)
-      return other ? `After "${other.name}"` : null
-    }
-    return null
-  }
-
-  const intentionString = (h: Habit): string | null => {
-    const i = h.implementation_intention
-    if (!i || (!i.behavior && !i.time && !i.location)) return null
-    const parts = []
-    if (i.behavior) parts.push(i.behavior)
-    if (i.time) parts.push(`at ${i.time}`)
-    if (i.location) parts.push(`in ${i.location}`)
-    return parts.length ? `I will ${parts.join(' ')}` : null
-  }
-
+  const {
+    router,
+    identityParam,
+    modeParam,
+    addBlockerFor,
+    loading,
+    error,
+    setError,
+    showAddForm,
+    setShowAddForm,
+    showDesignSection,
+    setShowDesignSection,
+    editingId,
+    setEditingId,
+    draftName,
+    setDraftName,
+    draftIdentityId,
+    setDraftIdentityId,
+    draftStackScorecardId,
+    setDraftStackScorecardId,
+    draftStackHabitId,
+    setDraftStackHabitId,
+    draftDesignBuild,
+    setDraftDesignBuild,
+    habitsToBreak,
+    showBlockerForm,
+    setShowBlockerForm,
+    blockerDraftName,
+    setBlockerDraftName,
+    blockerDraftHabitId,
+    setBlockerDraftHabitId,
+    blockerDraftDesign,
+    setBlockerDraftDesign,
+    editingBlockerId,
+    setEditingBlockerId,
+    addingBlockerHabitId,
+    habitFilter,
+    setHabitFilter,
+    expandedCalendarHabitId,
+    setExpandedCalendarHabitId,
+    calendarCompletions,
+    calendarLoading,
+    habitSharesByHabit,
+    fetchAll,
+    activeHabits,
+    addBlockerForIdentity,
+    unlinkedHabitsForBlocker,
+    addAsBlockerForIdentity,
+    habitsByIdentity,
+    blockersByIdentity,
+    identityGroups,
+    activeCount,
+    onStreakCount,
+    identitiesWithHabitsCount,
+    resetCreateForm,
+    createHabit,
+    updateHabit,
+    deleteHabit,
+    getStackLabel,
+    intentionString,
+    habits,
+    identities,
+    scorecardEntries,
+  } = useHabitsPageState()
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
@@ -858,8 +433,6 @@ export default function HabitsPage() {
                           identities={identities}
                           linkToIdentityId={null}
                           linkToIdentityStatement={null}
-                          scorecardEntries={scorecardEntries}
-                          habits={habits}
                           getStackLabel={getStackLabel}
                           intentionString={intentionString}
                           hasDesignFields={hasDesignFields(h)}
@@ -887,7 +460,6 @@ export default function HabitsPage() {
                         <BlockerCard
                           key={h.id}
                           blocker={h}
-                          identityStatement={idn.statement}
                           editingBlockerId={editingBlockerId}
                           setEditingBlockerId={setEditingBlockerId}
                           draftName={blockerDraftName}
@@ -941,8 +513,6 @@ export default function HabitsPage() {
                     identities={identities}
                     linkToIdentityId={identityParam && modeParam === 'reinforce' ? identityParam : null}
                     linkToIdentityStatement={identityParam && modeParam === 'reinforce' ? identities.find((idn) => idn.id === identityParam)?.statement ?? null : null}
-                    scorecardEntries={scorecardEntries}
-                    habits={habits}
                     getStackLabel={getStackLabel}
                     intentionString={intentionString}
                     hasDesignFields={hasDesignFields(h)}
@@ -962,402 +532,6 @@ export default function HabitsPage() {
           )}
         </div>
       )}
-    </div>
-  )
-}
-
-interface HabitCardProps {
-  habit: Habit
-  identityStatement: string | null
-  identities: IdentityOption[]
-  linkToIdentityId: string | null
-  linkToIdentityStatement: string | null
-  scorecardEntries: ScorecardAnchor[]
-  habits: Habit[]
-  getStackLabel: (h: Habit) => string | null
-  intentionString: (h: Habit) => string | null
-  hasDesignFields: boolean
-  editingId: string | null
-  setEditingId: (id: string | null) => void
-  onUpdate: (updates: Partial<Habit>) => void
-  onDelete: () => void
-  expandedCalendarHabitId: string | null
-  calendarCompletions: Record<string, Set<string>>
-  calendarLoading: string | null
-  onToggleCalendar: (habitId: string) => void
-  sharedWithNames: string[]
-}
-
-function HabitCard({
-  habit,
-  identityStatement,
-  identities,
-  linkToIdentityId,
-  linkToIdentityStatement,
-  getStackLabel,
-  intentionString,
-  hasDesignFields,
-  editingId,
-  setEditingId,
-  onUpdate,
-  onDelete,
-  expandedCalendarHabitId,
-  calendarCompletions,
-  calendarLoading,
-  onToggleCalendar,
-  sharedWithNames,
-}: HabitCardProps) {
-  const [editName, setEditName] = useState(habit.name)
-  const [editIdentityId, setEditIdentityId] = useState<string | null>(habit.identity_id)
-  const [editEmailReminderTime, setEditEmailReminderTime] = useState<string>(
-    habit.email_reminder_time ? String(habit.email_reminder_time).slice(0, 5) : ''
-  )
-  const prevEditingRef = useRef(false)
-  useEffect(() => {
-    if (editingId === habit.id && !prevEditingRef.current) {
-      setEditName(habit.name)
-      setEditIdentityId(habit.identity_id)
-      setEditEmailReminderTime(habit.email_reminder_time ? String(habit.email_reminder_time).slice(0, 5) : '')
-    }
-    prevEditingRef.current = editingId === habit.id
-  }, [editingId, habit.id, habit.name, habit.identity_id, habit.email_reminder_time])
-  const [editDesignBuild, setEditDesignBuild] = useState<DesignBuild>(() => ({
-    ...EMPTY_DESIGN_BUILD,
-    ...habit.design_build,
-    obvious: { ...EMPTY_DESIGN_BUILD.obvious, ...habit.design_build?.obvious },
-    attractive: { ...EMPTY_DESIGN_BUILD.attractive, ...habit.design_build?.attractive },
-    easy: { ...EMPTY_DESIGN_BUILD.easy, ...habit.design_build?.easy },
-    satisfying: { ...EMPTY_DESIGN_BUILD.satisfying, ...habit.design_build?.satisfying },
-  }))
-  const isEditing = editingId === habit.id
-
-  const saveEdit = () => {
-    const db = trimDesignBuild(editDesignBuild)
-    const intentionFromBuild = db?.obvious?.implementation_intention?.trim()
-    const twoMinRaw = (db?.easy?.two_minute_rule?.trim() ?? habit.two_minute_version ?? '').trim().slice(0, 200)
-    const temptationRaw = (db?.attractive?.temptation_bundling?.trim() ?? habit.temptation_bundle ?? '').trim().slice(0, 500)
-    const emailTime = editEmailReminderTime.trim() ? editEmailReminderTime.trim().slice(0, 5) : null
-    onUpdate({
-      name: editName.trim().slice(0, 200) || habit.name,
-      identity_id: editIdentityId || null,
-      design_build: isEmptyDesignBuild(db ?? null) ? null : db,
-      implementation_intention: intentionFromBuild ? { behavior: intentionFromBuild.slice(0, 200), time: undefined, location: undefined } : habit.implementation_intention,
-      two_minute_version: twoMinRaw || null,
-      temptation_bundle: temptationRaw || null,
-      email_reminder_time: emailTime,
-    })
-  }
-
-  const stackLabel = getStackLabel(habit)
-  const intention = intentionString(habit)
-
-  return (
-    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-      {isEditing ? (
-        <div className="space-y-3">
-          <label className="font-body block text-xs font-medium text-muted-foreground">Habit name</label>
-          <input value={editName} onChange={(e) => setEditName(e.target.value)} className="font-body w-full h-10 px-3 rounded-lg border border-border bg-card text-sm text-foreground" />
-          <div>
-            <label className="font-body block text-xs font-medium text-muted-foreground mb-1">Identity</label>
-            <select
-              value={editIdentityId ?? ''}
-              onChange={(e) => setEditIdentityId(e.target.value || null)}
-              className="font-body w-full h-10 px-3 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-            >
-              <option value="">Unlinked</option>
-              {identities.map((idn) => (
-                <option key={idn.id} value={idn.id}>{idn.statement}</option>
-              ))}
-            </select>
-          </div>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={habit.push_notification_enabled ?? false}
-              onChange={(e) => onUpdate({ push_notification_enabled: e.target.checked })}
-              className="rounded border-gray-300 text-[#e87722] focus:ring-[#e87722]"
-            />
-            <span className="text-xs font-medium text-gray-700">Push reminders</span>
-          </label>
-          <div>
-            <label htmlFor={`email-reminder-${habit.id}`} className="font-body block text-xs font-medium text-muted-foreground mb-1">Email reminder at</label>
-            <input
-              id={`email-reminder-${habit.id}`}
-              type="time"
-              value={editEmailReminderTime}
-              onChange={(e) => setEditEmailReminderTime(e.target.value)}
-              className="font-body h-10 px-3 rounded-lg border border-border bg-card text-sm text-foreground"
-            />
-            <p className="text-xs text-muted-foreground mt-0.5">You’ll get an email at this time (your timezone from Settings) to check in on this habit. Leave empty for no email.</p>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">4 laws: build this habit</p>
-            <DesignBuildForm value={editDesignBuild} onChange={setEditDesignBuild} />
-          </div>
-          <div className="flex gap-2 pt-2">
-            <button type="button" onClick={saveEdit} className="h-9 px-3 rounded-lg bg-[#e87722] text-white text-sm font-medium">Save</button>
-            <button type="button" onClick={() => setEditingId(null)} className="h-9 px-3 rounded-lg border text-sm">Cancel</button>
-          </div>
-        </div>
-      ) : (
-        <>
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 flex-1">
-              <Link href={`/dashboard/habits/${habit.id}`} className="font-heading font-medium text-foreground hover:text-primary">
-                {habit.name}
-              </Link>
-              {identityStatement && <p className="font-body text-xs text-muted-foreground mt-0.5">{identityStatement}</p>}
-              {sharedWithNames.length > 0 && (
-                <p className="font-body text-xs text-muted-foreground mt-0.5">
-                  Shared with: {sharedWithNames.join(', ')}
-                </p>
-              )}
-              {habit.email_reminder_time && (
-                <p className="font-body text-xs text-muted-foreground mt-0.5">
-                  Email reminder at {formatReminderTime(habit.email_reminder_time)}
-                </p>
-              )}
-              {(habit.current_streak > 0) && (
-                <span className="inline-flex items-center gap-1.5 mt-1.5 px-2.5 py-1 rounded-full bg-primary/5 border border-primary/25 text-primary font-body text-xs font-semibold">
-                  <Flame className="h-3.5 w-3.5 text-primary" />
-                  {habit.current_streak}d streak
-                </span>
-              )}
-              {stackLabel && <StackChainView anchorLabel={stackLabel.replace(/^After "/, '').replace(/"$/, '')} habitName={habit.name} className="mt-1" />}
-              {intention && <p className="font-body text-xs text-muted-foreground mt-0.5">{intention}</p>}
-              {habit.two_minute_version && <p className="font-body text-xs text-muted-foreground mt-0.5">2-min: {habit.two_minute_version}</p>}
-              {habit.temptation_bundle && <p className="font-body text-xs text-muted-foreground mt-0.5">Reward: {habit.temptation_bundle}</p>}
-            </div>
-            <div className="flex items-center gap-0.5 shrink-0">
-              <button type="button" onClick={onDelete} className="p-1.5 text-muted-foreground hover:text-red-600 rounded-md hover:bg-card" aria-label="Delete">
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => onToggleCalendar(habit.id)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 py-1.5 font-body text-xs font-medium text-foreground transition-colors hover:border-border hover:bg-muted"
-              aria-label="View calendar"
-              aria-expanded={expandedCalendarHabitId === habit.id}
-            >
-              <Calendar className="h-3.5 w-3.5" /> {expandedCalendarHabitId === habit.id ? 'Close calendar' : 'View calendar'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setEditingId(habit.id)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 py-1.5 font-body text-xs font-medium text-foreground transition-colors hover:border-border hover:bg-muted"
-              aria-label="Edit"
-            >
-              <Pencil className="h-3.5 w-3.5" /> Edit
-            </button>
-            <Link
-              href="/dashboard/partners"
-              className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/70 bg-emerald-50 px-3 py-1.5 font-body text-xs font-medium text-emerald-800 transition-colors hover:bg-emerald-100 hover:border-emerald-600/80"
-            >
-              <Users className="h-3.5 w-3.5" /> {sharedWithNames.length > 0 ? `Shared with ${sharedWithNames.join(', ')}` : 'Share with partners'}
-            </Link>
-            <button
-              type="button"
-              onClick={() => onUpdate({ push_notification_enabled: !(habit.push_notification_enabled ?? false) })}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-body text-xs font-medium transition-colors ${
-                habit.push_notification_enabled
-                  ? 'border-sky-500/80 bg-sky-100 text-sky-900 hover:bg-sky-200'
-                  : 'border-sky-500/70 bg-sky-50 text-sky-800 hover:bg-sky-100 hover:border-sky-600/80'
-              }`}
-            >
-              <Bell className="h-3.5 w-3.5" /> {habit.push_notification_enabled ? 'Reminders on' : 'Reminders'}
-            </button>
-            <Link
-              href={`/dashboard/habits/${habit.id}/contract`}
-              className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/70 bg-amber-50 px-3 py-1.5 font-body text-xs font-medium text-amber-900 transition-colors hover:bg-amber-100 hover:border-amber-600/80"
-            >
-              <FileSignature className="h-3.5 w-3.5" /> Contract
-            </Link>
-          </div>
-          {expandedCalendarHabitId === habit.id && (
-            <div className="mt-3 pt-3 border-t border-border">
-              <p className="font-body text-[10px] text-muted-foreground mb-1.5">Last 30 days</p>
-              {calendarLoading === habit.id ? (
-                <p className="font-body text-xs text-muted-foreground">Loading…</p>
-              ) : (
-                <div
-                  className="grid gap-0.5 max-w-[200px]"
-                  style={{ gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' }}
-                >
-                  {(() => {
-                    const completedSet = calendarCompletions[habit.id]
-                    const todayStr = format(new Date(), 'yyyy-MM-dd')
-                    const cells: string[] = []
-                    const d = new Date()
-                    for (let i = 29; i >= 0; i--) {
-                      const x = new Date(d)
-                      x.setDate(d.getDate() - i)
-                      cells.push(x.toISOString().slice(0, 10))
-                    }
-                    return cells.map((dateStr) => {
-                      const completed = completedSet?.has(dateStr) ?? false
-                      const isToday = dateStr === todayStr
-                      return (
-                        <div
-                          key={dateStr}
-                          title={dateStr}
-                          className={`aspect-square rounded flex items-center justify-center text-[9px] font-body ${
-                            completed
-                              ? 'bg-primary text-primary-foreground'
-                              : isToday
-                                ? 'bg-muted text-foreground ring-1 ring-primary'
-                                : 'bg-muted/50 text-muted-foreground'
-                          }`}
-                        >
-                          {new Date(dateStr + 'T12:00:00').getDate()}
-                        </div>
-                      )
-                    })
-                  })()}
-                </div>
-              )}
-            </div>
-          )}
-          {linkToIdentityId && linkToIdentityStatement && (
-            <button
-              type="button"
-              onClick={() => onUpdate({ identity_id: linkToIdentityId })}
-              className="mt-3 inline-flex h-9 items-center justify-center rounded-full bg-primary px-4 font-body text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
-            >
-              Add to identity
-            </button>
-          )}
-          {!hasDesignFields && (
-            <button
-              type="button"
-              onClick={() => setEditingId(habit.id)}
-              className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-primary/50 bg-primary/10 px-3 py-1.5 font-body text-xs font-medium text-primary transition-colors hover:bg-primary/15"
-            >
-              <Sparkles className="h-3.5 w-3.5" /> Design this habit
-            </button>
-          )}
-        </>
-      )}
-    </div>
-  )
-}
-
-interface BlockerCardProps {
-  blocker: HabitToBreak
-  identityStatement: string
-  editingBlockerId: string | null
-  setEditingBlockerId: (id: string | null) => void
-  draftName: string
-  setDraftName: (s: string) => void
-  draftDesign: DesignBreak
-  setDraftDesign: (d: DesignBreak) => void
-  onSave: () => void
-  onDelete: () => void
-}
-
-function BlockerCard({
-  blocker,
-  identityStatement,
-  editingBlockerId,
-  setEditingBlockerId,
-  draftName,
-  setDraftName,
-  draftDesign,
-  setDraftDesign,
-  onSave,
-  onDelete,
-}: BlockerCardProps) {
-  const isEditing = editingBlockerId === blocker.id
-  const hasDesign = hasDesignBreakFields(blocker.design_break)
-  const strategySummary = designBreakStrategySummary(blocker.design_break)
-
-  return (
-    <div className="rounded-2xl border border-red-200 bg-red-50/50 shadow-sm overflow-hidden flex">
-      <div className="w-1 shrink-0 bg-red-400" aria-hidden />
-      <div className="flex-1 min-w-0 p-4">
-        {isEditing ? (
-          <div className="space-y-3">
-            <label className="font-body block text-xs font-medium text-muted-foreground">Habit to break (name)</label>
-            <input
-              value={draftName}
-              onChange={(e) => setDraftName(e.target.value)}
-              className="font-body w-full h-10 px-3 rounded-lg border border-border bg-card text-sm text-foreground"
-            />
-            <div>
-              <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">4 laws: break this habit</p>
-              <DesignBreakForm value={draftDesign} onChange={setDraftDesign} />
-            </div>
-            <div className="flex gap-2 pt-2">
-              <button type="button" onClick={onSave} className="h-9 px-3 rounded-lg bg-[#e87722] text-white text-sm font-medium">Save</button>
-              <button type="button" onClick={() => setEditingBlockerId(null)} className="h-9 px-3 rounded-lg border text-sm">Cancel</button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <p className="font-heading font-medium text-red-800 line-through">{blocker.name}</p>
-                <p className="font-body text-xs text-red-700/80 mt-1 flex items-center gap-1">
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500" aria-hidden />
-                  Still active
-                </p>
-              </div>
-              <div className="flex items-center gap-0.5 shrink-0">
-                <button type="button" onClick={onDelete} className="p-1.5 text-red-700/70 hover:text-red-600 rounded-md hover:bg-red-100" aria-label="Delete">
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-            {strategySummary ? (
-              <div className="mt-3 pt-3 border-t border-red-200/60">
-                <p className="font-body text-xs font-semibold uppercase tracking-wide text-red-800 mb-1">Strategy to break it</p>
-                <p className="font-body text-sm text-red-900/90">{strategySummary}</p>
-              </div>
-            ) : null}
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Link
-                href={`/dashboard/identities/${blocker.identity_id}?blockers=1`}
-                className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50/80 px-3 py-1.5 font-body text-xs font-medium text-red-800 transition-colors hover:border-red-400 hover:bg-red-100"
-              >
-                <Users className="h-3.5 w-3.5" /> View on identity
-              </Link>
-              <button
-                type="button"
-                onClick={() => { setEditingBlockerId(blocker.id); setDraftName(blocker.name); setDraftDesign({ ...EMPTY_DESIGN_BREAK, ...blocker.design_break }); }}
-                className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50/80 px-3 py-1.5 font-body text-xs font-medium text-red-800 transition-colors hover:border-red-400 hover:bg-red-100"
-              >
-                <Pencil className="h-3.5 w-3.5" /> Edit
-              </button>
-              {blocker.habit_id && (
-                <Link
-                  href={`/dashboard/habits/${blocker.habit_id}`}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50/80 px-3 py-1.5 font-body text-xs font-medium text-red-800 transition-colors hover:border-red-400 hover:bg-red-100"
-                  aria-label="View calendar"
-                >
-                  <Calendar className="h-3.5 w-3.5" /> View calendar
-                </Link>
-              )}
-              <Link
-                href={`/dashboard/identities/${blocker.identity_id}?blockers=1`}
-                className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50/80 px-3 py-1.5 font-body text-xs font-medium text-red-800 transition-colors hover:border-red-400 hover:bg-red-100"
-              >
-                <FileSignature className="h-3.5 w-3.5" /> Contract
-              </Link>
-            </div>
-            {!hasDesign && (
-              <button
-                type="button"
-                onClick={() => { setEditingBlockerId(blocker.id); setDraftName(blocker.name); setDraftDesign({ ...EMPTY_DESIGN_BREAK, ...blocker.design_break }); }}
-                className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-red-400 bg-red-100/80 px-3 py-1.5 font-body text-xs font-medium text-red-800 transition-colors hover:bg-red-200"
-              >
-                <Sparkles className="h-3.5 w-3.5" /> Design this habit
-              </button>
-            )}
-          </>
-        )}
-      </div>
     </div>
   )
 }

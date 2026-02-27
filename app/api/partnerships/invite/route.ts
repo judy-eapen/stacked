@@ -32,8 +32,7 @@ export async function POST(request: Request) {
 
   const origin =
     process.env.NEXT_PUBLIC_APP_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
-    (request.headers.get('referer') ? new URL(request.headers.get('referer')!).origin : null)
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
   const invite_url = origin ? `${origin}/invite/${invite_token}` : `/invite/${invite_token}`
 
   const { error } = await supabase.from('partnerships').insert({

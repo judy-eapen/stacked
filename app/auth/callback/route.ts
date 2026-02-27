@@ -14,7 +14,11 @@ export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const { searchParams, origin } = requestUrl
   const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/dashboard'
+  const rawNext = searchParams.get('next')
+  const next =
+    rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//')
+      ? rawNext
+      : '/dashboard'
   const redirectUrl = `${origin}${next.startsWith('/') ? next : `/${next}`}`
   const isProduction = origin.startsWith('https://')
 

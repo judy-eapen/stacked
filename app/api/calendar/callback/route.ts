@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
 import { google } from 'googleapis'
 import { encrypt } from '@/lib/encrypt'
+import { logWarn } from '@/lib/logger'
 import {
   getCalendarClient,
   habitToEventPayload,
@@ -109,8 +110,12 @@ export async function GET(request: Request) {
         await admin.from('habits').update({ google_event_id: eventId }).eq('id', habit.id)
       }
     }
-  } catch {
-    // Sync best-effort; user is still connected
+  } catch (error) {
+    logWarn('Calendar backfill sync failed after connect; user remains connected', {
+      user_id: user.id,
+      route: '/api/calendar/callback',
+      detail: error instanceof Error ? error.message : String(error),
+    })
   }
 
   return NextResponse.redirect(`${settingsUrl}?calendar=connected`)

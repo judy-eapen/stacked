@@ -114,7 +114,7 @@ export default function PartnersPage() {
   const [partnerViewLoading, setPartnerViewLoading] = useState<Record<string, boolean>>({})
 
   const fetchPartners = useCallback(() => {
-    return fetch('/api/partners', { credentials: 'include' })
+    return fetch('/api/partners?dashboard=1', { credentials: 'include' })
       .then((r) => r.json())
       .then((d) => {
         setData({

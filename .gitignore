@@ -25,6 +25,11 @@ yarn-error.log*
 *.swp
 *.swo
 
+# E2E auth state (session storage)
+tests/e2e/.auth/
+test-results/
+playwright-report/
+
 # OS
 .DS_Store
 Thumbs.db
